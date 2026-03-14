@@ -1,0 +1,1990 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MR AI - Cheksiz Xotira</title>
+    
+    <!-- Fonts & Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-polyfill/7.12.1/polyfill.min.js"></script>
+    
+    <!-- MathJax -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        /* === ROOT VARIABLES === */
+        :root {
+            --bg-void: #020204;
+            --bg-surface: #07080c;
+            --accent-primary: #56B3FA;        /* Asosiy och ko'k */
+            --accent-cyan: #56B3FA;            /* Och ko'k */
+            --accent-gradient: linear-gradient(135deg, #56B3FA 0%, #56B3FA 100%);
+            --glass-ultra: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --text-prime: #f8fafc;
+            --text-sec: #94a3b8;
+            --sidebar-w: 300px;
+            --transit: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+
+        /* === GLOBAL STYLES === */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+        body { background: var(--bg-void); color: var(--text-prime); height: 100dvh; display: flex; overflow: hidden; }
+        
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #56B3FA; }
+
+        /* === AUTH SCREEN === */
+        #auth-screen { position: fixed; inset: 0; z-index: 99999; background: var(--bg-void); display: flex; align-items: center; justify-content: center; }
+        .auth-card { background: var(--bg-surface); border: 1px solid var(--glass-border); padding: 45px; border-radius: 35px; width: 92%; max-width: 450px; box-shadow: 0 30px 60px rgba(0,0,0,0.8); }
+        .auth-logo { text-align: center; margin-bottom: 35px; }
+        .auth-logo i { font-size: 45px; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .auth-tabs { display: grid; grid-template-columns: 1fr 1fr; background: rgba(0,0,0,0.3); padding: 5px; border-radius: 15px; margin-bottom: 30px; }
+        .auth-tab { padding: 12px; text-align: center; cursor: pointer; border-radius: 12px; transition: var(--transit); font-weight: 600; opacity: 0.5; }
+        .auth-tab.active { background: var(--accent-gradient); color: #000; opacity: 1; }
+        .auth-input { width: 100%; padding: 16px; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 14px; color: white; margin-top: 8px; outline: none; transition: var(--transit); }
+        .auth-input:focus { border-color: #56B3FA; box-shadow: 0 0 15px rgba(86, 179, 250, 0.1); }
+        .auth-btn { width: 100%; padding: 16px; border-radius: 14px; border: none; background: var(--accent-gradient); color: #000; font-weight: 800; cursor: pointer; margin-top: 20px; transition: var(--transit); }
+        .auth-btn:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 10px 20px rgba(86, 179, 250, 0.3); filter: brightness(1.1); }
+
+        /* === SIDEBAR === */
+        #sidebar { position: fixed; left: calc(-1 * var(--sidebar-w)); top: 0; bottom: 0; width: var(--sidebar-w); background: rgba(10, 11, 16, 0.95); backdrop-filter: blur(15px); border-right: 1px solid var(--glass-border); display: flex; flex-direction: column; transition: var(--transit); z-index: 9000; }
+        body.sidebar-open #sidebar { left: 0; }
+        #history-box { flex: 1; overflow-y: auto; padding: 15px; }
+        .history-item { padding: 12px 15px; margin: 5px 0; border-radius: 10px; cursor: pointer; color: var(--text-sec); display: flex; align-items: center; justify-content: space-between; transition: var(--transit); border: 1px solid transparent; }
+        .history-item span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80%; display: block; }
+        .history-item i { opacity: 0; transition: var(--transit); }
+        .history-item:hover { background: var(--glass-ultra); border-color: var(--glass-border); padding-left: 20px; color: #56B3FA; }
+        .history-item:hover i { opacity: 1; }
+        .history-item.active-chat { background: rgba(86, 179, 250, 0.2) !important; color: #fff !important; border-left: 4px solid #56B3FA !important; }
+
+        /* === MAIN CONTAINER === */
+        #main { flex: 1; display: flex; flex-direction: column; position: relative; transition: var(--transit); width: 100%; }
+        @media (min-width: 768px) { body.sidebar-open #main { margin-left: var(--sidebar-w); } }
+
+        /* === HEADER === */
+        header {
+            height: 75px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 35px;
+            margin: 15px 20px 0 20px;
+            border-radius: 18px;
+            border: 1px solid var(--glass-border);
+            background: rgba(3, 3, 5, 0.7);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+
+        /* === CHAT WINDOW === */
+        #chat-window { 
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 40px 10% 200px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 30px; 
+            scroll-behavior: smooth; 
+        }
+        
+        @media (max-width: 768px) {
+            #chat-window { padding: 20px 5% 150px; }
+            .input-wrapper { padding: 20px 5% !important; }
+            header { padding: 0 15px; }
+        }
+
+        /* === MESSAGE BUBBLES === */
+        .msg-container { width: 100%; display: flex; gap: 15px; padding: 10px 0; animation: msgPop 0.4s ease forwards; }
+        .msg-ai { flex-direction: column; align-items: flex-start; }
+        .msg-ai .bubble { width: 100% !important; background: transparent !important; padding: 0 !important; }
+        .msg-user { flex-direction: row-reverse; }
+        .msg-user .bubble { background: rgba(255, 255, 255, 0.05); padding: 15px 20px; border-radius: 20px 20px 4px 20px; max-width: 85%; }
+        
+        /* === MARKDOWN CONTENT === */
+        .ai-text { width: 100%; line-height: 1.6; }
+        .ai-text h1, .ai-text h2, .ai-text h3 { color: #56B3FA; margin: 15px 0 10px; }
+        .ai-text h1 { font-size: 2em; border-bottom: 1px solid var(--glass-border); padding-bottom: 8px; }
+        .ai-text h2 { font-size: 1.5em; }
+        .ai-text h3 { font-size: 1.2em; }
+        .ai-text p { margin: 10px 0; color: var(--text-prime); }
+        .ai-text ul, .ai-text ol { margin: 10px 0 10px 20px; color: var(--text-sec); }
+        .ai-text li { margin: 5px 0; }
+        .ai-text code { background: rgba(86, 179, 250, 0.1); padding: 2px 5px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.9em; color: #56B3FA; }
+        .ai-text pre { margin: 15px 0; background: #011627 !important; padding: 20px !important; border-radius: 15px !important; overflow-x: auto; position: relative; }
+        .ai-text blockquote { border-left: 3px solid #56B3FA; padding-left: 15px; color: var(--text-sec); font-style: italic; margin: 15px 0; }
+        .ai-text table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+        .ai-text th { background: rgba(86, 179, 250, 0.2); color: #56B3FA; padding: 10px; border: 1px solid var(--glass-border); }
+        .ai-text td { padding: 8px 10px; border: 1px solid var(--glass-border); }
+        .ai-text tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+        .ai-text a { color: #56B3FA; text-decoration: none; }
+        .ai-text a:hover { text-decoration: underline; }
+        .ai-text img { max-width: 100%; border-radius: 8px; }
+
+        /* === COPY BUTTON ON CODE BLOCKS === */
+        .copy-btn { 
+            position: absolute; 
+            top: 10px; 
+            right: 10px; 
+            background: rgba(86, 179, 250, 0.2); 
+            border: 1px solid #56B3FA; 
+            color: white; 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 12px; 
+            z-index: 10;
+            transition: all 0.3s ease;
+        }
+        .copy-btn:hover { background: rgba(86, 179, 250, 0.4); }
+        .copy-btn.copied { background: var(--success); border-color: var(--success); }
+
+        /* === ACTION BUTTONS (COPY & SPEAK) === */
+        .actions-footer {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            opacity: 0.6;
+            transition: opacity 0.3s ease;
+        }
+        .msg-ai:hover .actions-footer { opacity: 1; }
+        .copy-text-btn, .speaker-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-sec);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: var(--transit);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+        .copy-text-btn:hover, .speaker-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #56B3FA;
+            border-color: #56B3FA;
+        }
+        .speaker-btn.active {
+            background: var(--accent-gradient);
+            color: #000;
+            border: none;
+        }
+
+        /* === FLOATING AUDIO PLAYER === */
+        .audio-toast {
+            display: none;
+            position: fixed;
+            bottom: 120px;
+            right: 30px;
+            background: var(--bg-surface);
+            border: 1px solid var(--glass-border);
+            padding: 12px 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 1000;
+            width: 250px;
+        }
+        .audio-toast.show { display: block; animation: slideUp 0.3s ease; }
+        .toast-content { display: flex; align-items: center; gap: 12px; }
+        .progress-bar {
+            flex: 1;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            cursor: pointer;
+            position: relative;
+        }
+        .progress-bar:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        #toast-fill {
+            height: 100%;
+            background: #56B3FA;
+            width: 0%;
+            transition: width 0.1s linear;
+            pointer-events: none;
+        }
+        #audio-pause-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #56B3FA;
+            color: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        #audio-pause-btn:hover {
+            transform: scale(1.1);
+            background: #56B3FA;
+            color: white;
+        }
+        #audio-pause-btn.paused i::before {
+            content: "\f04b"; /* Play icon */
+        }
+        .custom-icon-btn {
+            background: none;
+            border: none;
+            color: var(--text-sec);
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        /* === MODE SELECTOR === */
+        .mode-selector { position: relative; margin-right: -5px; }
+        #mode-trigger-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border);
+            color: #56B3FA;
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: var(--transit);
+        }
+        #mode-trigger-btn:hover { background: rgba(86, 179, 250, 0.1); }
+        .mode-menu {
+            position: absolute;
+            bottom: 50px;
+            left: 0;
+            background: #111218;
+            border: 1px solid var(--glass-border);
+            border-radius: 15px;
+            width: 150px;
+            display: none;
+            flex-direction: column;
+            padding: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 100;
+        }
+        .mode-menu.show { display: flex; animation: slideUp 0.3s ease; }
+        .mode-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            color: var(--text-sec);
+            transition: 0.3s;
+            font-size: 14px;
+        }
+        .mode-option:hover { background: rgba(255,255,255,0.05); color: white; }
+        .mode-option.active { color: #56B3FA; background: rgba(86, 179, 250, 0.1); }
+
+        /* === INPUT AREA === */
+        .input-wrapper { 
+            position: absolute; 
+            bottom: 0; 
+            left: 0; 
+            width: 100%; 
+            padding: 40px 10%; 
+            background: linear-gradient(transparent, var(--bg-void) 30%); 
+            z-index: 20; 
+        }
+        .input-box { 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            background: #111218; 
+            border: 1px solid var(--glass-border); 
+            border-radius: 30px; 
+            padding: 12px 20px; 
+            display: flex; 
+            align-items: flex-end; 
+            gap: 15px; 
+            transition: var(--transit); 
+        }
+        .input-box:focus-within { 
+            border-color: #56B3FA; 
+            box-shadow: 0 0 25px rgba(86, 179, 250, 0.15); 
+            background: #161821; 
+        }
+        textarea { 
+            flex: 1; 
+            background: transparent; 
+            border: none; 
+            color: white; 
+            outline: none; 
+            resize: none; 
+            padding: 10px 0; 
+            font-size: 16px; 
+            max-height: 150px; 
+            overflow-y: auto; 
+        }
+
+        .send-btn {
+            background: #56B3FA;
+            border: none;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .send-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(86, 179, 250, 0.4);
+        }
+
+        .send-btn:active {
+            transform: scale(0.9);
+        }
+
+        .send-btn i {
+            color: #000;
+            font-size: 18px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: absolute;
+        }
+
+        .send-btn[data-status="idle"] .fa-paper-plane {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .send-btn[data-status="idle"] .fa-stop {
+            opacity: 0;
+            transform: scale(0.5);
+            pointer-events: none;
+        }
+
+        .send-btn[data-status="streaming"] {
+            background: #FFFFFF;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+        }
+
+        .send-btn[data-status="streaming"] .fa-paper-plane {
+            opacity: 0;
+            transform: scale(0.5);
+            pointer-events: none;
+        }
+
+        .send-btn[data-status="streaming"] .fa-stop {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* === MEMORY INDICATOR === */
+        .memory-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 8px;
+            background: rgba(86, 179, 250, 0.2);
+            border-radius: 12px;
+            font-size: 12px;
+            color: #56B3FA;
+            margin-right: 10px;
+        }
+        .memory-indicator i { font-size: 10px; }
+
+        /* === MEMORY STATS === */
+        #memory-stats {
+            font-size: 12px;
+            color: #56B3FA;
+            margin-bottom: 10px;
+            padding: 8px;
+            background: rgba(86, 179, 250, 0.1);
+            border-radius: 8px;
+            line-height: 1.5;
+        }
+        #memory-quality {
+            font-size: 12px;
+            margin-bottom: 10px;
+            padding: 8px;
+            background: rgba(0,229,255,0.1);
+            border-radius: 8px;
+        }
+
+        /* === ANIMATIONS === */
+        @keyframes msgPop { 
+            from { opacity: 0; transform: translateY(15px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        @keyframes slideIn { 
+            from { opacity: 0; transform: translateY(30px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        @keyframes fadeOut { 
+            from { opacity: 1; transform: translateY(0); } 
+            to { opacity: 0; transform: translateY(-20px); } 
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .welcome-animation { animation: slideIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        .fade-out-anim { animation: fadeOut 0.5s ease forwards; }
+
+        /* === WELCOME SCREEN === */
+        #welcome-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            gap: 20px;
+        }
+
+        /* === SIDEBAR ACCOUNT SECTION === */
+        #sidebar {
+            display: flex;
+            flex-direction: column;
+        }
+
+        #history-box {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        #history-box::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        #history-box::-webkit-scrollbar-thumb {
+            background: var(--glass-border);
+            border-radius: 10px;
+        }
+
+        #history-box .history-item {
+            padding: 12px 15px;
+            margin: 5px 0;
+            border-radius: 10px;
+            cursor: pointer;
+            color: var(--text-sec);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+            font-size: 13px;
+        }
+
+        #history-box .history-item span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 80%;
+            display: block;
+        }
+
+        #history-box .history-item i {
+            opacity: 0;
+            transition: all 0.3s ease;
+            font-size: 12px;
+        }
+
+        #history-box .history-item:hover {
+            background: var(--glass-ultra);
+            border-color: var(--glass-border);
+            padding-left: 20px;
+            color: #56B3FA;
+        }
+
+        #history-box .history-item:hover i {
+            opacity: 1;
+        }
+
+        #history-box .history-item.active-chat {
+            background: rgba(86, 179, 250, 0.2) !important;
+            color: #fff !important;
+            border-left: 4px solid #56B3FA !important;
+            padding-left: 11px !important;
+        }
+    </style>
+</head>
+<body>
+
+<!-- === AUTH SCREEN === -->
+<div id="auth-screen">
+    <div class="auth-card">
+        <div class="auth-logo">
+            <h1 style="font-size: 2.5rem; font-weight: 800;">
+                <span style="color:white">MR</span>
+                <span style="color:#56B3FA">AI</span>
+            </h1>
+        </div>
+        <div class="auth-tabs">
+            <div id="tab-login" class="auth-tab active" onclick="switchAuth('login')">KIRISH</div>
+            <div id="tab-signup" class="auth-tab" onclick="switchAuth('signup')">RO'YHATDAN O'TISH</div>
+        </div>
+        <div id="login-form">
+            <input type="email" id="login-email" class="auth-input" placeholder="Email">
+            <input type="password" id="login-pass" class="auth-input" placeholder="Parol">
+            <button class="auth-btn" onclick="handleAuth('login')">KIRISH</button>
+        </div>
+        <div id="signup-form" style="display:none;">
+            <input type="email" id="signup-email" class="auth-input" placeholder="Yangi Email">
+            <input type="password" id="signup-pass" class="auth-input" placeholder="Yangi Parol">
+            <button class="auth-btn" onclick="handleAuth('signup')">RO'YHATDAN O'TISH</button>
+        </div>
+    </div>
+</div>
+
+<!-- === SIDEBAR === -->
+<aside id="sidebar">
+    <div style="padding: 25px; border-bottom: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+        <h2 style="font-size: 14px; color: #56B3FA;">XOTIRA ARXIVI</h2>
+        <button onclick="toggleSidebar()" style="background:none; border:none; color:white; font-size:20px; cursor:pointer;">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+    </div>
+    
+    <!-- HISTORY BOX -->
+    <div id="history-box" style="flex: 1; overflow-y: auto; padding: 15px;"></div>
+    
+    <!-- ACCOUNT SECTION -->
+    <div style="padding: 20px; border-top: 1px solid var(--glass-border);">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
+            <div id="user-initial" style="width: 40px; height: 40px; border-radius: 50%; background: #56B3FA; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; color: #000; text-transform: uppercase; box-shadow: 0 4px 10px rgba(86, 179, 250, 0.3);">
+                ?
+            </div>
+            <div style="flex: 1;">
+                <p id="u-mail" style="font-size: 13px; font-weight: 500; color: white; margin-bottom: 2px;"></p>
+                <p style="font-size: 11px; color: var(--text-sec);">Hisob</p>
+            </div>
+        </div>
+        
+        <button onclick="logout()" style="width:100%; padding: 12px; border-radius: 12px; border: none; background: rgba(239, 68, 68, 0.1); color: #ef4444; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.3s ease;">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>HISOBDAN CHIQISH</span>
+        </button>
+    </div>
+</aside>
+
+<!-- === MAIN CONTENT === -->
+<div id="main">
+    <header>
+        <button onclick="toggleSidebar()" style="background:none; border:none; color:white; font-size:20px; cursor:pointer;">
+            <i class="fas fa-bars-staggered"></i>
+        </button>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <h2 id="chat-header-title" style="font-size:1.2rem; font-weight:500;">
+                <span style="color:white">MR</span> 
+                <span style="color:#56B3FA">AI</span>
+            </h2>
+        </div>
+        <button onclick="createNewChat()" style="background:none; border:none; color:#56B3FA; font-size:20px; cursor:pointer;">
+            <i class="fas fa-edit"></i>
+        </button>
+    </header>
+    
+    <div id="chat-window"></div>
+    
+    <!-- === INPUT AREA === -->
+    <div class="input-wrapper">
+        <div class="input-box">
+            <div class="mode-selector">
+                <button id="mode-trigger-btn" onclick="toggleModeMenu()" title="Rejani tanlash">
+                    <i class="fas fa-bolt" id="current-mode-icon"></i>
+                </button>
+                <div id="mode-menu" class="mode-menu">
+                    <div class="mode-option active" onclick="setAIMode('fast')">
+                        <i class="fas fa-bolt"></i> <span>Tezkor</span>
+                    </div>
+                    <div class="mode-option" onclick="setAIMode('think')">
+                        <i class="fas fa-brain"></i> <span>Fikrlovchi</span>
+                    </div>
+                    <div class="mode-option" onclick="setAIMode('expert')">
+                        <i class="fas fa-star"></i> <span>Ekspert</span>
+                    </div>
+                </div>
+            </div>
+            <textarea id="user-input" placeholder="MR AI-dan so'rang..." rows="1" onkeydown="handleEnter(event)" oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'"></textarea>
+            <button id="send-btn" class="send-btn" data-status="idle" onclick="sendMessage()">
+                <i class="fas fa-paper-plane"></i>
+                <i class="fas fa-stop"></i>
+            </button>
+        </div>
+        
+        <!-- COPYRIGHT TEXT -->
+        <div style="text-align: center; margin-top: 12px; color: rgba(148, 163, 184, 0.5); font-size: 11px; font-weight: 300; letter-spacing: 0.5px;">
+            <span>Muhammadrasul tomonidan asos solingan!</span>
+        </div>
+    </div>
+    
+    <!-- FLOATING AUDIO PLAYER -->
+    <div id="floating-audio-player" class="audio-toast">
+        <div class="toast-content">
+            <button class="custom-icon-btn" onclick="closeAudioPlayerWithX()"><i class="fas fa-times"></i></button>
+            <div class="progress-bar" onclick="toggleAudioPause()">
+                <div id="toast-fill"></div>
+            </div>
+            <button class="custom-icon-btn" id="audio-pause-btn" onclick="toggleAudioPause()">
+                <i class="fas fa-pause"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ==================== FIREBASE KONFIGURATSIYASI ====================
+const firebaseConfig = {
+    apiKey: "AIzaSyDIAmMQNh8aJqnX_xXE4XhzRkssi6UZgxs",
+    authDomain: "mrtube-4ebaf.firebaseapp.com",
+    projectId: "mrtube-4ebaf",
+    storageBucket: "mrtube-4ebaf.firebasestorage.app",
+    messagingSenderId: "765811105706",
+    appId: "1:765811105706:web:c0e9a91573ba49612895d3",
+    measurementId: "G-EDXQSF5QFV"
+};
+
+// ==================== PROVIDERLAR ====================
+const PROVIDERS = {
+    chat: {
+        name: "Groq",
+        url: "https://api.groq.com/openai/v1/chat/completions",
+        model: "llama-3.3-70b-versatile"
+    },
+    summary: {
+        name: "Groq",
+        url: "https://api.groq.com/openai/v1/chat/completions",
+        model: "llama-3.3-70b-versatile"
+    }
+};
+
+// ==================== XOTIRA SOZLAMALARI ====================
+const MEMORY_CONFIG = {
+    LEVELS: {
+        0: { name: 'MIKRO', retention: 86400, aggregateSize: 5, weight: 0.1 },
+        1: { name: 'SUHBAT', retention: 604800, aggregateSize: 5, weight: 0.2 },
+        2: { name: 'MAVZU', retention: 2592000, aggregateSize: 3, weight: 0.3 },
+        3: { name: 'PROFIL', retention: -1, aggregateSize: 1, weight: 0.4 }
+    },
+    MAX_LEVEL0_IN_CONTEXT: 7,
+    GLOBAL_SUMMARY_MAX_LENGTH: 2000,
+    MIN_IMPORTANCE: 0.3
+};
+
+// ==================== REJIMLAR ====================
+let currentMode = 'fast';
+const MODES = {
+    fast: { 
+        model: "llama-3.3-70b-versatile",
+        icon: "fa-bolt", 
+        temperature: 0.9,
+        max_tokens: 500,
+        prompt: "TEZKOR rejim. Juda qisqa va lo'nda javob bering. 3-4 gapdan oshmasin."
+    },
+    think: { 
+        model: "llama-3.3-70b-versatile", 
+        icon: "fa-brain", 
+        temperature: 0.5,
+        max_tokens: 2000,
+        prompt: "FIKRLOVCHI rejim. Do'stona va tahliliy javob bering. Har bir masalani qadam-baqadam tushuntiring."
+    },
+    expert: { 
+        model: "llama-3.3-70b-versatile",
+        icon: "fa-star", 
+        temperature: 0.3,
+        max_tokens: 4000,
+        prompt: "EKSPERT rejim. LaTeX formulalardan foydalaning. Chuqur tahlil qiling."
+    }
+};
+
+// ==================== FIREBASE INIT ====================
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// ==================== GLOBAL O'ZGARUVCHILAR ====================
+let currentUser = null;
+let currentChatId = null;
+let messageCounter = 0;
+let chatHistory = [];
+let abortController = null;
+let chatKeys = {};
+let memoryCache = {
+    context: '',
+    timestamp: 0,
+    summaries: []
+};
+
+// ==================== API KEY MANAGER ====================
+class APIKeyManager {
+    constructor() {
+        this.keyPairs = [];
+        this.currentIndex = 0;
+        this.failedKeys = new Set();
+        this.maxRetriesPerKey = 3;
+    }
+
+    loadKeys(keysData) {
+        this.keyPairs = [];
+        const totalPairs = keysData.total_pairs || 0;
+        
+        for (let i = 1; i <= totalPairs; i++) {
+            const chatKey = keysData[`gk_chat_${i}`];
+            const summaryKey = keysData[`gk_sum_${i}`];
+            
+            if (chatKey && summaryKey) {
+                this.keyPairs.push({
+                    index: i,
+                    chat: chatKey,
+                    summary: summaryKey,
+                    isActive: true,
+                    failCount: 0,
+                    lastUsed: null
+                });
+            }
+        }
+        
+        console.log(`✅ ${this.keyPairs.length} ta API key jufti yuklandi`);
+        return this.keyPairs.length > 0;
+    }
+
+    getNextKeyPair() {
+        if (this.keyPairs.length === 0) return null;
+        
+        const activePairs = this.keyPairs.filter(p => p.isActive);
+        if (activePairs.length === 0) {
+            this.keyPairs.forEach(p => { p.isActive = true; p.failCount = 0; });
+            return this.keyPairs[0];
+        }
+
+        const pair = activePairs[this.currentIndex % activePairs.length];
+        this.currentIndex = (this.currentIndex + 1) % activePairs.length;
+        return pair;
+    }
+
+    markKeySuccess(pairIndex) {
+        const pair = this.keyPairs.find(p => p.index === pairIndex);
+        if (pair) {
+            pair.failCount = 0;
+            pair.lastUsed = new Date().toISOString();
+        }
+    }
+
+    markKeyFailed(pairIndex) {
+        const pair = this.keyPairs.find(p => p.index === pairIndex);
+        if (pair) {
+            pair.failCount++;
+            if (pair.failCount >= this.maxRetriesPerKey) {
+                pair.isActive = false;
+                console.log(`⚠️ API key ${pairIndex} vaqtincha bloklandi (5 daqiqa)`);
+                
+                setTimeout(() => {
+                    pair.isActive = true;
+                    pair.failCount = 0;
+                    console.log(`🔄 API key ${pairIndex} qayta aktivlashtirildi`);
+                }, 5 * 60 * 1000);
+            }
+        }
+    }
+
+    isRateLimitError(error) {
+        const msg = error.message?.toLowerCase() || '';
+        return msg.includes('rate limit') || msg.includes('429') || msg.includes('too many requests');
+    }
+}
+
+const apiKeyManager = new APIKeyManager();
+
+// ==================== AUDIO PLAYER UCHUN ====================
+let currentUtterance = null;
+let currentInterval = null;
+let isAudioPaused = false;
+let currentText = '';
+let currentSpeakerBtn = null;
+
+// ==================== AUTH OBSERVER ====================
+auth.onAuthStateChanged(async user => {
+    if (user) {
+        currentUser = user;
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('u-mail').innerText = user.email;
+        
+        const initial = user.email.charAt(0).toUpperCase();
+        const initialElement = document.getElementById('user-initial');
+        if (initialElement) {
+            initialElement.innerText = initial;
+        }
+        
+        await loadAPIKeys();
+        await initUserMemory();
+        await loadHistory();
+        await updateMemoryStats();
+        createNewChat();
+    } else {
+        document.getElementById('auth-screen').style.display = 'flex';
+    }
+});
+
+// ==================== API KALITLARNI YUKLASH ====================
+async function loadAPIKeys() {
+    try {
+        const keysDoc = await db.collection('configs').doc('api_keys').get();
+        if (keysDoc.exists) {
+            const data = keysDoc.data();
+            chatKeys = data;
+            apiKeyManager.loadKeys(data);
+            console.log("✅ API kalitlar yuklandi");
+        } else {
+            console.error("❌ API kalitlar topilmadi!");
+            chatKeys = {
+                gk_chat_1: "gsk_test_chat_1",
+                gk_sum_1: "gsk_test_sum_1",
+                last_index: 1,
+                total_pairs: 1
+            };
+            apiKeyManager.loadKeys(chatKeys);
+        }
+    } catch (e) {
+        console.error("Kalitlarni yuklashda xato:", e);
+    }
+}
+
+// ==================== FOYDALANUVCHI XOTIRASINI YARATISH ====================
+async function initUserMemory() {
+    if (!currentUser) return;
+    const userRef = db.collection('users').doc(currentUser.uid);
+    const userDoc = await userRef.get();
+    
+    if (!userDoc.exists) {
+        const defaultName = currentUser.email.split('@')[0];
+        
+        await userRef.set({
+            email: currentUser.email,
+            displayName: defaultName,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            globalSummary: "",
+            userProfile: {},
+            memoryStats: {
+                totalSummaries: 0,
+                averageImportance: 0,
+                topTopics: []
+            },
+            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        currentUser.displayName = defaultName;
+    } else {
+        const firebaseName = userDoc.data().displayName;
+        currentUser.displayName = firebaseName || currentUser.email.split('@')[0];
+        
+        console.log("✅ Firebase'dan olingan ism:", currentUser.displayName);
+    }
+}
+
+// ==================== XOTIRA STATISTIKASINI YANGILASH ====================
+async function updateMemoryStats() {
+    if (!currentUser) return;
+    try {
+        const summariesSnap = await db.collection('users')
+            .doc(currentUser.uid)
+            .collection('summaries')
+            .get();
+        const count = summariesSnap.size;
+        
+        const levelCounts = {};
+        let totalImportance = 0;
+        
+        summariesSnap.forEach(doc => {
+            const data = doc.data();
+            const level = data.level || 0;
+            levelCounts[level] = (levelCounts[level] || 0) + 1;
+            totalImportance += data.importance || 0.5;
+        });
+        
+        const avgImportance = count > 0 ? (totalImportance / count).toFixed(2) : 0;
+        
+        console.log(`📊 Xotira statistikasi: ${count} xulosa, L0:${levelCounts[0] || 0} L1:${levelCounts[1] || 0} L2:${levelCounts[2] || 0}, Sifat: ${(avgImportance * 100).toFixed(0)}%`);
+        
+        const qualityEl = document.getElementById('memory-quality');
+        if (qualityEl) {
+            qualityEl.style.display = 'none';
+        }
+        
+    } catch (e) {
+        console.error("Xotira statistikasini yangilashda xato:", e);
+    }
+}
+
+// ==================== GLOBAL XOTIRANI YANGILASH ====================
+async function updateGlobalMemory(userId, newSummary, metadata = {}) {
+    try {
+        const userRef = db.collection('users').doc(userId);
+        const userDoc = await userRef.get();
+        
+        if (!userDoc.exists) return;
+        
+        const currentGlobal = userDoc.data().globalSummary || "";
+        const currentProfile = userDoc.data().userProfile || {};
+        
+        const enhancedSummary = `• ${newSummary} [${metadata.topic || 'general'}:${(metadata.importance || 0.5).toFixed(2)}]`;
+        
+        const combinedSummary = currentGlobal 
+            ? `${currentGlobal}\n${enhancedSummary}`
+            : enhancedSummary;
+        
+        const updatedProfile = {
+            ...currentProfile,
+            lastTopic: metadata.topic,
+            keywords: [...new Set([...(currentProfile.keywords || []), ...(metadata.keywords || [])])].slice(-20),
+            topicFrequency: {
+                ...(currentProfile.topicFrequency || {}),
+                [metadata.topic || 'general']: ((currentProfile.topicFrequency || {})[metadata.topic || 'general'] || 0) + 1
+            }
+        };
+        
+        if (combinedSummary.length > MEMORY_CONFIG.GLOBAL_SUMMARY_MAX_LENGTH) {
+            const keyPair = apiKeyManager.getNextKeyPair();
+            if (keyPair) {
+                const compressed = await compressSummary(combinedSummary, keyPair.summary);
+                await userRef.update({
+                    globalSummary: compressed,
+                    userProfile: updatedProfile,
+                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                return;
+            }
+        }
+        
+        await userRef.update({
+            globalSummary: combinedSummary,
+            userProfile: updatedProfile,
+            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+    } catch (e) {
+        console.error("Global xotirani yangilashda xato:", e);
+    }
+}
+
+// ==================== XULOSANI QISQARTIRISH ====================
+async function compressSummary(longSummary, apiKey) {
+    try {
+        const response = await fetch(PROVIDERS.summary.url, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model: PROVIDERS.summary.model,
+                messages: [
+                    { role: "system", content: "Siz uzun xulosalarni qisqartiradigan yordamchisiz. Eng muhim ma'lumotlarni saqlab, 3-4 gapga qisqartiring." },
+                    { role: "user", content: `Quyidagi xulosani qisqartiring:\n${longSummary}` }
+                ],
+                temperature: 0.3,
+                max_tokens: 300
+            })
+        });
+        
+        const data = await response.json();
+        return data.choices?.[0]?.message?.content || longSummary.substring(0, 500);
+    } catch (e) {
+        console.error("Xulosani qisqartirishda xato:", e);
+        return longSummary.substring(0, 500);
+    }
+}
+
+// ==================== MAVZUNI ANIQLASH ====================
+async function detectTopic(message, summaryKey) {
+    if (!summaryKey) return { main: 'general', keywords: [] };
+    
+    try {
+        const response = await fetch(PROVIDERS.summary.url, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${summaryKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                    { role: "system", content: "Quyidagi matnning mavzusini va kalit so'zlarini aniqlang. JSON formatda: {topic: 'mavzu', keywords: ['soz1','soz2'], confidence: 0.9}" },
+                    { role: "user", content: message }
+                ],
+                temperature: 0.2,
+                max_tokens: 100,
+                response_format: { type: "json_object" }
+            })
+        });
+        
+        const data = await response.json();
+        const result = JSON.parse(data.choices?.[0]?.message?.content || '{"topic":"general","keywords":[]}');
+        return {
+            main: result.topic || 'general',
+            keywords: result.keywords || [],
+            confidence: result.confidence || 0.7
+        };
+        
+    } catch (e) {
+        console.error("Mavzu aniqlashda xato:", e);
+        return { main: 'general', keywords: [] };
+    }
+}
+
+// ==================== XOTIRA BLOKI YARATISH ====================
+async function createMemoryBlock(userMessage, aiMessage, summaryKey) {
+    if (!currentUser || !summaryKey) return;
+    
+    try {
+        const topicInfo = await detectTopic(userMessage, summaryKey);
+        
+        const enhancedPrompt = `Suhbat tahlili va xulosasi:
+        
+【FOYDALANUVCHI】${userMessage}
+【AI JAVOBI】${aiMessage}
+【MAVZU】${topicInfo.main}
+
+Quyidagi formatda JAVOB bering (JSON):
+{
+    "summary": "suhbatning 1 gap bilan ifodasi (15-20 so'z)",
+    "topic": "${topicInfo.main}",
+    "keywords": ["kalit", "so'zlar"],
+    "importance": 0.0-1.0 oralig'ida son (suhbat qanchalik muhimligi),
+    "sentiment": "positive/neutral/negative",
+    "category": "texnik/shaxsiy/savol/tushuntirish"
+}`;
+        
+        const response = await fetch(PROVIDERS.summary.url, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${summaryKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model: PROVIDERS.summary.model,
+                messages: [
+                    { role: "system", content: "Siz suhbatlarni tahlil qilib, JSON formatda xulosa chiqarasiz." },
+                    { role: "user", content: enhancedPrompt }
+                ],
+                temperature: 0.3,
+                max_tokens: 200,
+                response_format: { type: "json_object" }
+            })
+        });
+        
+        const data = await response.json();
+        let result;
+        try {
+            result = JSON.parse(data.choices?.[0]?.message?.content || '{"summary":"Suhbat xulosasi"}');
+        } catch {
+            result = { summary: data.choices?.[0]?.message?.content || "Suhbat xulosasi" };
+        }
+        
+        const summaryData = {
+            level: 0,
+            content: result.summary || "Suhbat xulosasi",
+            importance: result.importance || 0.7,
+            metadata: {
+                topic: result.topic || topicInfo.main,
+                keywords: result.keywords || topicInfo.keywords,
+                importance: result.importance || 0.7,
+                sentiment: result.sentiment || 'neutral',
+                category: result.category || 'general',
+                messageLength: userMessage.length,
+                chatId: currentChatId
+            },
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            lastAccessed: firebase.firestore.FieldValue.serverTimestamp(),
+            accessCount: 0
+        };
+        
+        await db.collection('users')
+            .doc(currentUser.uid)
+            .collection('summaries')
+            .add(summaryData);
+        
+        await updateGlobalMemory(currentUser.uid, result.summary, summaryData.metadata);
+        await checkAndAggregateSummaries(summaryKey);
+        await updateMemoryStats();
+        
+    } catch (e) {
+        console.error("Xotira bloki yaratishda xato:", e);
+    }
+}
+
+// ==================== AGREGATSIYA ====================
+async function checkAndAggregateSummaries(summaryKey) {
+    if (!currentUser || !summaryKey) return;
+    
+    for (let level = 0; level <= 2; level++) {
+        const config = MEMORY_CONFIG.LEVELS[level];
+        if (!config) continue;
+        
+        const snapshot = await db.collection('users')
+            .doc(currentUser.uid)
+            .collection('summaries')
+            .where('level', '==', level)
+            .orderBy('timestamp', 'asc')
+            .limit(config.aggregateSize)
+            .get();
+        
+        if (snapshot.size < config.aggregateSize) continue;
+        
+        const docs = snapshot.docs;
+        const summaries = docs.map(doc => {
+            const data = doc.data();
+            return `- ${data.content} [${data.metadata?.topic || 'general'}]`;
+        }).join('\n');
+        
+        const topics = docs.map(d => d.data().metadata?.topic).filter(Boolean);
+        const uniqueTopics = [...new Set(topics)];
+        const mainTopic = uniqueTopics.length === 1 ? uniqueTopics[0] : 'multi-topic';
+        
+        const aggregationPrompt = `Quyidagi ${docs.length} ta suhbat xulosasini tahlil qiling va bitta umumiy xulosaga birlashtiring:
+
+${summaries}
+
+Asosiy mavzu: ${mainTopic}
+
+Format (JSON):
+{
+    "summary": "umumiy xulosa (2 gap)",
+    "mainTopic": "asosiy mavzu",
+    "keywords": ["muhim", "kalit", "so'zlar"],
+    "importance": 0.0-1.0,
+    "coverage": 0.0-1.0 (qancha xulosa qamrab olingan)
+}`;
+        
+        const response = await fetch(PROVIDERS.summary.url, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${summaryKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model: PROVIDERS.summary.model,
+                messages: [
+                    { role: "system", content: "Siz bir nechta suhbat xulosalarini bitta yuqori darajadagi xulosaga birlashtirasiz." },
+                    { role: "user", content: aggregationPrompt }
+                ],
+                temperature: 0.3,
+                max_tokens: 300,
+                response_format: { type: "json_object" }
+            })
+        });
+        
+        const data = await response.json();
+        let result;
+        try {
+            result = JSON.parse(data.choices?.[0]?.message?.content || '{"summary":"Agregatsiya xulosasi"}');
+        } catch {
+            result = { summary: data.choices?.[0]?.message?.content || "Agregatsiya xulosasi" };
+        }
+        
+        await db.collection('users')
+            .doc(currentUser.uid)
+            .collection('summaries')
+            .add({
+                level: level + 1,
+                content: result.summary,
+                importance: result.importance || 0.8,
+                metadata: {
+                    topic: result.mainTopic || mainTopic,
+                    keywords: result.keywords || [],
+                    importance: result.importance || 0.8,
+                    coverage: result.coverage || 0.7,
+                    sourceLevel: level,
+                    sourceCount: docs.length
+                },
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        
+        for (const doc of docs) {
+            await doc.ref.delete();
+        }
+        
+        await updateGlobalMemory(currentUser.uid, result.summary, {
+            topic: result.mainTopic || mainTopic,
+            keywords: result.keywords || [],
+            importance: result.importance || 0.8
+        });
+    }
+}
+
+// ==================== RELEVANCE SCORING ====================
+async function getRelevantSummaries(currentMessage) {
+    if (!currentUser) return [];
+    
+    try {
+        const keyPair = apiKeyManager.getNextKeyPair();
+        const summaryKey = keyPair ? keyPair.summary : null;
+        
+        const topicInfo = await detectTopic(currentMessage, summaryKey);
+        let relevant = [];
+        
+        if (topicInfo.keywords.length > 0) {
+            const snapshot = await db.collection('users')
+                .doc(currentUser.uid)
+                .collection('summaries')
+                .where('metadata.keywords', 'array-contains-any', topicInfo.keywords.slice(0, 3))
+                .orderBy('importance', 'desc')
+                .limit(5)
+                .get();
+            
+            relevant = snapshot.docs.map(doc => ({
+                ...doc.data(),
+                id: doc.id,
+                relevanceScore: calculateRelevance(doc.data(), topicInfo)
+            }));
+        }
+        
+        const importantSnapshot = await db.collection('users')
+            .doc(currentUser.uid)
+            .collection('summaries')
+            .where('importance', '>', 0.7)
+            .orderBy('timestamp', 'desc')
+            .limit(3)
+            .get();
+        
+        const important = importantSnapshot.docs.map(doc => ({
+            ...doc.data(),
+            id: doc.id,
+            relevanceScore: 0.8
+        }));
+        
+        const all = [...relevant, ...important];
+        const unique = Array.from(new Map(all.map(item => [item.id, item])).values());
+        
+        return unique.sort((a, b) => b.relevanceScore - a.relevanceScore).slice(0, 7);
+        
+    } catch (e) {
+        console.error("Relevant xulosalarni olishda xato:", e);
+        return [];
+    }
+}
+
+function calculateRelevance(summary, topicInfo) {
+    let score = 0;
+    const topicMatch = summary.metadata?.topic === topicInfo.main ? 1 : 0;
+    score += topicMatch * 0.4;
+    
+    const summaryKeywords = summary.metadata?.keywords || [];
+    const keywordOverlap = summaryKeywords.filter(k => topicInfo.keywords.includes(k)).length;
+    const keywordScore = Math.min(keywordOverlap / 3, 1);
+    score += keywordScore * 0.3;
+    
+    score += (summary.importance || 0.5) * 0.2;
+    
+    const age = Date.now() - (summary.timestamp?.toDate?.() || new Date());
+    const ageInDays = age / (1000 * 3600 * 24);
+    const freshness = Math.max(0, 1 - (ageInDays / 7));
+    score += freshness * 0.1;
+    
+    return Math.min(score, 1);
+}
+
+// ==================== XOTIRA KONTEKSTINI QURISH ====================
+async function buildMemoryContext(currentMessage) {
+    if (!currentUser) return "";
+    
+    try {
+        if (memoryCache.context && (Date.now() - memoryCache.timestamp) < 30000) {
+            return memoryCache.context;
+        }
+        
+        const relevantSummaries = await getRelevantSummaries(currentMessage);
+        memoryCache.summaries = relevantSummaries;
+        
+        const userDoc = await db.collection('users').doc(currentUser.uid).get();
+        const userProfile = userDoc.data()?.userProfile || {};
+        const globalSummary = userDoc.data()?.globalSummary || "";
+        
+        let context = "";
+        
+        if (userProfile.topTopics?.length > 0) {
+            context += `【FOYDALANUVCHI PROFILI】\n`;
+            context += `Qiziqishlari: ${userProfile.topTopics.map(t => t.topic).join(', ')}\n`;
+            context += `O'rtacha muhimlik: ${((userProfile.avgImportance || 0.5) * 100).toFixed(0)}%\n\n`;
+        }
+        
+        if (globalSummary) {
+            context += `【UMUMIY XOTIRA】\n${globalSummary}\n\n`;
+        }
+        
+        if (relevantSummaries.length > 0) {
+            context += `【MAVZUGA OID XOTIRALAR】\n`;
+            relevantSummaries.forEach((s, i) => {
+                const relevance = (s.relevanceScore * 100).toFixed(0);
+                context += `${i+1}. ${s.content} [${s.metadata?.topic || 'general'} | ${relevance}%]\n`;
+            });
+            context += '\n';
+        }
+        
+        memoryCache.context = context;
+        memoryCache.timestamp = Date.now();
+        
+        return context;
+        
+    } catch (e) {
+        console.error("Xotira kontekstini qurishda xato:", e);
+        return "";
+    }
+}
+
+// ==================== SISTEM PROMPT ====================
+function getSystemPrompt() {
+    const name = currentUser?.displayName || currentUser?.email?.split('@')[0] || "do'stim";
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('uz-UZ');
+    const timeStr = now.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+    
+    return `Siz MR AI, Muhammadrasul tomonidan yaratilgan CHEKSIZ XOTIRAGA ega yordamchisiz. 
+Hozirgi suhbatdoshingiz: ${name}. 
+Bugungi sana: ${dateStr}. 
+Vaqt: ${timeStr}. 
+Siz Meta, Google yoki boshqa kompaniyalarga tegishli emassiz.
+
+MUHIM QOIDALAR:
+1. Matematik tenglamalarni, formulalarni va ilmiy hisob-kitoblarni yozganda har doim LaTeX formatidan foydalaning va ularni $ belgilari orasiga oling.
+   Masalan: $2x + 36xc = 0$ yoki $c = -\\frac{1}{18}$.
+2. Murakkab ifodalarni va tenglamalarni alohida qatorda $$ ko'rinishida taqdim eting.
+3. Javoblaringizni tushunarli, aniq va chiroyli formatda (Markdown yordamida) taqdim eting.
+4. Jadval, ro'yxat va kod bloklaridan unumli foydalaning.
+5. Suhbat qaysi tilda bo'lsa, o'sha tilda samimiy va aniq javob bering.`;
+}
+
+// ==================== KENGAYTIRILGAN SISTEM PROMPT ====================
+async function getEnhancedSystemPrompt(currentMessage) {
+    const basePrompt = getSystemPrompt();
+    const memoryContext = await buildMemoryContext(currentMessage);
+    const modePrompt = MODES[currentMode].prompt;
+    
+    return `${basePrompt}
+
+${memoryContext ? memoryContext : 'Hozircha xotira ma\'lumotlari yo\'q.'}
+
+【REJIM】${currentMode.toUpperCase()}
+${modePrompt}
+
+Javobingizni boshlang:`;
+}
+
+// ==================== UI FUNKSIYALARI ====================
+function toggleSidebar() { 
+    document.body.classList.toggle('sidebar-open'); 
+}
+
+function showWelcomeScreen() {
+    const win = document.getElementById('chat-window');
+    win.innerHTML = ''; 
+    const welcome = document.createElement('div');
+    welcome.id = 'welcome-screen';
+    welcome.className = 'welcome-animation';
+    welcome.innerHTML = `
+        <h1 style="font-size: 3rem; font-weight: 800;">
+            <span style="color:white">MR</span>
+            <span style="color:#56B3FA">AI</span>
+        </h1>
+        <p style="color: var(--text-sec); font-size: 1.1rem;">MR AI endi shunchaki yordamchi emas, u sizning hamkoringiz.</p>
+    `;
+    win.appendChild(welcome);
+}
+
+function createNewChat() {
+    currentChatId = null; 
+    chatHistory = [];
+    memoryCache = { context: '', timestamp: 0, summaries: [] };
+    document.getElementById('chat-header-title').innerHTML = '<span style="color:white">MR</span> <span style="color:#56B3FA">AI</span>';
+    showWelcomeScreen();
+    if(window.innerWidth <= 768) { document.body.classList.remove('sidebar-open'); }
+}
+
+function loadHistory() {
+    if (!currentUser) return;
+    db.collection('users').doc(currentUser.uid).collection('chats').orderBy('time', 'desc').onSnapshot(snap => {
+        const box = document.getElementById('history-box');
+        box.innerHTML = '';
+        snap.forEach(doc => {
+            const d = doc.data();
+            const item = document.createElement('div');
+            item.className = `history-item ${currentChatId === doc.id ? 'active-chat' : ''}`;
+            item.innerHTML = `<span onclick="switchChat('${doc.id}')">${d.title || "Yangi suhbat"}</span><i class="fas fa-trash" onclick="deleteChat('${doc.id}', event)"></i>`;
+            box.appendChild(item);
+        });
+    });
+}
+
+async function switchChat(id) {
+    if (!id || !currentUser) return;
+    currentChatId = id;
+    chatHistory = []; 
+    memoryCache = { context: '', timestamp: 0, summaries: [] };
+    
+    const chatDoc = await db.collection('users')
+        .doc(currentUser.uid)
+        .collection('chats')
+        .doc(id)
+        .get();
+
+    if (chatDoc.exists) {
+        const title = chatDoc.data().title || "Yangi suhbat";
+        document.getElementById('chat-header-title').innerText = title;
+    }
+
+    loadHistory(); 
+    if(window.innerWidth <= 768) { document.body.classList.remove('sidebar-open'); }
+
+    const win = document.getElementById('chat-window');
+    win.innerHTML = '<div style="text-align: center; color: var(--text-sec); padding: 50px;">Yuklanmoqda...</div>';
+    
+    try {
+        const msgs = await db.collection('users')
+            .doc(currentUser.uid)
+            .collection('chats')
+            .doc(id)
+            .collection('messages')
+            .orderBy('time', 'asc')
+            .get();
+        
+        win.innerHTML = '';
+        
+        msgs.forEach((m) => {
+            const data = m.data();
+            renderMsg(data.text, data.role, true); 
+            chatHistory.push({ 
+                role: data.role === 'ai' ? 'assistant' : 'user', 
+                content: data.text 
+            });
+        });
+        
+        win.scrollTop = win.scrollHeight;
+        
+    } catch (e) {
+        console.error("Chatni yuklashda xato:", e);
+        win.innerHTML = '<div style="text-align: center; color: red;">Xatolik yuz berdi!</div>';
+    }
+}
+
+// ==================== XABAR RENDER ====================
+async function renderMsg(t, role, isHistory = false) {
+    const win = document.getElementById('chat-window');
+    
+    const welcome = document.getElementById('welcome-screen');
+    if (welcome) {
+        welcome.classList.add('fade-out-anim');
+        setTimeout(() => welcome.remove(), 500);
+    }
+    
+    const div = document.createElement('div');
+    div.className = `msg-container msg-${role}`;
+    
+    div.innerHTML = `
+        <div class="bubble">
+            <div class="ai-text"></div>
+            ${role === 'ai' ? `
+            <div class="actions-footer">
+                <button class="copy-text-btn" onclick="copyAiText(this)"><i class="far fa-copy"></i></button>
+                <button class="speaker-btn" onclick="speakText(this)"><i class="fas fa-volume-up"></i></button>
+            </div>` : ''}
+        </div>
+    `;
+    win.appendChild(div);
+    
+    const textElement = div.querySelector('.ai-text');
+    
+    if (isHistory || role === 'user') {
+        textElement.innerHTML = marked.parse(t);
+        applyFormatting();
+        if (window.MathJax) MathJax.typesetPromise([textElement]).catch(() => {});
+        if (role === 'user') win.scrollTop = win.scrollHeight;
+    } else {
+        let i = 0;
+        function type() {
+            if (abortController?.signal.aborted) {
+                textElement.innerHTML = marked.parse(t);
+                applyFormatting();
+                if (window.MathJax) MathJax.typesetPromise([textElement]).catch(() => {});
+                resetSendButton();
+                return;
+            }
+
+            if (i < t.length) {
+                textElement.innerHTML = marked.parse(t.substring(0, i + 1));
+                if (window.MathJax) MathJax.typesetPromise([textElement]).catch(() => {});
+                i++;
+                
+                const isAtBottom = win.scrollHeight - win.scrollTop <= win.clientHeight + 200;
+                if (isAtBottom) win.scrollTop = win.scrollHeight;
+                
+                setTimeout(type, 5);
+            } else {
+                applyFormatting();
+                if (window.MathJax) MathJax.typesetPromise([textElement]).catch(() => {});
+                resetSendButton();
+            }
+        }
+        type();
+    }
+}
+
+// ==================== XABAR YUBORISH ====================
+async function sendMessage() {
+    const input = document.getElementById('user-input');
+    const message = input.value.trim();
+    if (!message) return;
+
+    renderMsg(message, 'user');
+    input.value = '';
+    
+    const btn = document.getElementById('send-btn');
+    btn.dataset.status = 'streaming';
+
+    if (abortController) abortController.abort();
+    abortController = new AbortController();
+
+    let attempts = 0;
+    const maxAttempts = (apiKeyManager.keyPairs.length || 1) * 2;
+
+    while (attempts < maxAttempts) {
+        try {
+            const keyPair = apiKeyManager.getNextKeyPair();
+            if (!keyPair) {
+                throw new Error("API kalit topilmadi");
+            }
+
+            console.log(`🔄 Urinish ${attempts+1}: API key ${keyPair.index} ishlatilmoqda`);
+
+            const activeMode = MODES[currentMode];
+            const systemPrompt = await getEnhancedSystemPrompt(message);
+            
+            const messages = [
+                { role: 'system', content: systemPrompt },
+                ...chatHistory.slice(-8),
+                { role: 'user', content: message }
+            ];
+
+            const response = await fetch(PROVIDERS.chat.url, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${keyPair.chat}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    model: activeMode.model,
+                    messages: messages,
+                    temperature: activeMode.temperature,
+                    max_tokens: activeMode.max_tokens
+                }),
+                signal: abortController.signal
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error?.message || `HTTP xato ${response.status}`);
+            }
+
+            const data = await response.json();
+            const aiText = data.choices?.[0]?.message?.content || "AI javob bermadi...";
+
+            renderMsg(aiText, 'ai');
+
+            chatHistory.push({ role: 'user', content: message });
+            chatHistory.push({ role: 'assistant', content: aiText });
+
+            apiKeyManager.markKeySuccess(keyPair.index);
+
+            if (currentUser) {
+                if (!currentChatId) {
+                    const title = message.substring(0, 30) + (message.length > 30 ? '...' : '');
+                    const chatDoc = await db.collection('users').doc(currentUser.uid).collection('chats').add({
+                        title: title,
+                        time: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    currentChatId = chatDoc.id;
+                    document.getElementById('chat-header-title').innerText = title;
+                }
+
+                const msgCol = db.collection('users').doc(currentUser.uid).collection('chats').doc(currentChatId).collection('messages');
+                await msgCol.add({ role: 'user', text: message, time: firebase.firestore.FieldValue.serverTimestamp() });
+                await msgCol.add({ role: 'ai', text: aiText, time: firebase.firestore.FieldValue.serverTimestamp() });
+
+                try {
+                    await createMemoryBlock(message, aiText, keyPair.summary);
+                } catch (memErr) {
+                    console.error("Xotira bloki yaratishda xato:", memErr);
+                }
+
+                if (chatHistory.length % 8 === 0) {
+                    await autoRenameChat(keyPair.chat);
+                }
+            }
+
+            resetSendButton();
+            return;
+
+            messageCounter++;
+
+            if (messageCounter === 1 || messageCounter % 5 === 0) {
+                const context = chatHistory.slice(-3).map(m => m.content).join(" ");
+                generateChatTitle(currentChatId, context);
+            }
+        } catch (error) {
+            if (error.name === "AbortError") {
+                console.log("So‘rov bekor qilindi");
+                resetSendButton();
+                return;
+            }
+
+            console.error(`❌ Xatolik (urinish ${attempts+1}):`, error.message);
+
+            const currentKeyPair = apiKeyManager.keyPairs[apiKeyManager.currentIndex - 1];
+            if (currentKeyPair) {
+                apiKeyManager.markKeyFailed(currentKeyPair.index);
+            }
+
+            attempts++;
+
+            if (attempts >= maxAttempts) {
+                if (apiKeyManager.isRateLimitError(error)) {
+                    renderMsg("⚡ Ko‘p so‘rov yuborildi. Biroz kuting va qayta urinib ko‘ring.", 'ai');
+                } else {
+                    renderMsg("❌ Hozircha xizmatda texnik nosozlik. Iltimos, keyinroq urinib ko‘ring.", 'ai');
+                }
+                resetSendButton();
+                return;
+            }
+
+            await new Promise(r => setTimeout(r, 500 * attempts));
+        }
+    }
+    resetSendButton();
+}
+
+// ==================== AUTO RENAME CHAT ====================
+async function autoRenameChat(apiKey) {
+    if (!currentChatId || chatHistory.length < 4) return;
+    try {
+        const lastMessages = chatHistory.slice(-4).map(m => m.content).join(" ");
+        const response = await fetch(PROVIDERS.chat.url, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                    { role: "system", content: "Suhbat mazmuniga qarab 2-3 so'zli qisqa sarlavha yasang. Hech qanday qo'shimcha so'z yozmang." },
+                    { role: "user", content: `Suhbat: ${lastMessages}` }
+                ],
+                temperature: 0.3,
+                max_tokens: 20
+            })
+        });
+        
+        const data = await response.json();
+        let newTitle = data.choices?.[0]?.message?.content?.replace(/["'./]/g, "").trim() || "Yangi suhbat";
+        
+        if (newTitle.length > 30) newTitle = newTitle.substring(0, 30) + "...";
+        await db.collection('users').doc(currentUser.uid).collection('chats').doc(currentChatId).update({ title: newTitle });
+        document.getElementById('chat-header-title').innerText = newTitle;
+        loadHistory();
+        
+    } catch(e) { 
+        console.error("Sarlavha yangilashda xatolik:", e); 
+    }
+}
+
+// ==================== AUDIO PLAYER ====================
+function speakText(btn) {
+    const bubble = btn.closest('.bubble');
+    const textElement = bubble.querySelector('.ai-text');
+    if (!textElement) return;
+
+    const text = textElement.innerText;
+    const player = document.getElementById('floating-audio-player');
+    const fill = document.getElementById('toast-fill');
+    const pauseBtn = document.getElementById('audio-pause-btn');
+    
+    if (currentText === text && isAudioPaused && currentUtterance) {
+        window.speechSynthesis.resume();
+        pauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+        pauseBtn.classList.remove('paused');
+        isAudioPaused = false;
+        
+        document.querySelectorAll('.speaker-btn').forEach(b => b.classList.remove('active'));
+        if (currentSpeakerBtn) currentSpeakerBtn.classList.add('active');
+        return;
+    }
+    
+    if (btn.classList.contains('active') && !isAudioPaused && currentUtterance) {
+        window.speechSynthesis.pause();
+        pauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+        pauseBtn.classList.add('paused');
+        isAudioPaused = true;
+        return;
+    }
+    
+    window.speechSynthesis.cancel();
+    if (currentInterval) clearInterval(currentInterval);
+    
+    currentText = text;
+    isAudioPaused = false;
+    currentSpeakerBtn = btn;
+    
+    document.querySelectorAll('.speaker-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    player.classList.add('show');
+    fill.style.width = '0%';
+    pauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+    pauseBtn.classList.remove('paused');
+
+    currentUtterance = new SpeechSynthesisUtterance(text);
+    currentUtterance.lang = text.match(/[a-zA-Z]/) ? 'en-US' : 'uz-UZ';
+    currentUtterance.rate = 1.0;
+    currentUtterance.pitch = 1.0;
+    
+    const wordsPerMinute = 150;
+    const wordCount = text.split(/\s+/).length;
+    const durationMs = (wordCount / wordsPerMinute) * 60 * 1000;
+    const start = Date.now();
+    
+    currentInterval = setInterval(() => {
+        if (!isAudioPaused) {
+            const elapsed = Date.now() - start;
+            const progress = Math.min((elapsed / durationMs) * 100, 100);
+            fill.style.width = progress + '%';
+            
+            if (progress >= 100) {
+                clearInterval(currentInterval);
+                setTimeout(() => closeAudioPlayer(), 300);
+            }
+        }
+    }, 100);
+
+    currentUtterance.onend = () => {
+        clearInterval(currentInterval);
+        closeAudioPlayer();
+    };
+
+    currentUtterance.onerror = () => {
+        clearInterval(currentInterval);
+        closeAudioPlayer();
+    };
+
+    window.speechSynthesis.speak(currentUtterance);
+}
+
+function toggleAudioPause() {
+    if (!currentUtterance) return;
+    
+    const pauseBtn = document.getElementById('audio-pause-btn');
+    
+    if (isAudioPaused) {
+        window.speechSynthesis.resume();
+        pauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+        pauseBtn.classList.remove('paused');
+        isAudioPaused = false;
+    } else {
+        window.speechSynthesis.pause();
+        pauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+        pauseBtn.classList.add('paused');
+        isAudioPaused = true;
+    }
+}
+
+function closeAudioPlayer() {
+    window.speechSynthesis.cancel();
+    if (currentInterval) clearInterval(currentInterval);
+    
+    const player = document.getElementById('floating-audio-player');
+    player.classList.remove('show');
+    
+    document.querySelectorAll('.speaker-btn').forEach(b => b.classList.remove('active'));
+    
+    document.getElementById('toast-fill').style.width = '0%';
+    currentUtterance = null;
+    isAudioPaused = false;
+    currentText = '';
+    currentSpeakerBtn = null;
+}
+
+function closeAudioPlayerWithX() {
+    closeAudioPlayer();
+}
+
+// ==================== COPY FUNKSIYALARI ====================
+function copyAiText(btn) {
+    const bubble = btn.closest('.bubble');
+    const textElement = bubble.querySelector('.ai-text').cloneNode(true);
+    textElement.querySelectorAll('pre, code').forEach(el => el.remove());
+    const text = textElement.innerText.trim();
+    
+    navigator.clipboard.writeText(text).then(() => {
+        const icon = btn.querySelector('i');
+        icon.className = 'fas fa-check';
+        setTimeout(() => { icon.className = 'far fa-copy'; }, 2000);
+    });
+}
+
+function applyFormatting() {
+    document.querySelectorAll('pre').forEach(pre => {
+        if (pre.querySelector('.copy-btn')) return;
+        
+        const btn = document.createElement('button');
+        btn.className = 'copy-btn';
+        btn.innerText = 'COPY';
+        
+        btn.onclick = () => {
+            const code = pre.querySelector('code').innerText;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.innerText = 'COPIED!';
+                btn.classList.add('copied');
+                setTimeout(() => { btn.innerText = 'COPY'; btn.classList.remove('copied'); }, 2000);
+            });
+        };
+        pre.appendChild(btn);
+        if (window.Prism) Prism.highlightElement(pre.querySelector('code'));
+    });
+}
+
+// ==================== REJIM FUNKSIYALARI ====================
+function toggleModeMenu() {
+    document.getElementById('mode-menu').classList.toggle('show');
+}
+
+function setAIMode(mode) {
+    currentMode = mode;
+    document.getElementById('current-mode-icon').className = `fas ${MODES[mode].icon}`;
+    
+    const options = document.querySelectorAll('.mode-option');
+    const modesKeys = Object.keys(MODES);
+    
+    options.forEach((opt, idx) => {
+        opt.classList.toggle('active', modesKeys[idx] === mode);
+    });
+    
+    toggleModeMenu();
+}
+
+// ==================== AUTH FUNKSIYALARI ====================
+function switchAuth(type) {
+    document.getElementById('login-form').style.display = type === 'login' ? 'block' : 'none';
+    document.getElementById('signup-form').style.display = type === 'signup' ? 'block' : 'none';
+    document.getElementById('tab-login').classList.toggle('active', type === 'login');
+    document.getElementById('tab-signup').classList.toggle('active', type === 'signup');
+}
+
+async function handleAuth(type) {
+    const e = document.getElementById(type + '-email').value;
+    const p = document.getElementById(type + '-pass').value;
+    try {
+        if(type === 'login') await auth.signInWithEmailAndPassword(e, p);
+        else await auth.createUserWithEmailAndPassword(e, p);
+    } catch(err) { alert(err.message); }
+}
+
+function logout() { 
+    auth.signOut(); 
+    location.reload(); 
+}
+
+async function deleteChat(id, event) { 
+    event.stopPropagation();
+    if(confirm("Ushbu suhbat o'chirilsinmi?")) {
+        await db.collection('users').doc(currentUser.uid).collection('chats').doc(id).delete();
+        if(currentChatId === id) createNewChat();
+    }
+}
+
+function handleEnter(e) { 
+    if(e.key === 'Enter' && !e.shiftKey) { 
+        e.preventDefault(); 
+        sendMessage(); 
+    } 
+}
+
+function resetSendButton() {
+    const btn = document.getElementById('send-btn');
+    btn.dataset.status = 'idle';
+    abortController = null;
+}
+
+// ==================== GENERATE CHAT TITLE ====================
+async function generateChatTitle(chatId, contextText) {
+    if (!chatId) return;
+
+    const keyPair = apiKeyManager.getNextKeyPair();
+    if (!keyPair) return;
+
+    try {
+        const response = await fetch(PROVIDERS.chat.url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${keyPair.chat}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: PROVIDERS.chat.model,
+                messages: [
+                    { role: "system", content: "Siz suhbatga qisqa va umumiy nom beruvchi yordamchisiz. Maksimal 2-3 so'zdan iborat umumiy nom bering. Faqat nomni qaytaring." },
+                    { role: "user", content: `Ushbu xabarlar asosida suhbatga umumiy nom bering: ${contextText.substring(0, 400)}` }
+                ],
+                temperature: 0.7
+            })
+        });
+
+        const data = await response.json();
+        const newTitle = data.choices[0].message.content.replace(/["'*:?]/g, '').trim();
+
+        await db.collection('users').doc(currentUser.uid).collection('chats').doc(chatId).update({
+            title: newTitle
+        });
+        
+        const headerTitle = document.getElementById('chat-header-title');
+        if (headerTitle) headerTitle.innerText = newTitle;
+
+    } catch (err) {
+        console.error("Nom berishda xatolik:", err);
+    }
+}
+
+// ==================== INIT ====================
+console.log("🚀 MR AI ULTRA yuklandi!");
+</script>
+
+</body>
+</html>
