@@ -1,20 +1,25 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
+import { cleanServerUrl, MRAI_AUTH_TOKEN } from "@/lib/serverAuth";
 
-const DEFAULT_SERVER_URL = "https://satisfy-endurance-mooned.ngrok-free.dev";
-const MRAI_AUTH_TOKEN = "3ea3e345de68425a3ec13279117ff7c4fbbea67a9634f28ee8865c4475b6ef96";
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  if (!MRAI_AUTH_TOKEN) {
+    return NextResponse.json(
+      { stdout: "", stderr: "MRAI_AUTH_TOKEN sozlanmagan (.env.local yoki Vercel env)", exit_code: 1 },
+      { status: 200 }
+    );
+  }
   try {
     const body = await req.json();
-    const serverUrl = req.headers.get("x-server-url") || DEFAULT_SERVER_URL;
-    const cleanUrl = serverUrl.replace(/\/+$/, "");
+    const base = cleanServerUrl(req.headers.get("x-server-url"));
 
-    const res = await fetch(`${cleanUrl}/exec`, {
+    const res = await fetch(`${base}/exec`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "ngrok-skip-browser-warning": "1",
-        "Authorization": `Bearer ${MRAI_AUTH_TOKEN}`,
+        Authorization: `Bearer ${MRAI_AUTH_TOKEN}`,
       },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(30000),

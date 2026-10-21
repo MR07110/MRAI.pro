@@ -8,6 +8,8 @@ export interface AppSettings {
   themeStyle: "oled" | "midnight" | "carbon";
   fontSize: "sm" | "base" | "lg";
   sendOnEnter: boolean;
+  agentMode: boolean;
+  agentMaxSteps: number;
 }
 
 export const SYSTEM_PROMPT_PRESETS: { id: string; name: string; prompt: string }[] = [
@@ -58,6 +60,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   themeStyle: "oled",
   fontSize: "base",
   sendOnEnter: true,
+  agentMode: true,
+  agentMaxSteps: 200,
 };
 
 const STORAGE_KEY = "mr_ai_user_settings";

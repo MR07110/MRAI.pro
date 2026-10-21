@@ -34,7 +34,7 @@ function openLocalDb(): Promise<IDBDatabase> {
   });
 }
 
-function getServerUrl(): string | null {
+function getRealServerUrl(): string | null {
   try {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('mrai_server_url');
@@ -48,10 +48,19 @@ function getServerUrl(): string | null {
   return 'https://satisfy-endurance-mooned.ngrok-free.dev';
 }
 
+// Brauzer serverga to'g'ridan-to'g'ri emas, Next proxy (/api/server/proxy) orqali boradi:
+// token faqat Next serverida qo'shiladi, brauzerda hech qanday sir yo'q.
+const PROXY_BASE = '/api/server/proxy';
+function getServerUrl(): string | null {
+  return PROXY_BASE;
+}
+
 const NGROK_HEADERS = {
   'Content-Type': 'application/json',
   'ngrok-skip-browser-warning': '1',
-  'Authorization': 'Bearer 3ea3e345de68425a3ec13279117ff7c4fbbea67a9634f28ee8865c4475b6ef96',
+  get 'x-server-url'(): string {
+    return getRealServerUrl() || '';
+  },
 };
 
 // -------------------------------------------------------------
@@ -460,5 +469,112 @@ export async function getDataStats(): Promise<{ chatsCount: number; messagesCoun
     return { chatsCount: cCount, messagesCount: mCount };
   } catch {
     return { chatsCount: 0, messagesCount: 0 };
+  }
+}
+
+// -------------------------------------------------------------
+// AGENT: CONNECTORS (MCP) + SCHEDULED TASKS  (local Python server)
+// -------------------------------------------------------------
+import type { Connector, ScheduledTask, TaskRun } from '@/types';
+
+export function getServerBaseUrl(): string {
+  return getRealServerUrl() || '';
+}
+
+export function authHeaders(): Record<string, string> {
+  return { ...NGROK_HEADERS };
+}
+
+async function srv<T>(path: string, init?: { method?: string; body?: unknown; timeoutMs?: number }): Promise<T> {
+  const res = await fetch(`${getServerUrl()}${path}`, {
+    method: init?.method || (init?.body !== undefined ? 'POST' : 'GET'),
+    headers: NGROK_HEADERS,
+    body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
+    signal: AbortSignal.timeout(init?.timeoutMs ?? 8000),
+  });
+  let data: any = null;
+  try {
+    data = await res.json();
+  } catch {}
+  if (!res.ok) throw new Error((data && data.error) || `Server xatosi (HTTP ${res.status})`);
+  return data as T;
+}
+
+export async function getConnectors(): Promise<Connector[]> {
+  try {
+    const rows = await srv<Connector[]>('/api/db/connectors');
+    return Array.isArray(rows) ? rows : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveConnector(c: Partial<Connector> & { name: string; url: string }): Promise<string> {
+  const r = await srv<{ id: string }>('/api/db/connectors', { body: c });
+  return r.id;
+}
+
+export async function deleteConnector(id: string): Promise<void> {
+  await srv(`/api/db/connectors?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export async function testConnector(
+  c: { url: string; headers?: Record<string, string>; name?: string }
+): Promise<{ ok: boolean; ms?: number; tools?: { name: string; description: string }[]; error?: string }> {
+  try {
+    const res = await fetch('/api/mcp/test', {
+      method: 'POST',
+      headers: NGROK_HEADERS,
+      body: JSON.stringify(c),
+      signal: AbortSignal.timeout(35000),
+    });
+    return await res.json();
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'Tekshirib bo‘lmadi' };
+  }
+}
+
+export async function getTasks(): Promise<ScheduledTask[]> {
+  try {
+    const rows = await srv<ScheduledTask[]>('/api/db/tasks');
+    return Array.isArray(rows) ? rows : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveTask(
+  t: Partial<ScheduledTask> & { name: string; schedule: string; kind: 'ai' | 'shell' },
+  keyId?: string
+): Promise<{ id: string; next_run: number | null }> {
+  return srv('/api/db/tasks', {
+    body: {
+      ...t,
+      app_url: typeof window !== 'undefined' ? window.location.origin : '',
+      server_url: getServerBaseUrl(),
+      key_id: keyId || t.key_id || '',
+    },
+  });
+}
+
+export async function deleteTask(id: string): Promise<void> {
+  await srv(`/api/db/tasks?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export async function toggleTask(id: string, enabled: boolean): Promise<void> {
+  await srv('/api/db/tasks/toggle', { body: { id, enabled } });
+}
+
+export async function runTaskNow(id: string): Promise<boolean> {
+  const r = await srv<{ started: boolean }>('/api/db/tasks/run', { body: { id } });
+  return !!r.started;
+}
+
+export async function getTaskRuns(taskId: string, limit = 5): Promise<TaskRun[]> {
+  try {
+    const rows = await srv<TaskRun[]>(`/api/db/task-runs?task_id=${encodeURIComponent(taskId)}&limit=${limit}`);
+    return Array.isArray(rows) ? rows : [];
+  } catch {
+    return [];
   }
 }

@@ -84,39 +84,23 @@ function CodeBlock({
     }
 
     try {
-      // 1. Try direct fetch
-      const res = await fetch(targetUrl.replace(/\/+$/, "") + "/exec", {
+      // Token brauzerda yo'q: buyruq Next proxy (/api/server/exec) orqali yuboriladi.
+      const proxyRes = await fetch("/api/server/exec", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "ngrok-skip-browser-warning": "1",
-          "Authorization": "Bearer 3ea3e345de68425a3ec13279117ff7c4fbbea67a9634f28ee8865c4475b6ef96"
+          "x-server-url": targetUrl
         },
         body: JSON.stringify({ command: value }),
-        signal: AbortSignal.timeout(8000),
       });
-      const data = await res.json();
-      setRunResult(data);
-    } catch {
-      // 2. Fallback to Next.js API proxy (immune to Brave Shields or CORS blocks)
-      try {
-        const proxyRes = await fetch("/api/server/exec", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-server-url": targetUrl
-          },
-          body: JSON.stringify({ command: value }),
-        });
-        const proxyData = await proxyRes.json();
-        setRunResult(proxyData);
-      } catch (err: any) {
-        setRunResult({
-          stdout: "",
-          stderr: "Serverga ulanishda xatolik: " + (err.message || "Xato"),
-          exit_code: 1
-        });
-      }
+      const proxyData = await proxyRes.json();
+      setRunResult(proxyData);
+    } catch (err: any) {
+      setRunResult({
+        stdout: "",
+        stderr: "Serverga ulanishda xatolik: " + (err.message || "Xato"),
+        exit_code: 1
+      });
     } finally {
       setRunning(false);
     }
@@ -547,12 +531,25 @@ export default function ChatApp() {
 
     smoothTickerRef.current = requestAnimationFrame(tickSmoothStream);
 
-    const isStream = appSettings.stream !== false;
+    const useAgent = appSettings.agentMode !== false;
+    const isStream = useAgent || appSettings.stream !== false;
 
     try {
-      const res = await fetch("/api/chat", {
+      let agentExtra: Record<string, unknown> = {};
+      if (useAgent) {
+        const conns = (await serverDb.getConnectors()).filter((c) => c.enabled);
+        agentExtra = {
+          connectors: conns.map((c) => ({ id: c.id, name: c.name, url: c.url, headers: c.headers })),
+          serverUrl: serverDb.getServerBaseUrl(),
+          appUrl: window.location.origin,
+          keyId: key.id,
+          maxSteps: appSettings.agentMaxSteps ?? 200,
+        };
+      }
+
+      const res = await fetch(useAgent ? "/api/agent" : "/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: useAgent ? serverDb.authHeaders() : { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: history,
           apiKey: key.api_key,
@@ -563,6 +560,7 @@ export default function ChatApp() {
           temperature: appSettings.temperature ?? 0.7,
           maxTokens: appSettings.maxTokens ?? 4096,
           stream: isStream,
+          ...agentExtra,
         }),
         signal: controller.signal,
       });

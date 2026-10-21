@@ -862,29 +862,15 @@ function generateSandboxHtml(language: string, rawCode: string): string {
       }
       if (savedServer) {
         try {
-          let data;
-          try {
-            const res = await fetch(savedServer.replace(/\/+$/, "") + "/exec", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "ngrok-skip-browser-warning": "1"
-              },
-              body: JSON.stringify({ command: trimmed, cwd: cwd }),
-              signal: AbortSignal.timeout(8000),
-            });
-            data = await res.json();
-          } catch {
-            const proxyRes = await fetch("/api/server/exec", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-server-url": savedServer
-              },
-              body: JSON.stringify({ command: trimmed, cwd: cwd }),
-            });
-            data = await proxyRes.json();
-          }
+          const proxyRes = await fetch("/api/server/exec", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-server-url": savedServer
+            },
+            body: JSON.stringify({ command: trimmed, cwd: cwd }),
+          });
+          const data: any = await proxyRes.json();
           if (data.cwd) {
             cwd = data.cwd;
             updatePrompt();
