@@ -119,7 +119,7 @@ function openaiAdapter(inp: AgentInput, system: string): Adapter & { disableTool
       if (tools.length && !toolsOff) {
         body.tools = tools.map((t) => ({
           type: "function",
-          function: { name: t.name, description: t.description.slice(0, 1000), parameters: cleanSchema(t.parameters) },
+          function: { name: t.name, description: t.description.slice(0, 300), parameters: cleanSchema(t.parameters) },
         }));
         body.tool_choice = "auto";
       }
@@ -165,7 +165,7 @@ function anthropicAdapter(inp: AgentInput, system: string): Adapter {
         max_tokens: Math.min(Math.max(1, inp.maxTokens ?? 4096), 16384),
       };
       if (tools.length) {
-        body.tools = tools.map((t) => ({ name: t.name, description: t.description.slice(0, 1000), input_schema: cleanSchema(t.parameters) }));
+        body.tools = tools.map((t) => ({ name: t.name, description: t.description.slice(0, 300), input_schema: cleanSchema(t.parameters) }));
       }
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -226,7 +226,9 @@ async function loadMcpTools(
         parameters: t.inputSchema || { type: "object", properties: {} },
         run: async (args) => {
           const res = await client.callTool(t.name, args);
-          return { output: res.text, isError: res.isError };
+          const txt = String(res.text ?? "");
+          const LIM = 5000;
+          return { output: txt.length > LIM ? txt.slice(0, LIM) + `\n…[${txt.length - LIM} belgi qisqartirildi]` : txt, isError: res.isError };
         },
       });
     }
