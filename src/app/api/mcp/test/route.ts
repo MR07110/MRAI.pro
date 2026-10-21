@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { McpClient } from "@/lib/mcp";
-import { isAuthorized } from "@/lib/serverAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,7 +7,7 @@ export const maxDuration = 60;
 
 // Connectorni tekshiradi va tool ro'yxatini qaytaradi.
 export async function POST(req: NextRequest) {
-  if (!isAuthorized(req)) return NextResponse.json({ ok: false, error: "Ruxsat yo'q (token)" }, { status: 401 });
+  // Kirish: src/proxy.ts (login cookie) shu routeni himoya qiladi; Bearer faqat /api/agent/run uchun.
   const t0 = Date.now();
   let client: McpClient | null = null;
   try {
