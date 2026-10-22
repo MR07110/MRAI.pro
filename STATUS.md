@@ -9,10 +9,15 @@
   - Eski `computer_exec/read_file/write_file/job_logs/job_kill` agentdan olib tashlandi (coding asboblari to'liq almashtiradi); `list_tasks/delete_task/schedule_task` va `mcp_*` saqlandi. Nom takrorlanishi yo'qligi `seen` Set bilan kafolatlanadi.
   - `agentRules` (system prompt) yangi asboblarga moslandi; `brief()` Bash/Write/Edit/MultiEdit ni ko'rsatadi.
   - Jonli test (haqiqiy sandbox server, 127.0.0.1:8080): 33 + 26 senariy, hammasi PASS. `tsc --noEmit` va `next build` xatosiz.
+  - End-to-end: `/api/agent/run` orqali mock OpenAI-compat server (10 qadamli zanjir) va haqiqiy Groq `openai/gpt-oss-120b` (5 qadam: Write, Grep, Read, Edit, Bash) — ikkalasi OK.
+  - Haqiqiy model `-i` o'rniga `i` yuborib Grep ni xato ishlatdi -> Grep parametrlari `case_insensitive/line_numbers/after/before/context` ga o'tkazildi (eski `-i/-A/-B/-C` va qisqa `i/A/B/C` ham qabul qilinadi).
+  - `openaiAdapter` da 429 (TPM) uchun "try again in N s" bo'yicha qayta urinish (<=30s, 4 martagacha, abort-safe) qo'shildi.
   - Test paytida topilgan va tuzatilgan xatolar: (1) Glob hech narsa topmasdi; (2) `cd ...` bilan boshlangan background buyruq jim yutilardi; (3) BashOutput/KillShell noma'lum id da throw qilardi.
 - Hozirgi muammo/blocker: yo'q. (Test paytida bir marta ngrok uzildi — ERR_NGROK_3200 — o'z-o'zidan tiklandi.)
 - Keyingi qadam:
-  - Haqiqiy LLM (Anthropic/OpenAI-compat) bilan `/api/agent` orqali end-to-end tekshirish. Grep parametrlari `-i/-n/-A/-B/-C` kalitlari ba'zi OpenAI-compat providerlarda (Groq) schema validatsiyasidan o'tmasligi mumkin — kerak bo'lsa `case_insensitive`, `after` kabi nomlarga o'tkazish.
+  - Anthropic adapteri va brauzerdan `/api/agent` (SSE, cookie auth) yo'li hali haqiqiy kalit bilan sinalmagan.
+  - Groq standart modeli `llama-3.3-70b-versatile` (providers.ts) bu akkauntda 404 beradi — modelni yangilash kerak (ishlaydi: `openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `qwen/qwen3.8-27b`).
+  - Prompt+asboblar ~2.5k token/qadam: Groq bepul tarifida (8000 TPM) 429 ga olib keladi (retry bilan hal bo'ladi, lekin sekin). Kerak bo'lsa tavsiflarni/system promptni qisqartirish.
   - `readOnly` bayrog'i hozircha metadata: kelajakda read-only asboblarni parallel bajarish uchun ishlatish mumkin.
   - Glob `*.ts` rg semantikasi bo'yicha ichki papkalarni ham qaytaradi (faqat yuqori daraja emas).
 

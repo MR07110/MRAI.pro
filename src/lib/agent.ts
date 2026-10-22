@@ -134,7 +134,14 @@ function openaiAdapter(inp: AgentInput, system: string): Adapter & { disableTool
         headers["HTTP-Referer"] = "https://mrai-uzbek.vercel.app";
         headers["X-Title"] = "MR AI Pro";
       }
-      const res = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify(body), signal: inp.signal });
+      let res = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify(body), signal: inp.signal });
+      // 429 (TPM/RPM limit, masalan Groq bepul tarif): "try again in Ns" ko'rsatmasiga amal qilib qisqa kutib qayta uriladi
+      for (let attempt = 0; res.status === 429 && attempt < 4; attempt++) {
+        const wait = retryAfterMs(res.headers.get("retry-after"), await res.clone().text().catch(() => ""));
+        if (wait === null || wait > 30000) break; // uzoq kutish (kunlik limit va h.k.) — xatoni o'z holicha qaytaramiz
+        await sleepAbortable(wait + 500, inp.signal);
+        res = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify(body), signal: inp.signal });
+      }
       if (!res.ok) {
         const err = await readError(res);
         const e: any = new Error(`${inp.provider} HTTP ${res.status}: ${err}`);
@@ -155,6 +162,24 @@ function openaiAdapter(inp: AgentInput, system: string): Adapter & { disableTool
       for (const r of results) msgs.push({ role: "tool", tool_call_id: r.call.id, content: r.output });
     },
   };
+}
+
+function retryAfterMs(header: string | null, text: string): number | null {
+  const m = text.match(/try again in\s+(?:(\d+)h)?\s*(?:(\d+)m(?!s))?\s*([0-9.]+)?\s*(ms|s)?/i);
+  if (m && (m[1] || m[2] || m[3])) {
+    const unit = (m[4] || "s").toLowerCase() === "ms" ? 1 : 1000;
+    return Number(m[1] || 0) * 3600000 + Number(m[2] || 0) * 60000 + Number(m[3] || 0) * unit;
+  }
+  const ra = Number(header);
+  return Number.isFinite(ra) && ra > 0 ? ra * 1000 : null;
+}
+
+function sleepAbortable(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new DOMException("Aborted", "AbortError"));
+    const t = setTimeout(resolve, ms);
+    signal?.addEventListener("abort", () => { clearTimeout(t); reject(new DOMException("Aborted", "AbortError")); }, { once: true });
+  });
 }
 
 // ---------------------------------------------------------------- Anthropic

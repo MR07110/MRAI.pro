@@ -331,7 +331,7 @@ rg --files --hidden --no-messages -g '!.git' -g ${shq(pattern)} -0 . 2>/dev/null
     label: "Grep",
     readOnly: true,
     description:
-      "Search file contents with ripgrep (regex). output_mode: files_with_matches (default), content (matching lines with line numbers), count. Filter with glob (e.g. \"*.ts\") or type (e.g. \"py\", \"js\"). Use -i for case-insensitive, -A/-B/-C for context lines in content mode, multiline for patterns spanning lines, head_limit to cap results (default 250). Always prefer this over running grep/rg in Bash.",
+      "Search file contents with ripgrep (regex). output_mode: files_with_matches (default), content (matching lines with line numbers), count. Filter with glob (e.g. \"*.ts\") or type (e.g. \"py\", \"js\"). Use case_insensitive for case-insensitive search, after/before/context for context lines in content mode, multiline for patterns spanning lines, head_limit to cap results (default 250). Always prefer this over running grep/rg in Bash.",
     parameters: {
       type: "object",
       properties: {
@@ -340,11 +340,11 @@ rg --files --hidden --no-messages -g '!.git' -g ${shq(pattern)} -0 . 2>/dev/null
         glob: { type: "string" },
         type: { type: "string" },
         output_mode: { type: "string", enum: ["content", "files_with_matches", "count"] },
-        "-i": { type: "boolean" },
-        "-n": { type: "boolean", description: "Show line numbers (content mode, default true)" },
-        "-A": { type: "number" },
-        "-B": { type: "number" },
-        "-C": { type: "number" },
+        case_insensitive: { type: "boolean", description: "Case-insensitive search (rg -i)" },
+        line_numbers: { type: "boolean", description: "Show line numbers (content mode, default true)" },
+        after: { type: "number", description: "Lines of context after each match (rg -A)" },
+        before: { type: "number", description: "Lines of context before each match (rg -B)" },
+        context: { type: "number", description: "Lines of context around each match (rg -C)" },
         multiline: { type: "boolean" },
         head_limit: { type: "number" },
       },
@@ -355,14 +355,15 @@ rg --files --hidden --no-messages -g '!.git' -g ${shq(pattern)} -0 . 2>/dev/null
       if (!pattern) return fail("pattern is required");
       const mode = String(a.output_mode || "files_with_matches");
       const args: string[] = ["rg", "--no-messages", "--hidden", "-g", "'!.git'"];
-      if (a["-i"]) args.push("-i");
+      const pick = (...keys: string[]) => keys.map((k) => a[k]).find((v) => v !== undefined && v !== null);
+      if (pick("case_insensitive", "-i", "i")) args.push("-i");
       if (mode === "files_with_matches") args.push("-l");
       else if (mode === "count") args.push("-c");
       else {
-        if (a["-n"] !== false) args.push("-n");
-        for (const k of ["-A", "-B", "-C"]) {
-          const v = Math.floor(Number(a[k]));
-          if (v > 0) args.push(k, String(Math.min(v, 20)));
+        if (pick("line_numbers", "-n", "n") !== false) args.push("-n");
+        for (const [flag, names] of [["-A", ["after", "-A", "A"]], ["-B", ["before", "-B", "B"]], ["-C", ["context", "-C", "C"]]] as Array<[string, string[]]>) {
+          const v = Math.floor(Number(pick(...names)));
+          if (v > 0) args.push(flag, String(Math.min(v, 20)));
         }
       }
       if (a.multiline) args.push("-U", "--multiline-dotall");
