@@ -6,6 +6,7 @@ export interface ToolDef {
   label: string; // UI uchun
   description: string;
   parameters: Record<string, any>;
+  readOnly?: boolean; // true: holatni o'zgartirmaydi (Read/Glob/Grep/LS/BashOutput)
   run: (args: any) => Promise<{ output: string; isError?: boolean }>;
 }
 
@@ -37,12 +38,17 @@ function fmtExec(r: any): { output: string; isError: boolean } {
   return { output: clip(out.join("\n")), isError: r.exit_code !== 0 };
 }
 
-export function buildBuiltinTools(env: ToolEnv): ToolDef[] {
+// Local Python serverga so'rov yuboruvchi umumiy yordamchilar (builtin va coding asboblari bir xil kanaldan foydalanadi)
+export function makeServerCtx(env: ToolEnv) {
   const sf = (path: string, body?: any, method?: string, timeoutMs?: number) =>
     serverFetch(env.serverUrl, path, { body, method, timeoutMs, signal: env.signal });
-
-  const execRaw = (command: string, timeout = 60, cwd?: string, background = false) =>
+  const exec = (command: string, timeout = 60, cwd?: string, background = false) =>
     sf("/exec", { command, cwd, timeout, background }, "POST", (timeout + 20) * 1000);
+  return { sf, exec };
+}
+
+export function buildBuiltinTools(env: ToolEnv): ToolDef[] {
+  const { sf, exec: execRaw } = makeServerCtx(env);
 
   const tools: ToolDef[] = [
     {

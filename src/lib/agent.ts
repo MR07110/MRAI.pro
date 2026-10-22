@@ -1,6 +1,7 @@
 // Agent loop: model <-> asboblar (kompyuter, fayl, scheduler, MCP connectorlar).
 import { McpClient, McpConnector } from "@/lib/mcp";
-import { buildBuiltinTools, ToolDef } from "@/lib/agentTools";
+import { buildBuiltinTools, makeServerCtx, ToolDef } from "@/lib/agentTools";
+import { buildCodingTools } from "@/lib/codingTools";
 import { getDefaultUrl, defaultModel } from "@/lib/providers";
 
 export interface AgentInput {
@@ -30,6 +31,7 @@ interface Adapter {
 }
 
 const MAX_TOOLS = 120;
+const SUPERSEDED_BUILTINS = new Set(["computer_exec", "computer_read_file", "computer_write_file", "computer_job_logs", "computer_job_kill"]);
 
 function tzNow(): string {
   const tz = process.env.MRAI_TZ || "Asia/Tashkent";
@@ -43,8 +45,12 @@ function tzNow(): string {
 function agentRules(scheduled: boolean): string {
   return [
     "AGENT REJIMI. Sizda haqiqiy asboblar (tools) bor — foydalanuvchi so'ragan ishni o'zingiz asboblar bilan bajaring; buyruqlarni foydalanuvchiga 'ishga tushiring' deb berib qo'ymang.",
-    "- computer_exec: foydalanuvchining Linux sandbox kompyuterida bash bajaradi (workspace papkasi, fayllar saqlanadi). Server/build kabi uzoq jarayonlar uchun background=true + computer_job_logs.",
-    "- computer_read_file / computer_write_file: fayllar bilan ishlash.",
+    "Kod/fayl asboblari (Claude Code uslubida) — sandbox workspace ichida ishlaydi:",
+    "- Bash: bash buyrug'i (git, npm/pip, build, test). Ishchi papka chaqiruvlar orasida saqlanadi. Fayl o'qish/qidirish/tahrirlash uchun Bash ishlatmang — maxsus asboblar bor. Dev server, watcher va uzoq jobs uchun run_in_background=true, so'ng BashOutput bilan kuzating, KillShell bilan to'xtating.",
+    "- Read: fayl o'qish (qator raqamlari bilan; katta fayllar uchun offset/limit). Edit/Write dan OLDIN faylni Read qilish SHART.",
+    "- Edit / MultiEdit: mavjud faylda aniq matnni almashtirish (old_string noyob bo'lishi kerak; bir fayldagi bir nechta o'zgarish uchun MultiEdit). Write: yangi fayl yoki to'liq qayta yozish; mavjud fayl uchun Edit afzal. So'ralmasa README/hujjat fayllarini yaratmang.",
+    "- Glob (fayl nomi bo'yicha), Grep (ripgrep, ichidagi matn bo'yicha), LS (papka ro'yxati): qidirish uchun doim shularni ishlating, Bash dagi find/grep/cat/ls o'rniga.",
+    "- TodoWrite: 3 va undan ko'p qadamli ishlarda avval reja tuzing, bittasi in_progress bo'lsin, bajarilgani zahoti completed qiling.",
     "- schedule_task / list_tasks / delete_task: jadval bo'yicha avtomatik vazifalar (local server 24/7 ishlaydi).",
     "- mcp_* nomli asboblar — foydalanuvchi ulagan connectorlar (MCP).",
     "Qoidalar: avval harakat qiling, so'ng natijani qisqa xulosa qiling. Xato chiqsa sabablarini tahlil qilib o'zingiz tuzating va qayta urining. Sandbox cheklovlari: /usr faqat o'qish uchun (apt ishlamaydi), pip/npm paketlarini workspace ichiga o'rnating. Xavfli/qaytarib bo'lmas amallardan (o'chirish, ustidan yozish) oldin foydalanuvchi aniq so'ragan bo'lishi kerak.",
@@ -238,7 +244,10 @@ async function loadMcpTools(
 
 // ---------------------------------------------------------------- display helpers
 function brief(call: Call): string {
-  if (call.name === "computer_exec") return String(call.args?.command ?? "").slice(0, 600);
+  if (call.name === "Bash" || call.name === "computer_exec") return String(call.args?.command ?? "").slice(0, 600);
+  if (call.name === "Write") return `${call.args?.file_path} (${String(call.args?.content ?? "").length} belgi)`;
+  if (call.name === "Edit") return `${call.args?.file_path} (${String(call.args?.old_string ?? "").length} → ${String(call.args?.new_string ?? "").length} belgi)`;
+  if (call.name === "MultiEdit") return `${call.args?.file_path} (${Array.isArray(call.args?.edits) ? call.args.edits.length : 0} ta o'zgarish)`;
   if (call.name === "computer_write_file") return `${call.args?.path} (${String(call.args?.content ?? "").length} belgi)`;
   const s = JSON.stringify(call.args ?? {});
   return s.length > 300 ? s.slice(0, 300) + "…" : s;
@@ -260,11 +269,21 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
   const clients: McpClient[] = [];
   try {
     const notes: string[] = [];
-    const builtin = buildBuiltinTools({
-      serverUrl: inp.serverUrl, appUrl: inp.appUrl, keyId: inp.keyId, signal: inp.signal, allowScheduling: !inp.scheduled,
-    });
+    const env = { serverUrl: inp.serverUrl, appUrl: inp.appUrl, keyId: inp.keyId, signal: inp.signal, allowScheduling: !inp.scheduled };
+    // Coding asboblari computer_exec/read/write/job_* ni to'liq almashtiradi — takroriy asboblar modelni chalg'itadi
+    const builtin = buildBuiltinTools(env).filter((t) => !SUPERSEDED_BUILTINS.has(t.name));
+    const coding = buildCodingTools(makeServerCtx(env));
     const mcp = inp.connectors?.length ? await loadMcpTools(inp.connectors, clients, notes) : [];
-    let tools = [...builtin, ...mcp];
+    let tools: ToolDef[] = [];
+    const seen = new Set<string>();
+    for (const t of [...coding, ...builtin, ...mcp]) {
+      if (seen.has(t.name)) {
+        notes.push(`Asbob nomi takrorlandi, o'tkazib yuborildi: ${t.name}`);
+        continue;
+      }
+      seen.add(t.name);
+      tools.push(t);
+    }
     if (tools.length > MAX_TOOLS) {
       notes.push(`Asboblar juda ko'p (${tools.length}); birinchi ${MAX_TOOLS} tasi ishlatiladi.`);
       tools = tools.slice(0, MAX_TOOLS);
@@ -314,7 +333,7 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
             r = { output: `Asbob xatosi: ${e?.message || e}`, isError: true };
           }
         }
-        const shown = (call.name === "computer_exec" ? `$ ${brief(call)}\n` : `${brief(call)}\n`) + `→ ${r.isError ? "XATO" : "ok"} (${((Date.now() - t0) / 1000).toFixed(1)}s)\n${r.output}`;
+        const shown = (call.name === "computer_exec" || call.name === "Bash" ? `$ ${brief(call)}\n` : `${brief(call)}\n`) + `→ ${r.isError ? "XATO" : "ok"} (${((Date.now() - t0) / 1000).toFixed(1)}s)\n${r.output}`;
         out(fence(shown));
         results.push({ call, output: r.output, isError: !!r.isError });
       }
