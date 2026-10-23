@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useLayoutEffect, useState, useRef } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { ArrowDown, Code2, Compass, PanelLeft, PenTool, Sparkles, SquarePen } from "lucide-react";
@@ -47,6 +47,9 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
   const displayedTextRef = useRef("");
   const smoothTickerRef = useRef<number | null>(null);
   const isStreamingActiveRef = useRef(false);
+  // Avto-scroll holati: true = pastga "yopishgan". Faqat foydalanuvchi tepaga chiqsa o'chadi (kontent o'sishi buzmaydi).
+  const stickRef = useRef(true);
+  const lastScrollTopRef = useRef(0);
 
   // Har bir suhbatning o'z manzili: /c/<id>  (yangi suhbat: /)
   function pushUrl(id: string | null, replace = false) {
@@ -88,6 +91,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
 
   // Load messages when chat changes (prevent race condition during inline chat creation)
   useEffect(() => {
+    stickRef.current = true;
     if (skipNextLoadRef.current && skipNextLoadRef.current === currentChatId) {
       skipNextLoadRef.current = null;
       return;
@@ -99,31 +103,32 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
     }
   }, [currentChatId]);
 
-  // Handle scroll events to detect if user scrolled up
+  // Foydalanuvchi tepaga ko'targanini aniqlash: faqat YUQORIGA harakat stickni o'chiradi.
+  // (Dastur o'zi faqat pastga suradi, shuning uchun kontent o'sishi "tepaga chiqdi" deb adashmaydi.)
   const handleScroll = () => {
     const el = chatScrollContainerRef.current;
     if (!el) return;
-    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-    setIsScrolledUp(!isNearBottom);
+    const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const movedUp = el.scrollTop < lastScrollTopRef.current - 2;
+    lastScrollTopRef.current = el.scrollTop;
+    if (movedUp && dist > 8) stickRef.current = false;
+    else if (dist < 24) stickRef.current = true;
+    setIsScrolledUp(!stickRef.current && dist > 120);
   };
 
-  // Auto scroll only when near bottom (ultra-smooth during streaming)
-  useEffect(() => {
-    if (!isScrolledUp) {
-      const el = chatScrollContainerRef.current;
-      if (el) {
-        if (isStreaming) {
-          el.scrollTop = el.scrollHeight;
-        } else {
-          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-        }
-      }
-    }
-  }, [messages, isScrolledUp, isStreaming]);
+  // useLayoutEffect: scroll brauzer chizishidan OLDIN, matn o'sgan kadrning o'zida bajariladi.
+  // (Avval useEffect edi: matn o'sib chizilar, scroll esa keyingi kadrda sakrardi -> "dirr" titrash.)
+  useLayoutEffect(() => {
+    const el = chatScrollContainerRef.current;
+    if (!el || !stickRef.current) return;
+    el.scrollTop = el.scrollHeight;
+  }, [messages, isStreaming]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    stickRef.current = true;
     setIsScrolledUp(false);
+    const el = chatScrollContainerRef.current;
+    el?.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   };
 
   async function loadChats() {
@@ -245,6 +250,8 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
       return;
     }
 
+    stickRef.current = true;
+    setIsScrolledUp(false);
     setIsStreaming(true);
     const controller = new AbortController();
     abortRef.current = controller;
@@ -834,7 +841,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
           </div>
         ) : (
           <>
-            <div ref={chatScrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
+            <div ref={chatScrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto [overflow-anchor:none]">
               <div className="max-w-[46rem] mx-auto px-4 pt-4 pb-10 space-y-8">
                 {messages.map((msg, index) => (
                   <MessageView
