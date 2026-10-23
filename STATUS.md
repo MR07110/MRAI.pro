@@ -68,3 +68,7 @@
 ---
 ### 2026-10-24 03:15
 - Qilindi: ToolStep — yangi Bash ishga tushganda tool list reset bo'lib qayta chiqish muammosi tuzatildi (stream paytida list yashirilmasin; key barqaror).
+
+---
+### 2026-10-24 03:21
+- Qilindi: ToolStep list — stream (LS/Bash ishlayapti) paytida ham list ochiq qoladi (default open=true, userClosed alohida). Message.tsx ToolGroup key barqarorlashtirildi.

@@ -67,22 +67,34 @@ const ToolRow = memo(function ToolRow({ t }: { t: ToolSeg }) {
 });
 
 export function ToolGroup({ items }: { items: ToolSeg[] }) {
-  const [open, setOpen] = useState(false);
   const { text, live } = groupLabel(items);
+  // Stream (live) paytida avtomatik ochiq — yangi Bash/LS boshlansa ham list yo'qolmasin.
+  // Foydalanuvchi yopsa, keyingi live gacha shu holat saqlanadi.
+  const [open, setOpen] = useState(true);
+  const [userClosed, setUserClosed] = useState(false);
+  const show = live ? !userClosed : open;
+
+  function toggle() {
+    if (live) {
+      setUserClosed((v) => !v);
+    } else {
+      setOpen((v) => !v);
+      setUserClosed(false);
+    }
+  }
 
   return (
     <div className="my-2 contain-layout">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         className="flex items-center gap-1.5 text-[13px] text-neutral-500 hover:text-neutral-300 transition cursor-pointer"
       >
         <span className={live ? "shimmer" : ""}>{text}</span>
-        <ChevronRight className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-90" : ""}`} />
+        <ChevronRight className={`w-3.5 h-3.5 transition-transform ${show ? "rotate-90" : ""}`} />
         {live && <Loader2 className="w-3.5 h-3.5 animate-spin opacity-70" />}
       </button>
-      {/* Stream paytida ham ochiq qolishi mumkin — list reset bo'lmasin */}
-      {open && (
+      {show && (
         <div className="mt-2 rounded-xl border border-white/[0.08] divide-y divide-white/[0.06] overflow-hidden">
           {items.map((t, i) => (
             <ToolRow key={`${t.name}-${i}`} t={t} />
