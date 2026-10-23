@@ -58,3 +58,13 @@
 - Yozuv manbalari: agent (`agent.ts`, har qadam, `source=agent|task`) va oddiy chat (`/api/chat`, stream ham). Provayder usage qaytarmasa — belgilar/4 bo'yicha taxminiy (`estimated=1`, UI da "≈").
 - Oddiy chat streamida `stream_options.include_usage` faqat openai/groq/openrouter/deepseek/xai/together ga yuboriladi (boshqalarda noma'lum maydon xato berishi mumkin).
 - Tarix faqat shu paytdan boshlab yoziladi (eski so'rovlar yo'q).
+
+---
+### 2026-10-24 02:46
+- Qilindi: skills/ .gitignore ga qo'shildi va git indeksidan chiqarildi (lokal commit ded6836, push qilinmagan; diskdagi 27 skill papka joyida). origin/main da hali 543 skill fayl bor.
+- Keyingi qadam: MR dan push va tarixdan tozalash uchun ruxsat kutiladi
+- Git holati: ded6836 chore: skills/ git dan chiqarildi (faqat lokal diskda qoladi, fayllar o'chirilmadi)
+
+---
+### 2026-10-24 03:15
+- Qilindi: ToolStep — yangi Bash ishga tushganda tool list reset bo'lib qayta chiqish muammosi tuzatildi (stream paytida list yashirilmasin; key barqaror).
