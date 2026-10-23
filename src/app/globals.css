@@ -2,19 +2,22 @@
 
 :root {
   --bg: #000000;
-  --surface: #0b0b0b;
+  --surface: #0a0a0a;
   --surface-2: #111111;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.16);
-  --text: #ececec;
-  --text-dim: #a3a3a3;
-  --text-faint: #6b6b6b;
-  --accent: #d97757;
-  --accent-hover: #e48a6c;
+  --border: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.22);
+  --text: #e8e8e8;
+  --text-dim: #9a9a9a;
+  --text-faint: #5c5c5c;
+  --accent: #e8e8e8;
+  --accent-hover: #ffffff;
+  --term-green: #3dd68c;
+  --term-dim: #1a1a1a;
 }
 
 * {
   box-sizing: border-box;
+  border-radius: 0 !important;
 }
 
 html,
@@ -28,47 +31,49 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 13.5px;
+  letter-spacing: -0.01em;
 }
 
-/* Scrollbar */
+/* Terminal scrollbar — qirrali */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: #000;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 99px;
-  border: 2px solid #000;
+  background: rgba(255, 255, 255, 0.18);
+  border: none;
+  border-radius: 0;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.32);
 }
 
-/* Focus: faqat klaviatura bilan, toza */
 button:focus-visible,
 a:focus-visible,
 select:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.35);
-  outline-offset: 2px;
+  outline: 1px solid #fff;
+  outline-offset: 1px;
 }
 textarea:focus,
 textarea:focus-visible {
   outline: none;
 }
 input:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.25);
-  outline-offset: 1px;
+  outline: 1px solid rgba(255, 255, 255, 0.4);
+  outline-offset: 0;
 }
 
 ::selection {
-  background: rgba(217, 119, 87, 0.35);
+  background: rgba(255, 255, 255, 0.2);
   color: #fff;
 }
 
-/* "O'ylanmoqda" yorug'lik effekti */
 @keyframes shimmer {
   0% {
     background-position: 200% 0;
@@ -78,7 +83,7 @@ input:focus-visible {
   }
 }
 .shimmer {
-  background: linear-gradient(90deg, #5a5a5a 30%, #f0f0f0 50%, #5a5a5a 70%);
+  background: linear-gradient(90deg, #555 30%, #eee 50%, #555 70%);
   background-size: 200% 100%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -89,20 +94,25 @@ input:focus-visible {
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(6px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 .fade-up {
-  animation: fade-up 0.28s ease-out both;
+  animation: fade-up 0.15s ease-out both;
 }
 
-/* Fallback markdown (boshqa komponentlar uchun) */
 .markdown-content {
-  line-height: 1.75;
-  font-size: 0.9375rem;
+  line-height: 1.65;
+  font-size: 0.875rem;
   word-break: break-word;
+}
+
+/* Terminal grid background (ixtiyoriy) */
+.term-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 24px 24px;
 }

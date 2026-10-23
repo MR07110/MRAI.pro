@@ -29,10 +29,10 @@ export default function FileCard({ file, onOpen }: { file: FileRef; onOpen: (f: 
           onOpen(file);
         }
       }}
-      className="my-3 flex items-center gap-3.5 max-w-[34rem] rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] px-3 py-3 transition cursor-pointer"
+      className="my-3 flex items-center gap-3.5 max-w-[34rem] border border-white/20 bg-black hover:bg-white/[0.04] px-3 py-3 transition cursor-pointer font-mono"
       title="Ko‘rish"
     >
-      <div className="h-12 w-12 shrink-0 rounded-lg bg-white/[0.07] flex items-center justify-center text-neutral-400">
+      <div className="h-12 w-12 shrink-0 border border-white/15 bg-[#0a0a0a] flex items-center justify-center text-neutral-400">
         <Icon className="w-5 h-5" />
       </div>
       <div className="min-w-0 flex-1">
@@ -46,7 +46,7 @@ export default function FileCard({ file, onOpen }: { file: FileRef; onOpen: (f: 
         href={fileUrl(file.path, { dl: true })}
         download={file.name}
         onClick={(e) => e.stopPropagation()}
-        className="shrink-0 inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-white/10 hover:bg-white/15 text-[13px] text-white font-medium transition"
+        className="shrink-0 inline-flex items-center gap-1.5 h-9 px-3.5 border border-white/25 bg-transparent hover:bg-white hover:text-black text-[12px] text-white font-medium transition font-mono"
       >
         <Download className="w-3.5 h-3.5" />
         <span className="hidden sm:inline">Yuklab olish</span>

@@ -877,8 +877,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
     "h-9 w-9 inline-flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-white/[0.07] transition cursor-pointer";
 
   return (
-    <div className="h-[100dvh] flex bg-black text-neutral-100 overflow-hidden relative">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_20%_0%,rgba(80,80,100,0.18),transparent_55%),radial-gradient(ellipse_at_80%_100%,rgba(60,40,80,0.12),transparent_50%)]" aria-hidden />
+    <div className="h-[100dvh] flex bg-black text-neutral-100 overflow-hidden relative term-grid">
       <FilePanel file={openFile} onClose={() => setOpenFile(null)} />
       {/* Desktop sidebar — fixed glass overlay (orqa fon blur uchun) */}
       {sidebarOpen && (

@@ -145,7 +145,7 @@ export default function MessageView({
     return (
       <div className="group flex flex-col items-end fade-up w-full">
         <div
-          className={`relative max-w-[88%] min-w-[4rem] rounded-2xl bg-[#181818] ${fontSizeClass} leading-[1.7] text-neutral-100 ${
+          className={`relative max-w-[88%] min-w-[4rem] border border-white/15 bg-[#0c0c0c] ${fontSizeClass} leading-[1.7] text-neutral-100 ${
             editing ? "w-full border border-white/20 ring-1 ring-white/10" : ""
           }`}
         >

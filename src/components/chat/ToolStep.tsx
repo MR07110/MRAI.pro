@@ -21,7 +21,7 @@ function Section({ label, text, error }: { label: string; text: string; error?: 
     <div>
       <div className="mb-1 text-[12px] text-neutral-500">{label}</div>
       <pre
-        className={`m-0 max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black/40 border border-white/[0.05] p-2.5 font-mono text-[11.5px] leading-5 ${
+        className={`m-0 max-h-56 overflow-auto whitespace-pre-wrap break-words bg-black border border-white/10 p-2.5 font-mono text-[11.5px] leading-5 ${
           error ? "text-red-300" : "text-neutral-400"
         }`}
       >
@@ -93,7 +93,7 @@ export function ToolGroup({ items }: { items: ToolSeg[] }) {
         <ChevronRight className={`w-3.5 h-3.5 transition-transform ${show ? "rotate-90" : ""}`} />
               </button>
       {show && (
-        <div className="mt-2 rounded-xl border border-white/[0.08] divide-y divide-white/[0.06] overflow-hidden">
+        <div className="mt-2 border border-white/15 divide-y divide-white/10 overflow-hidden font-mono text-[12px]">
           {items.map((t, i) => (
             <ToolRow key={`${t.name}-${i}`} t={t} />
           ))}
