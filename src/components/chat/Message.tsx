@@ -131,90 +131,103 @@ export default function MessageView({
 
   if (!isAssistant) {
     const submitEdit = () => {
-      const t = draft.trim();
-      if (!t || t === msg.content.trim()) {
+      const t0 = draft.trim();
+      if (!t0) return;
+      if (t0 === msg.content.trim()) {
         setEditing(false);
         setDraft(msg.content);
         return;
       }
       setEditing(false);
-      onEditSubmit(msg.id, t);
+      onEditSubmit(msg.id, t0);
     };
 
     return (
-      <div className="group flex flex-col items-end fade-up">
-        {editing ? (
-          <div className={`w-full max-w-[88%] rounded-2xl bg-[#181818] border border-white/15 px-3 py-2 ${fontSizeClass}`}>
-            <textarea
-              ref={editRef}
-              value={draft}
-              onChange={(e) => {
-                setDraft(e.target.value);
-                const el = e.target;
-                el.style.height = "auto";
-                el.style.height = `${Math.min(el.scrollHeight, 280)}px`;
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  e.preventDefault();
-                  setEditing(false);
-                  setDraft(msg.content);
-                }
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  submitEdit();
-                }
-              }}
-              rows={1}
-              className={`block w-full resize-none bg-transparent px-1 py-1 ${fontSizeClass} leading-[1.7] text-neutral-100 focus:outline-none max-h-[280px]`}
-            />
-            <div className="flex items-center justify-end gap-1.5 mt-1.5 pt-1 border-t border-white/[0.06]">
-              <button
-                type="button"
-                onClick={() => {
-                  setEditing(false);
-                  setDraft(msg.content);
+      <div className="group flex flex-col items-end fade-up w-full">
+        <div
+          className={`relative max-w-[88%] min-w-[4rem] rounded-2xl bg-[#181818] ${fontSizeClass} leading-[1.7] text-neutral-100 ${
+            editing ? "w-full border border-white/20 ring-1 ring-white/10" : ""
+          }`}
+        >
+          {editing ? (
+            <>
+              <textarea
+                ref={editRef}
+                value={draft}
+                onChange={(e) => {
+                  setDraft(e.target.value);
+                  const el = e.target;
+                  el.style.height = "auto";
+                  el.style.height = `${Math.min(el.scrollHeight, 320)}px`;
                 }}
-                className="h-7 px-2.5 rounded-lg text-[12px] text-neutral-400 hover:text-white hover:bg-white/[0.07] transition cursor-pointer"
-              >
-                Bekor
-              </button>
-              <button
-                type="button"
-                onClick={submitEdit}
-                disabled={!draft.trim()}
-                className="h-7 px-2.5 rounded-lg text-[12px] font-medium bg-white text-black hover:bg-neutral-200 transition disabled:opacity-30 cursor-pointer"
-              >
-                Saqlash va yuborish
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    e.preventDefault();
+                    setEditing(false);
+                    setDraft(msg.content);
+                  }
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    submitEdit();
+                  }
+                }}
+                rows={1}
+                className={`block w-full resize-none bg-transparent px-4 pt-2.5 pb-1 ${fontSizeClass} leading-[1.7] text-neutral-100 focus:outline-none max-h-[320px] whitespace-pre-wrap break-words`}
+              />
+              <div className="flex items-center justify-end gap-1 px-2.5 pb-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditing(false);
+                    setDraft(msg.content);
+                  }}
+                  className="h-7 px-2.5 rounded-lg text-[12px] text-neutral-400 hover:text-white hover:bg-white/[0.08] transition cursor-pointer"
+                >
+                  Bekor
+                </button>
+                <button
+                  type="button"
+                  onClick={submitEdit}
+                  disabled={!draft.trim()}
+                  className="h-7 px-2.5 rounded-lg text-[12px] font-medium bg-white text-black hover:bg-neutral-200 transition disabled:opacity-30 cursor-pointer"
+                >
+                  Yuborish
+                </button>
+              </div>
+            </>
+          ) : (
             <div
-              className={`max-w-[88%] rounded-2xl bg-[#181818] px-4 py-2.5 ${fontSizeClass} leading-[1.7] whitespace-pre-wrap break-words text-neutral-100`}
+              className="px-4 py-2.5 whitespace-pre-wrap break-words"
+              onDoubleClick={() => {
+                if (!canEdit) return;
+                setDraft(msg.content);
+                setEditing(true);
+              }}
             >
               {msg.content}
             </div>
-            <div className="flex items-center gap-0.5 mt-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-              <button type="button" className={iconBtn} title="Nusxalash" onClick={() => onCopy(msg.id, msg.content)}>
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+          )}
+        </div>
+
+        {!editing && (
+          <div className="flex items-center gap-0.5 mt-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+            <button type="button" className={iconBtn} title="Nusxalash" onClick={() => onCopy(msg.id, msg.content)}>
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
+            {canEdit && (
+              <button
+                type="button"
+                className={iconBtn}
+                title="Tahrirlash (bubble ichida)"
+                onClick={() => {
+                  setDraft(msg.content);
+                  setEditing(true);
+                }}
+              >
+                <Pencil className="w-3.5 h-3.5" />
               </button>
-              {canEdit && (
-                <button
-                  type="button"
-                  className={iconBtn}
-                  title="Tahrirlash"
-                  onClick={() => {
-                    setDraft(msg.content);
-                    setEditing(true);
-                  }}
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-          </>
+            )}
+          </div>
         )}
       </div>
     );
