@@ -18,11 +18,11 @@ export const metadata: Metadata = {
   description: "AI assistant by Muhammadrasul",
   icons: {
     icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
       { url: "/favicon.ico", sizes: "any" },
-      { url: "/favicon-white.png", sizes: "256x256", type: "image/png" },
-      { url: "/logo-white.png", sizes: "512x512", type: "image/png" },
+      { url: "/favicon-32.png", type: "image/png", sizes: "32x32" },
     ],
-    apple: "/apple-icon.png",
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
   },
 };
 
