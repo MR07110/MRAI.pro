@@ -29,7 +29,7 @@ export default function FileCard({ file, onOpen }: { file: FileRef; onOpen: (f: 
  onOpen(file);
  }
  }}
- className="my-3 flex items-center gap-3.5 max-w-[34rem] border-2 border-[#1b1b1b] bg-[#2d2d2d] hover:bg-[#3a3a3a] px-3 py-3 transition cursor-pointer shadow-[inset_2px_2px_0_#454545,inset_-2px_-2px_0_#1b1b1b]"
+ className="my-3 flex items-center gap-3.5 max-w-[34rem] border border-white/20 bg-black hover:bg-white/[0.04] px-3 py-3 transition cursor-pointer"
  title="Ko‘rish"
  >
  <div className="h-12 w-12 shrink-0 border border-white/15 bg-[#0a0a0a] flex items-center justify-center text-neutral-400">

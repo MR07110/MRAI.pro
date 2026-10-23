@@ -1,20 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #1a1a1a;
-  --surface: #2d2d2d;
-  --surface-2: #3a3a3a;
-  --border: #1b1b1b;
-  --border-light: #585858;
-  --text: #f4f4f4;
-  --text-dim: #b0b0b0;
-  --text-faint: #7a7a7a;
-  --accent: #5b8c3e; /* grass */
-  --accent-hover: #6aa344;
-  --dirt: #8b6914;
-  --stone: #7a7a7a;
-  --coal: #1b1b1b;
-  --wood: #9a7b4f;
+  --bg: #000000;
+  --surface: #0a0a0a;
+  --surface-2: #111111;
+  --border: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.22);
+  --text: #e8e8e8;
+  --text-dim: #9a9a9a;
+  --text-faint: #5c5c5c;
+  --accent: #e8e8e8;
+  --accent-hover: #ffffff;
 }
 
 *,
@@ -22,7 +18,6 @@
 *::after {
   box-sizing: border-box;
   border-radius: 0 !important;
-  image-rendering: pixelated;
 }
 
 html,
@@ -30,95 +25,64 @@ body {
   height: 100%;
   margin: 0;
   padding: 0;
-  background: #1a1a1a;
+  background: #000;
   color: var(--text);
   color-scheme: dark;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  /* O'qish oson: system UI, biroz katta */
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Block style lekin o'qiladi: Space Grotesk / system geometric */
+  font-family: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 14.5px;
   line-height: 1.55;
   letter-spacing: 0.01em;
+  font-weight: 500;
 }
 
-/* Code / terminal — mono, o'qiladi */
 code,
 pre,
 .font-mono,
 kbd {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace !important;
-  font-size: 0.92em;
+  font-size: 0.9em;
+  font-weight: 400;
   letter-spacing: 0;
 }
 
-/* Minecraft-style scrollbar */
 ::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: #1b1b1b;
-  border-left: 2px solid #0a0a0a;
+  background: #000;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
 }
 ::-webkit-scrollbar-thumb {
-  background: #585858;
-  border: 2px solid #1b1b1b;
-  box-shadow: inset -2px -2px 0 #3a3a3a, inset 2px 2px 0 #7a7a7a;
+  background: rgba(255, 255, 255, 0.18);
+  border: none;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #6a6a6a;
+  background: rgba(255, 255, 255, 0.32);
 }
 
 button:focus-visible,
 a:focus-visible,
 select:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 1px solid #fff;
+  outline-offset: 1px;
 }
 textarea:focus,
 textarea:focus-visible {
   outline: none;
 }
 input:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 1px solid rgba(255, 255, 255, 0.4);
   outline-offset: 0;
 }
 
 ::selection {
-  background: rgba(91, 140, 62, 0.45);
+  background: rgba(255, 255, 255, 0.2);
   color: #fff;
-}
-
-/* Block button look (utility) */
-.mc-block {
-  background: #3a3a3a;
-  border: 2px solid #1b1b1b;
-  box-shadow:
-    inset 2px 2px 0 #585858,
-    inset -2px -2px 0 #1b1b1b,
-    0 2px 0 #0a0a0a;
-}
-.mc-block:hover {
-  background: #454545;
-}
-.mc-block:active {
-  box-shadow:
-    inset -2px -2px 0 #585858,
-    inset 2px 2px 0 #1b1b1b;
-}
-.mc-green {
-  background: #5b8c3e;
-  color: #fff;
-  border: 2px solid #3d5c29;
-  box-shadow:
-    inset 2px 2px 0 #7cb05a,
-    inset -2px -2px 0 #3d5c29,
-    0 2px 0 #2a4020;
-}
-.mc-green:hover {
-  background: #6aa344;
 }
 
 @keyframes shimmer {
@@ -126,7 +90,7 @@ input:focus-visible {
   100% { background-position: -200% 0; }
 }
 .shimmer {
-  background: linear-gradient(90deg, #5a5a5a 30%, #e8e8e8 50%, #5a5a5a 70%);
+  background: linear-gradient(90deg, #555 30%, #eee 50%, #555 70%);
   background-size: 200% 100%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -139,20 +103,19 @@ input:focus-visible {
   to { opacity: 1; }
 }
 .fade-up {
-  animation: fade-up 0.12s ease-out both;
+  animation: fade-up 0.15s ease-out both;
 }
 
 .markdown-content {
-  line-height: 1.6;
-  font-size: 0.95rem;
+  line-height: 1.65;
+  font-size: 0.9375rem;
   word-break: break-word;
 }
 
-/* Block grid fon — nozik, o'qishni buzmaydi */
 .term-grid {
-  background-color: #1a1a1a;
+  background-color: #000;
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 16px 16px;
+  background-size: 24px 24px;
 }

@@ -158,7 +158,7 @@ export default function FilePanel({
 
   return (
     <aside
-      className="relative flex flex-col bg-[#2d2d2d] border-[#1b1b1b] fixed inset-0 z-50 w-full md:static md:z-auto md:shrink-0 md:border-l-2 md:h-full" data-fp
+      className="relative flex flex-col bg-black border-white/15 fixed inset-0 z-50 w-full md:static md:z-auto md:shrink-0 md:border-l md:h-full" data-fp
       style={{
         // md+ da kenglik; mobile fixed full-screen class bilan
         ...({ ["--fp-w" as string]: `${width}px` } as React.CSSProperties),
@@ -173,10 +173,10 @@ export default function FilePanel({
         onMouseDown={startResize}
         className="hidden md:block absolute left-0 top-0 bottom-0 w-2 -ml-1 z-30 cursor-col-resize"
       >
-        <div className="h-full w-0.5 mx-auto hover:bg-[#5b8c3e] active:bg-[#5b8c3e] transition-colors" />
+        <div className="h-full w-0.5 mx-auto hover:bg-white active:bg-white transition-colors" />
       </div>
 
-      <div className="flex items-center justify-between gap-3 h-11 px-3 border-b-2 border-[#1b1b1b] shrink-0">
+      <div className="flex items-center justify-between gap-3 h-11 px-3 border-b border-white/15 shrink-0">
         <div className="min-w-0">
           <div className="truncate text-[13px] font-medium text-neutral-100">{file.name}</div>
           <div className="text-[11px] text-neutral-500">
@@ -186,11 +186,11 @@ export default function FilePanel({
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
           {hasCode && (
-            <div className="flex items-center mr-1 border-2 border-[#1b1b1b] text-xs">
+            <div className="flex items-center mr-1 border-2 border-white/15 text-xs">
               <button
                 onClick={() => setTab("preview")}
                 className={`flex items-center gap-1 px-2.5 py-1 cursor-pointer ${
-                  tab === "preview" ? "bg-[#5b8c3e] text-white" : "text-neutral-400 hover:text-white"
+                  tab === "preview" ? "bg-white text-black" : "text-neutral-400 hover:text-black"
                 }`}
               >
                 <Eye className="w-3.5 h-3.5" />
@@ -199,7 +199,7 @@ export default function FilePanel({
               <button
                 onClick={() => setTab("code")}
                 className={`flex items-center gap-1 px-2.5 py-1 cursor-pointer ${
-                  tab === "code" ? "bg-[#5b8c3e] text-white" : "text-neutral-400 hover:text-white"
+                  tab === "code" ? "bg-white text-black" : "text-neutral-400 hover:text-black"
                 }`}
               >
                 <Code className="w-3.5 h-3.5" />

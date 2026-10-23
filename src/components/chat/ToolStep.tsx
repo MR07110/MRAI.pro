@@ -93,7 +93,7 @@ export function ToolGroup({ items }: { items: ToolSeg[] }) {
  <ChevronRight className={`w-3.5 h-3.5 transition-transform ${show ? "rotate-90" : ""}`} />
  </button>
  {show && (
- <div className="mt-2 border-2 border-[#1b1b1b] divide-y divide-[#1b1b1b] overflow-hidden font-mono text-[12.5px] bg-[#2d2d2d]">
+ <div className="mt-2 border border-white/15 divide-y divide-white/10 overflow-hidden font-mono text-[12.5px]">
  {items.map((t, i) => (
  <ToolRow key={`${t.name}-${i}`} t={t} />
  ))}

@@ -41,7 +41,7 @@ export default function Composer({
  const canSend = value.trim().length > 0 && !isStreaming;
 
  return (
- <div className="w-full border-2 border-[#1b1b1b] bg-[#2d2d2d] focus-within:border-[#5b8c3e] transition-colors shadow-[inset_2px_2px_0_#3a3a3a,inset_-2px_-2px_0_#1b1b1b]">
+ <div className="w-full border border-white/20 bg-black focus-within:border-white/40 transition-colors">
  <textarea
  ref={textareaRef}
  value={value}
@@ -96,7 +96,7 @@ export default function Composer({
  onClick={onSend}
  disabled={!canSend}
  title="Yuborish"
- className="w-9 h-9 bg-[#5b8c3e] text-white flex items-center justify-center hover:bg-[#6aa344] transition disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer border-2 border-[#3d5c29] shadow-[inset_1px_1px_0_#7cb05a,inset_-1px_-1px_0_#3d5c29]"
+ className="w-8 h-8 bg-white text-black flex items-center justify-center hover:bg-neutral-200 transition disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer"
  >
  <ArrowUp className="w-4 h-4" strokeWidth={2.4} />
  </button>
