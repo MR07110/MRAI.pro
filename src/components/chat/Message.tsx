@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Check, ChevronRight, Copy, Key, Pencil, RotateCcw, ShieldAlert } from "lucide-react";
 import WaitCountdown, { stripWait } from "../WaitCountdown";
@@ -68,9 +68,10 @@ export default function MessageView({
   isStreaming,
   copied,
   fontSizeClass,
+  canEdit,
   onCopy,
   onRegenerate,
-  onEdit,
+  onEditSubmit,
   onOpenSettings,
   onOpenFile,
 }: {
@@ -79,9 +80,12 @@ export default function MessageView({
   isStreaming: boolean;
   copied: boolean;
   fontSizeClass: string;
+  /** Faqat eng oxirgi foydalanuvchi xabari uchun true */
+  canEdit?: boolean;
   onCopy: (id: string, text: string) => void;
   onRegenerate: () => void;
-  onEdit: (text: string) => void;
+  /** Tahrirlangan matn bilan qayta yuborish (faqat canEdit bo'lganda) */
+  onEditSubmit: (messageId: string, text: string) => void;
   onOpenSettings: () => void;
   onOpenFile: (f: FileRef) => void;
 }) {
@@ -90,6 +94,25 @@ export default function MessageView({
   const { thinking, content } = isAssistant
     ? parseThinkingAndContent(msg.content)
     : { thinking: null as string | null, content: msg.content };
+
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(msg.content);
+  const editRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!editing) setDraft(msg.content);
+  }, [msg.content, editing]);
+
+  useEffect(() => {
+    if (!editing || !editRef.current) return;
+    const el = editRef.current;
+    el.focus();
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 280)}px`;
+    // kursor oxiriga
+    const len = el.value.length;
+    el.setSelectionRange(len, len);
+  }, [editing]);
 
   let body = content;
   let errorText: string | null = null;
@@ -107,21 +130,92 @@ export default function MessageView({
   const blocks = useMemo(() => (isAssistant ? toBlocks(splitAgent(body, live)) : []), [isAssistant, body, live]);
 
   if (!isAssistant) {
+    const submitEdit = () => {
+      const t = draft.trim();
+      if (!t || t === msg.content.trim()) {
+        setEditing(false);
+        setDraft(msg.content);
+        return;
+      }
+      setEditing(false);
+      onEditSubmit(msg.id, t);
+    };
+
     return (
       <div className="group flex flex-col items-end fade-up">
-        <div
-          className={`max-w-[88%] rounded-2xl bg-[#181818] px-4 py-2.5 ${fontSizeClass} leading-[1.7] whitespace-pre-wrap break-words text-neutral-100`}
-        >
-          {msg.content}
-        </div>
-        <div className="flex items-center gap-0.5 mt-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-          <button type="button" className={iconBtn} title="Nusxalash" onClick={() => onCopy(msg.id, msg.content)}>
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-          </button>
-          <button type="button" className={iconBtn} title="Tahrirlash va qayta yuborish" onClick={() => onEdit(msg.content)}>
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        {editing ? (
+          <div className={`w-full max-w-[88%] rounded-2xl bg-[#181818] border border-white/15 px-3 py-2 ${fontSizeClass}`}>
+            <textarea
+              ref={editRef}
+              value={draft}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                const el = e.target;
+                el.style.height = "auto";
+                el.style.height = `${Math.min(el.scrollHeight, 280)}px`;
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  setEditing(false);
+                  setDraft(msg.content);
+                }
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  submitEdit();
+                }
+              }}
+              rows={1}
+              className={`block w-full resize-none bg-transparent px-1 py-1 ${fontSizeClass} leading-[1.7] text-neutral-100 focus:outline-none max-h-[280px]`}
+            />
+            <div className="flex items-center justify-end gap-1.5 mt-1.5 pt-1 border-t border-white/[0.06]">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditing(false);
+                  setDraft(msg.content);
+                }}
+                className="h-7 px-2.5 rounded-lg text-[12px] text-neutral-400 hover:text-white hover:bg-white/[0.07] transition cursor-pointer"
+              >
+                Bekor
+              </button>
+              <button
+                type="button"
+                onClick={submitEdit}
+                disabled={!draft.trim()}
+                className="h-7 px-2.5 rounded-lg text-[12px] font-medium bg-white text-black hover:bg-neutral-200 transition disabled:opacity-30 cursor-pointer"
+              >
+                Saqlash va yuborish
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div
+              className={`max-w-[88%] rounded-2xl bg-[#181818] px-4 py-2.5 ${fontSizeClass} leading-[1.7] whitespace-pre-wrap break-words text-neutral-100`}
+            >
+              {msg.content}
+            </div>
+            <div className="flex items-center gap-0.5 mt-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+              <button type="button" className={iconBtn} title="Nusxalash" onClick={() => onCopy(msg.id, msg.content)}>
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+              {canEdit && (
+                <button
+                  type="button"
+                  className={iconBtn}
+                  title="Tahrirlash"
+                  onClick={() => {
+                    setDraft(msg.content);
+                    setEditing(true);
+                  }}
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </div>
     );
   }

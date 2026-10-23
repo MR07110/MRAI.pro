@@ -242,14 +242,46 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
     } catch {}
   };
 
-  // Edit user message (load into prompt)
-  const editUserMessage = (text: string) => {
-    setInput(text);
-    if (textareaRef.current) {
-      textareaRef.current.focus();
-      setTimeout(autoResize, 50);
+  // Faqat eng oxirgi user xabarini bubble ichida tahrirlash → keyingi javoblar kesiladi, qayta yuboriladi
+  async function editUserMessage(messageId: string, text: string) {
+    if (isStreaming || !currentChatId || !text.trim()) return;
+
+    let activeKey = defaultKey;
+    if (!activeKey) activeKey = await loadDefaultKey();
+    if (!activeKey) {
+      setSettingsOpen(true);
+      return;
     }
-  };
+    if (!activeKey.model) {
+      setModelOpen(true);
+      return;
+    }
+
+    const idx = messages.findIndex((m) => m.id === messageId && m.role === "user");
+    if (idx === -1) return;
+    // faqat eng oxirgi user xabari
+    let lastUserIdx = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "user") {
+        lastUserIdx = i;
+        break;
+      }
+    }
+    if (idx !== lastUserIdx) return;
+
+    const updated = { ...messages[idx], content: text.trim() };
+    const trimmed = [...messages.slice(0, idx), updated];
+    setMessages(trimmed);
+
+    // DB: yangi matn bilan qayta yozish (id saqlanadi)
+    await serverDb.saveMessage(currentChatId, "user", text.trim(), messageId);
+
+    const history = trimmed.map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
+    await executeChatStream(currentChatId, history, activeKey);
+  }
 
   // Core Send Logic via Server API (/api/chat)
   async function executeChatStream(
@@ -960,7 +992,12 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
                     fontSizeClass={fontSizeClass}
                     onCopy={copyResponse}
                     onRegenerate={regenerateResponse}
-                    onEdit={editUserMessage}
+                    canEdit={
+                      !isStreaming &&
+                      msg.role === "user" &&
+                      messages.map((m) => m.role).lastIndexOf("user") === index
+                    }
+                    onEditSubmit={editUserMessage}
                     onOpenSettings={openSettings}
                     onOpenFile={setOpenFile}
                   />
