@@ -882,7 +882,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
       {/* Desktop sidebar */}
       <aside
         className={`hidden md:block shrink-0 overflow-hidden transition-[width] duration-200 ease-out ${
-          sidebarOpen ? "w-[272px] border-r border-white/[0.06]" : "w-0"
+          sidebarOpen ? "w-[272px]" : "w-0"
         }`}
       >
         <div className="w-[272px] h-full">
@@ -893,8 +893,8 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
       {/* Mobile drawer */}
       {mobileSidebar && (
         <div className="md:hidden fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/70" onClick={() => setMobileSidebar(false)} />
-          <div className="relative w-[300px] max-w-[85vw] h-full border-r border-white/10 z-10">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setMobileSidebar(false)} />
+          <div className="relative w-[300px] max-w-[85vw] h-full z-10 shadow-2xl">
             <Sidebar
               {...sidebarProps}
               mobile

@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState } from "react";
-import { ChevronRight, Loader2 } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import type { ToolSeg } from "./parse";
 
 // Claude uslubi: barcha asboblar bitta qatorga yig'iladi. Stream paytida layout sakramasin.
@@ -50,8 +50,7 @@ const ToolRow = memo(function ToolRow({ t }: { t: ToolSeg }) {
         {isErr && <span className="shrink-0 text-red-400">Xato</span>}
         {t.status === "stopped" && <span className="shrink-0 text-neutral-600">To‘xtatilgan</span>}
         <span className="flex-1" />
-        {t.status === "running" && <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin text-neutral-400" />}
-        {t.secs && <span className="shrink-0 text-[11px] text-neutral-600 tabular-nums">{t.secs}s</span>}
+                {t.secs && <span className="shrink-0 text-[11px] text-neutral-600 tabular-nums">{t.secs}s</span>}
         <ChevronRight
           className={`w-3.5 h-3.5 shrink-0 text-neutral-600 transition-transform ${open ? "rotate-90" : ""} ${canOpen ? "" : "opacity-0"}`}
         />
@@ -92,8 +91,7 @@ export function ToolGroup({ items }: { items: ToolSeg[] }) {
       >
         <span className={live ? "shimmer" : ""}>{text}</span>
         <ChevronRight className={`w-3.5 h-3.5 transition-transform ${show ? "rotate-90" : ""}`} />
-        {live && <Loader2 className="w-3.5 h-3.5 animate-spin opacity-70" />}
-      </button>
+              </button>
       {show && (
         <div className="mt-2 rounded-xl border border-white/[0.08] divide-y divide-white/[0.06] overflow-hidden">
           {items.map((t, i) => (

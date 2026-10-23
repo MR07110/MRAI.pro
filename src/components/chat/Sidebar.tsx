@@ -59,7 +59,7 @@ export default function Sidebar({
   const groups = groupChats(chats);
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#050505]">
+    <div className="flex flex-col h-full w-full bg-white/[0.03] backdrop-blur-2xl border-r border-white/[0.06]">
       <div className="flex items-center justify-between h-12 px-3 shrink-0">
         <a
           href="/"
