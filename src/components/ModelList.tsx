@@ -10,10 +10,12 @@ interface Props {
   onChange: (id: string) => void;
   /** ro'yxat balandligi (Tailwind max-h klassi) */
   heightClass?: string;
+  /** ro'yxatda yo'q nomni qo'lda yozib ishlatishga ruxsat (faqat mahalliy/custom uchun) */
+  allowTyped?: boolean;
 }
 
 // Qidiruvli model ro'yxati. Ro'yxatda yo'q nomni yozsa, "shu nomni ishlatish" qatori chiqadi.
-export default function ModelList({ items, value, onChange, heightClass = "max-h-60" }: Props) {
+export default function ModelList({ items, value, onChange, heightClass = "max-h-60", allowTyped = true }: Props) {
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
 
@@ -25,7 +27,7 @@ export default function ModelList({ items, value, onChange, heightClass = "max-h
     return base.filter((i) => i.id.toLowerCase().includes(q) || i.name.toLowerCase().includes(q));
   }, [items, value, q]);
 
-  const canUseTyped = q.length > 0 && !items.some((i) => i.id.toLowerCase() === q);
+  const canUseTyped = allowTyped && q.length > 0 && !items.some((i) => i.id.toLowerCase() === q);
 
   return (
     <div className="rounded-xl border border-neutral-800 bg-neutral-950 overflow-hidden">
@@ -35,7 +37,7 @@ export default function ModelList({ items, value, onChange, heightClass = "max-h
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Model qidirish yoki nomini yozish"
+            placeholder={allowTyped ? "Model qidirish yoki nomini yozish" : "Model qidirish"}
             className="flex-1 bg-transparent text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none"
           />
         </label>

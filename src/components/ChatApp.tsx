@@ -260,6 +260,10 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
         setSettingsOpen(true);
         return;
       }
+      if (!key0.model) {
+        setModelOpen(true);
+        return;
+      }
     }
     const key = key0 as UserApiKey; // attach rejimida ishlatilmaydi
 
@@ -551,6 +555,10 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
       setSettingsOpen(true);
       return;
     }
+    if (!activeKey.model) {
+      setModelOpen(true);
+      return;
+    }
 
     let chatId = currentChatId;
 
@@ -609,6 +617,10 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
     }
     if (!activeKey) {
       setSettingsOpen(true);
+      return;
+    }
+    if (!activeKey.model) {
+      setModelOpen(true);
       return;
     }
 
@@ -743,7 +755,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
   const greeting = hour < 5 ? "Xayrli tun" : hour < 12 ? "Xayrli tong" : hour < 18 ? "Xayrli kun" : "Xayrli kech";
   const currentTitle = chats.find((c) => c.id === currentChatId)?.title || "";
   const empty = messages.length === 0;
-  const modelLabel = defaultKey ? defaultKey.model : null;
+  const modelLabel = defaultKey ? defaultKey.model || "Model tanlang" : null;
 
   // Yuborilgach kiritish maydoni balandligini qaytaradi
   useEffect(() => {
@@ -950,6 +962,10 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
         onClose={() => {
           setModelOpen(false);
           loadDefaultKey();
+        }}
+        onOpenSettings={() => {
+          setModelOpen(false);
+          setSettingsOpen(true);
         }}
       />
 

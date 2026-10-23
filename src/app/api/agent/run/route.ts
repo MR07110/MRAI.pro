@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { runAgent } from "@/lib/agent";
 import { isAuthorized } from "@/lib/serverAuth";
 import { USERNAME_RE } from "@/lib/session";
+import { DEFAULT_SYSTEM_PROMPT } from "@/lib/settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
       apiKey: b.apiKey,
       model: b.model,
       baseUrl: b.baseUrl || undefined,
-      system: b.system || undefined,
+      system: b.system || DEFAULT_SYSTEM_PROMPT,
       messages: [{ role: "user", content: String(b.prompt) }],
       connectors: Array.isArray(b.connectors) ? b.connectors : [],
       serverUrl: b.serverUrl || undefined,

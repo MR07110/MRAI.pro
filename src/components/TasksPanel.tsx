@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Clock, Plus, Trash2, Loader2, Play, ChevronDown, ChevronRight } from "lucide-react";
 import * as serverDb from "@/lib/serverDb";
+import { loadSettings } from "@/lib/settings";
 import type { ScheduledTask, TaskRun } from "@/types";
 
 const PRESETS = [
@@ -81,10 +82,11 @@ export default function TasksPanel() {
         const keys = await serverDb.getKeys();
         const k = keys.find((x) => x.is_default) || keys[0];
         if (!k) throw new Error("Avval API kalit qo‘shing (API kalitlar bo‘limi)");
+        if (!k.model) throw new Error("Avval Sozlamalar → API kalitlar bo‘limida model tanlang");
         keyId = k.id;
       }
       await serverDb.saveTask(
-        { name: name.trim(), kind, schedule: schedule.trim(), prompt: kind === "ai" ? text : "", command: kind === "shell" ? text : "" },
+        { name: name.trim(), kind, schedule: schedule.trim(), prompt: kind === "ai" ? text : "", command: kind === "shell" ? text : "", system: kind === "ai" ? loadSettings().systemPrompt : "" },
         keyId
       );
       setName(""); setText(""); setShowForm(false);

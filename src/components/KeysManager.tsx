@@ -5,6 +5,7 @@ import { Check, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import * as serverDb from "@/lib/serverDb";
 import type { UserApiKey } from "@/types";
 import KeyEditor from "./KeyEditor";
+import ModelField from "./ModelField";
 import { maskKey, shortProviderName } from "@/lib/modelsCatalog";
 
 interface Props {
@@ -105,55 +106,60 @@ export default function KeysManager({ compact = false, onSelected }: Props) {
       {keys.map((k) => (
         <div
           key={k.id}
-          className={`group flex items-center gap-1 rounded-xl border transition ${
+          className={`rounded-xl border transition ${
             k.is_default
               ? "border-neutral-600 bg-neutral-950"
               : "border-neutral-800 bg-neutral-950/50 hover:border-neutral-700"
           }`}
         >
-          <button
-            type="button"
-            onClick={() => pick(k)}
-            className="flex-1 min-w-0 flex items-center gap-3 px-3.5 py-3 text-left cursor-pointer"
-          >
-            <span
-              className={`w-4 h-4 rounded-full border shrink-0 flex items-center justify-center ${
-                k.is_default ? "border-emerald-400 bg-emerald-400" : "border-neutral-600"
-              }`}
+          <div className="group flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => pick(k)}
+              title="Faol provayder qilish"
+              className="flex-1 min-w-0 flex items-center gap-3 px-3.5 py-3 text-left cursor-pointer"
             >
-              {busyId === k.id ? (
-                <Loader2 className="w-3 h-3 animate-spin text-neutral-300" />
-              ) : (
-                k.is_default && <Check className="w-3 h-3 text-neutral-950" strokeWidth={3} />
-              )}
-            </span>
-            <span className="min-w-0">
-              <span className="block text-sm text-neutral-100 truncate">
-                {shortProviderName(k.provider)}
-                <span className="text-neutral-500"> · </span>
-                <span className="text-neutral-300">{k.model}</span>
+              <span
+                className={`w-4 h-4 rounded-full border shrink-0 flex items-center justify-center ${
+                  k.is_default ? "border-emerald-400 bg-emerald-400" : "border-neutral-600"
+                }`}
+              >
+                {busyId === k.id ? (
+                  <Loader2 className="w-3 h-3 animate-spin text-neutral-300" />
+                ) : (
+                  k.is_default && <Check className="w-3 h-3 text-neutral-950" strokeWidth={3} />
+                )}
               </span>
-              <span className="block text-[11px] text-neutral-500 font-mono mt-0.5">{maskKey(k.api_key)}</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode({ type: "edit", key: k })}
-            title="Kalit yoki modelni o‘zgartirish"
-            aria-label="O‘zgartirish"
-            className="p-2 rounded-lg text-neutral-500 hover:text-white hover:bg-neutral-800 transition cursor-pointer"
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => remove(k)}
-            title="O‘chirish"
-            aria-label="O‘chirish"
-            className="p-2 mr-1 rounded-lg text-neutral-600 hover:text-red-400 hover:bg-red-950/40 transition cursor-pointer"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+              <span className="min-w-0">
+                <span className="block text-sm text-neutral-100 truncate">
+                  {shortProviderName(k.provider)}
+                  {k.is_default && <span className="ml-2 text-[11px] text-emerald-400">faol</span>}
+                </span>
+                <span className="block text-[11px] text-neutral-500 font-mono mt-0.5">{maskKey(k.api_key)}</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode({ type: "edit", key: k })}
+              title="Kalitni o‘zgartirish"
+              aria-label="O‘zgartirish"
+              className="p-2 rounded-lg text-neutral-500 hover:text-white hover:bg-neutral-800 transition cursor-pointer"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => remove(k)}
+              title="O‘chirish"
+              aria-label="O‘chirish"
+              className="p-2 mr-1 rounded-lg text-neutral-600 hover:text-red-400 hover:bg-red-950/40 transition cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="px-3.5 pb-3">
+            <ModelField keyItem={k} onChanged={() => load()} />
+          </div>
         </div>
       ))}
 

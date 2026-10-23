@@ -4,15 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Eye, EyeOff, Loader2, Check, ShieldAlert, TriangleAlert } from "lucide-react";
 import * as serverDb from "@/lib/serverDb";
 import type { UserApiKey, Provider } from "@/types";
-import ModelList from "./ModelList";
-import {
-  PROVIDERS,
-  buildModelItems,
-  providerHasFree,
-  detectProvider,
-  shortProviderName,
-  validateKey,
-} from "@/lib/modelsCatalog";
+import { PROVIDERS, providerHasFree, detectProvider, shortProviderName, validateKey } from "@/lib/modelsCatalog";
 
 interface Props {
   /** berilsa — mavjud kalitni o'zgartirish, aks holda yangi kalit qo'shish */
@@ -26,7 +18,8 @@ type Status = "idle" | "checking" | "ok" | "auth" | "offline";
 
 const LOCAL_URL = "http://localhost:11434/v1";
 
-// Bitta maydon: kalitni joylaysiz → provayder aniqlanadi → kalit tekshiriladi → modellar chiqadi.
+// Kalit qo'shish: kalitni joylaysiz → provayder aniqlanadi (aniqlanmasa ro'yxatdan tanlanadi) → kalit tekshiriladi →
+// to'g'ri bo'lsagina saqlanadi. Bu yerda MODEL tanlanmaydi va modellar ko'rsatilmaydi: model keyin Sozlamalarda tanlanadi.
 export default function KeyEditor({ existing = null, compact = false, onDone, onCancel }: Props) {
   const [keyInput, setKeyInput] = useState(existing?.api_key || "");
   const [reveal, setReveal] = useState(false);
@@ -37,8 +30,6 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
 
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
-  const [models, setModels] = useState<string[]>([]);
-  const [picked, setPicked] = useState<{ provider: string; id: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
 
@@ -48,10 +39,6 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
   const provider: Provider | null = useMemo(() => {
     if (manualProvider === "custom") return "custom";
     if (det.provider) return det.provider;
-    if (det.candidates.length) {
-      const pick = manualProvider ?? (existing && det.candidates.includes(existing.provider) ? existing.provider : null);
-      return pick && det.candidates.includes(pick) ? pick : null;
-    }
     return manualProvider ?? existing?.provider ?? null;
   }, [det, manualProvider, existing]);
 
@@ -63,11 +50,11 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
       ? existing.base_url || undefined
       : undefined;
 
-  // Kalit/provayder o'zgarsa — debounce bilan tekshirib, modellarni olamiz.
+  // Kalit/provayder o'zgarsa — debounce bilan tekshiramiz (modellar ishlatilmaydi, faqat kalit to'g'riligi).
   useEffect(() => {
-    if (!provider || (!isCustom && trimmed.length < 10)) {
+    if (!provider || paidOnly || (!isCustom && trimmed.length < 10)) {
       setStatus("idle");
-      setModels([]);
+      setError("");
       return;
     }
     const ctrl = new AbortController();
@@ -75,15 +62,13 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
       setStatus("checking");
       setError("");
       try {
-        const r = await validateKey(provider, trimmed || "ollama", effectiveBase, existing?.model, ctrl.signal);
+        const r = await validateKey(provider, trimmed || "ollama", effectiveBase, existing?.model || undefined, ctrl.signal);
         if (ctrl.signal.aborted) return;
         if (r.valid) {
           setStatus("ok");
-          setModels(r.models);
         } else {
           setStatus(r.auth ? "auth" : "offline");
           setError(r.error || "");
-          setModels([]);
         }
       } catch {
         /* bekor qilindi */
@@ -94,36 +79,22 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
       ctrl.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [provider, trimmed, effectiveBase]);
+  }, [provider, paidOnly, trimmed, effectiveBase]);
 
-  const items = useMemo(() => buildModelItems(provider, models), [provider, models]);
-
-  const model = useMemo(() => {
-    if (!provider) return "";
-    if (picked && picked.provider === provider) return picked.id;
-    if (existing && existing.provider === provider && existing.model) return existing.model;
-    const def = PROVIDERS.find((p) => p.value === provider)?.defaultModel;
-    if (def && items.some((i) => i.id === def)) return def;
-    return items[0]?.id || "";
-  }, [picked, existing, provider, items]);
-
-  const showModels =
-    !!provider &&
-    !paidOnly &&
-    (status === "ok" ||
-      status === "offline" ||
-      (status === "checking" && !!existing && existing.provider === provider));
-
-  const needsProvider = !provider && trimmed.length >= 8;
-  const canSave = !!provider && !paidOnly && !!model && status !== "checking" && status !== "auth" && (status !== "idle" || !!existing);
+  // Faqat tasdiqlangan kalit saqlanadi. Mahalliy server (Custom) Vercel'dan ko'rinmasligi mumkin, shuning uchun u uchun istisno.
+  const canSave = !!provider && !paidOnly && (status === "ok" || (isCustom && status === "offline"));
+  const showProviderSelect = !det.provider && !isCustom && trimmed.length >= 8;
 
   async function save() {
-    if (!provider || !model || saving) return;
+    if (!provider || !canSave || saving) return;
     setSaving(true);
     setSaveError("");
     try {
       const key = trimmed || "ollama";
-      const base_url = isCustom ? baseUrl.trim() || null : existing && existing.provider === provider ? existing.base_url ?? null : null;
+      const sameProvider = !!existing && existing.provider === provider;
+      const base_url = isCustom ? baseUrl.trim() || null : sameProvider ? existing!.base_url ?? null : null;
+      // Model bu yerda tanlanmaydi: yangi kalitda bo'sh, eski kalit o'zgarsa avvalgisi saqlanadi.
+      const model = sameProvider ? existing!.model || "" : "";
       let saved: UserApiKey;
       if (existing) {
         saved = await serverDb.updateKey(existing.id, {
@@ -131,7 +102,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
           api_key: key,
           model,
           base_url,
-          name: existing.provider === provider ? existing.name : shortProviderName(provider),
+          name: sameProvider ? existing.name : shortProviderName(provider),
         });
       } else {
         saved = await serverDb.saveKey({
@@ -164,7 +135,6 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
             value={keyInput}
             onChange={(e) => {
               setKeyInput(e.target.value);
-              setPicked(null);
               setSaveError("");
             }}
             autoComplete="off"
@@ -195,7 +165,6 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
             <span className="inline-flex items-center gap-1.5 text-emerald-400">
               <Check className="w-3.5 h-3.5" />
               {shortProviderName(provider)} kaliti tasdiqlandi
-              {items.length > 0 && <span className="text-neutral-500">· {items.length} ta model</span>}
             </span>
           )}
           {status === "auth" && (
@@ -207,7 +176,10 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
           {status === "offline" && (
             <span className="inline-flex items-start gap-1.5 text-amber-400">
               <TriangleAlert className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-              <span>Kalitni tekshirib bo‘lmadi{error ? ` (${error})` : ""}. Baribir saqlash mumkin.</span>
+              <span>
+                Kalitni tekshirib bo‘lmadi{error ? ` (${error})` : ""}.{" "}
+                {isCustom ? "Mahalliy server bo‘lgani uchun baribir saqlash mumkin." : "Xizmat to‘g‘ri tanlanganini tekshiring yoki keyinroq urinib ko‘ring."}
+              </span>
             </span>
           )}
           {paidOnly && provider && (
@@ -218,53 +190,40 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
               </span>
             </span>
           )}
-          {status === "idle" && !trimmed && !isCustom && !existing && (
+          {status === "idle" && !paidOnly && !trimmed && !isCustom && !existing && (
             <span className="text-neutral-500">
-              Groq, Gemini, OpenRouter, Ollama (faqat bepul modellar). Kalit turi o‘zi aniqlanadi.
+              Kalit turi o‘zi aniqlanadi. Modelni keyin Sozlamalardan tanlaysiz.
             </span>
           )}
         </div>
       </div>
 
-      {/* Provayderni aniqlab bo'lmasa — bitta teging */}
-      {needsProvider && (
+      {/* Provayderni aniqlab bo'lmasa — ro'yxatdan o'zimiz tanlaymiz */}
+      {showProviderSelect && (
         <div>
-          <p className="text-xs text-neutral-400 mb-2">
-            {det.candidates.length ? "Bu kalit qaysi xizmatniki?" : "Kalit turi aniqlanmadi. Xizmatni tanlang."}
-          </p>
-          {det.candidates.length ? (
-            <div className="flex flex-wrap gap-2">
-              {det.candidates.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setManualProvider(c)}
-                  className="px-3.5 h-9 rounded-lg border border-neutral-800 text-sm text-neutral-200 hover:border-neutral-600 hover:text-white transition cursor-pointer"
-                >
-                  {shortProviderName(c)}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <select
-              value=""
-              onChange={(e) => e.target.value && setManualProvider(e.target.value as Provider)}
-              className={`${inputCls} cursor-pointer`}
-              aria-label="Xizmat"
-            >
-              <option value="" className="bg-neutral-900">
-                Xizmatni tanlang
+          <p className="text-xs text-neutral-400 mb-2">Kalit turi aniqlanmadi. Xizmatni ro‘yxatdan tanlang.</p>
+          <select
+            value={provider && provider !== "custom" ? provider : ""}
+            onChange={(e) => setManualProvider((e.target.value || null) as Provider | null)}
+            className={`${inputCls} cursor-pointer`}
+            aria-label="Xizmat"
+          >
+            <option value="" className="bg-neutral-900">
+              Xizmatni tanlang
+            </option>
+            {PROVIDERS.filter((p) => p.hasFree && p.value !== "custom").map((p) => (
+              <option key={p.value} value={p.value} className="bg-neutral-900">
+                {shortProviderName(p.value)}
               </option>
-              {PROVIDERS.filter((p) => p.hasFree && p.value !== "custom").map((p) => (
-                <option key={p.value} value={p.value} className="bg-neutral-900">
-                  {shortProviderName(p.value)}
-                </option>
-              ))}
-              <option value="custom" className="bg-neutral-900">
-                Mahalliy server / o‘z manzilim (Custom)
-              </option>
-            </select>
-          )}
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => setManualProvider("custom")}
+            className="mt-2 text-xs text-neutral-500 hover:text-neutral-200 transition cursor-pointer"
+          >
+            Mahalliy server yoki o‘z manzilim bor
+          </button>
         </div>
       )}
 
@@ -300,18 +259,6 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
             Mahalliy server yoki o‘z manzilim bor
           </button>
         )
-      )}
-
-      {showModels && (
-        <div>
-          <p className="text-xs font-medium text-neutral-300 mb-1.5">Model</p>
-          <ModelList
-            items={items}
-            value={model}
-            onChange={(id) => provider && setPicked({ provider, id })}
-            heightClass={compact ? "max-h-44" : "max-h-60"}
-          />
-        </div>
       )}
 
       {saveError && (
