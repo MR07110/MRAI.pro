@@ -249,6 +249,9 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
                   {shortProviderName(p.value)}
                 </option>
               ))}
+              <option value="custom" className="bg-neutral-900">
+                Ollama (mahalliy)
+              </option>
             </select>
           )}
         </div>
