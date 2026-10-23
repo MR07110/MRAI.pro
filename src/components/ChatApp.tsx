@@ -1007,7 +1007,9 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  }
  onEditSubmit={editUserMessage}
  onOpenSettings={openSettings}
- onOpenFile={setOpenFile}
+ onOpenFile={(f) =>
+                  setOpenFile((cur) => (cur && cur.path === f.path ? null : f))
+                }
  />
  ))}
  <div ref={messagesEndRef} />
