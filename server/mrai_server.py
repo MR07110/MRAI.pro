@@ -6,6 +6,8 @@ import subprocess
 import shlex
 import signal
 import sqlite3
+import time
+import datetime
 import urllib.parse
 import sys
 import mrai_tasks
@@ -80,6 +82,61 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
+
+def _tok(v):
+    try:
+        n = int(float(v))
+    except Exception:
+        return 0
+    return max(0, min(n, 50_000_000))
+
+def usage_summary(cur, user, days):
+    """Foydalanuvchi sarflagan tokenlar: umumiy, kunlar, modellar, manbalar va oxirgi so'rovlar."""
+    days = max(1, min(int(days or 30), 365))
+    today = datetime.date.today()
+    t0 = int(time.mktime(today.timetuple()))
+    start = int(time.mktime((today - datetime.timedelta(days=days - 1)).timetuple()))
+
+    def agg(since):
+        cur.execute("SELECT COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0), COUNT(*) FROM usage WHERE user_id=? AND ts>=?", (user, since))
+        r = cur.fetchone()
+        return {"input": r[0], "output": r[1], "calls": r[2]}
+
+    totals = {
+        "today": agg(t0),
+        "d7": agg(int(time.mktime((today - datetime.timedelta(days=6)).timetuple()))),
+        "d30": agg(int(time.mktime((today - datetime.timedelta(days=29)).timetuple()))),
+        "all": agg(0),
+        "range": agg(start),
+    }
+
+    cur.execute("""SELECT date(ts,'unixepoch','localtime') d, SUM(input_tokens), SUM(output_tokens), COUNT(*)
+                   FROM usage WHERE user_id=? AND ts>=? GROUP BY d""", (user, start))
+    byd = {r[0]: {"input": r[1], "output": r[2], "calls": r[3]} for r in cur.fetchall()}
+    by_day = []
+    for i in range(days):
+        d = (today - datetime.timedelta(days=days - 1 - i)).isoformat()
+        v = byd.get(d, {"input": 0, "output": 0, "calls": 0})
+        by_day.append({"day": d, **v})
+
+    cur.execute("""SELECT provider, model, SUM(input_tokens), SUM(output_tokens), COUNT(*), SUM(estimated)
+                   FROM usage WHERE user_id=? AND ts>=? GROUP BY provider, model
+                   ORDER BY SUM(input_tokens)+SUM(output_tokens) DESC LIMIT 20""", (user, start))
+    by_model = [{"provider": r[0], "model": r[1], "input": r[2], "output": r[3], "calls": r[4], "estimated": r[5] or 0} for r in cur.fetchall()]
+
+    cur.execute("""SELECT source, SUM(input_tokens), SUM(output_tokens), COUNT(*)
+                   FROM usage WHERE user_id=? AND ts>=? GROUP BY source
+                   ORDER BY SUM(input_tokens)+SUM(output_tokens) DESC""", (user, start))
+    by_source = [{"source": r[0], "input": r[1], "output": r[2], "calls": r[3]} for r in cur.fetchall()]
+
+    cur.execute("""SELECT ts, provider, model, source, input_tokens, output_tokens, estimated
+                   FROM usage WHERE user_id=? ORDER BY ts DESC LIMIT 12""", (user,))
+    recent = [{"ts": r[0], "provider": r[1], "model": r[2], "source": r[3], "input": r[4], "output": r[5], "estimated": bool(r[6])} for r in cur.fetchall()]
+
+    cur.execute("SELECT COUNT(*) FROM usage WHERE user_id=? AND ts>=? AND estimated=1", (user, start))
+    return {"days": days, "totals": totals, "by_day": by_day, "by_model": by_model,
+            "by_source": by_source, "recent": recent, "estimated_calls": cur.fetchone()[0]}
+
 def init_db():
     conn = get_db()
     cur = conn.cursor()
@@ -119,6 +176,21 @@ def init_db():
         pass_hash TEXT NOT NULL,
         created_at TEXT NOT NULL
     )""")
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS usage (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        ts REAL NOT NULL,
+        provider TEXT DEFAULT '',
+        model TEXT DEFAULT '',
+        key_id TEXT DEFAULT '',
+        source TEXT DEFAULT 'chat',
+        chat_id TEXT DEFAULT '',
+        input_tokens INTEGER DEFAULT 0,
+        output_tokens INTEGER DEFAULT 0,
+        estimated INTEGER DEFAULT 0
+    )""")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_usage_user_ts ON usage (user_id, ts)")
     for tbl in ("chats", "messages", "api_keys"):
         cols = [r[1] for r in cur.execute("PRAGMA table_info(%s)" % tbl).fetchall()]
         if "user_id" not in cols:
@@ -321,6 +393,15 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
                     r["is_default"] = bool(r["is_default"])
                 self.send_cors()
                 self.wfile.write(json.dumps(rows).encode("utf-8"))
+                return
+
+            if path == "/api/db/usage":
+                try:
+                    _days = int(query.get("days", ["30"])[0])
+                except Exception:
+                    _days = 30
+                self.send_cors()
+                self.wfile.write(json.dumps(usage_summary(cur, req_user(self.headers), _days)).encode("utf-8"))
                 return
 
             if path == "/api/db/export":
@@ -580,6 +661,30 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
                 conn.commit()
                 self.send_cors()
                 self.wfile.write(json.dumps({"ok": True}).encode("utf-8"))
+                return
+
+            if path == "/api/db/usage":
+                recs = body if isinstance(body, list) else [body]
+                n = 0
+                for u in recs[:200]:
+                    if not isinstance(u, dict):
+                        continue
+                    i_t, o_t = _tok(u.get("input")), _tok(u.get("output"))
+                    if i_t == 0 and o_t == 0:
+                        continue
+                    try:
+                        ts = float(u.get("ts") or time.time())
+                    except Exception:
+                        ts = time.time()
+                    cur.execute(
+                        "INSERT INTO usage (user_id, ts, provider, model, key_id, source, chat_id, input_tokens, output_tokens, estimated) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                        (req_user(self.headers), ts, str(u.get("provider") or "")[:64], str(u.get("model") or "")[:160],
+                         str(u.get("key_id") or "")[:64], str(u.get("source") or "chat")[:16], str(u.get("chat_id") or "")[:64],
+                         i_t, o_t, 1 if u.get("estimated") else 0))
+                    n += 1
+                conn.commit()
+                self.send_cors()
+                self.wfile.write(json.dumps({"ok": True, "count": n}).encode("utf-8"))
                 return
 
             if path == "/api/db/clear":

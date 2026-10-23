@@ -383,6 +383,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
           maxTokens: appSettings.maxTokens ?? 4096,
           stream: isStream,
           chatId,
+          keyId: key.id,
           messageId: tempAiId,
           ...agentExtra,
         }),

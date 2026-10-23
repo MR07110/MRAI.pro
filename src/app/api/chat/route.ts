@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sessionUserFromRequest } from "@/lib/session";
+import { recordUsage, estTok } from "@/lib/usage";
+
+// stream_options.include_usage ni qabul qilishi ishonchli ma'lum provayderlar (boshqalarda noma'lum maydon xato berishi mumkin)
+const USAGE_STREAM_PROVIDERS = new Set(["openai", "groq", "openrouter", "deepseek", "xai", "together"]);
 
 export const runtime = "nodejs";
 
@@ -14,6 +19,8 @@ export async function POST(req: NextRequest) {
       temperature = 0.7,
       maxTokens = 4096,
       stream = true,
+      chatId,
+      keyId,
     } = await req.json();
 
     if (!apiKey || typeof apiKey !== "string" || !apiKey.trim()) {
@@ -32,6 +39,19 @@ export async function POST(req: NextRequest) {
 
     const cleanKey = apiKey.trim();
     const cleanModel = sanitizeModel(provider, model);
+    const usageUser = (await sessionUserFromRequest(req).catch(() => null)) || "";
+    let usedModel = cleanModel;
+    const track = (input: number, output: number, estimated = false) =>
+      recordUsage(usageUser, undefined, {
+        provider: String(provider || "custom"),
+        model: usedModel,
+        keyId: typeof keyId === "string" ? keyId : "",
+        source: "chat",
+        chatId: typeof chatId === "string" ? chatId : "",
+        input,
+        output,
+        estimated,
+      });
     const finalMaxTokens = Math.min(Math.max(1, Number(maxTokens) || 4096), 8192);
     const cleanSystem =
       systemPrompt ||
@@ -47,6 +67,7 @@ export async function POST(req: NextRequest) {
         temperature,
         maxTokens: finalMaxTokens,
         stream,
+        track,
       });
     }
 
@@ -81,6 +102,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const inChars = JSON.stringify(apiMessages).length;
     const bodyPayload: Record<string, any> = {
       model: cleanModel,
       messages: apiMessages,
@@ -88,6 +110,9 @@ export async function POST(req: NextRequest) {
       max_tokens: finalMaxTokens,
       stream,
     };
+    if (stream && USAGE_STREAM_PROVIDERS.has(String(provider))) {
+      bodyPayload.stream_options = { include_usage: true };
+    }
 
     let res = await fetch(endpoint, {
       method: "POST",
@@ -113,6 +138,7 @@ export async function POST(req: NextRequest) {
           });
           if (fallbackRes.ok) {
             res = fallbackRes;
+            usedModel = fallbackModel;
             break;
           }
         }
@@ -151,6 +177,9 @@ export async function POST(req: NextRequest) {
         json.choices?.[0]?.message?.content ||
         json.choices?.[0]?.delta?.content ||
         "";
+      const ju = json.usage;
+      if (ju && (ju.prompt_tokens || ju.completion_tokens)) track(Number(ju.prompt_tokens) || 0, Number(ju.completion_tokens) || 0);
+      else track(estTok(inChars), estTok(String(content).length), true);
       return NextResponse.json({ content });
     }
 
@@ -163,6 +192,28 @@ export async function POST(req: NextRequest) {
       async start(controller) {
         let buffer = "";
         let insideReasoning = false;
+        let uIn = 0;
+        let uOut = 0;
+        let uGot = false;
+        let outChars = 0;
+        let flushed = false;
+        const flushUsage = () => {
+          if (flushed) return;
+          flushed = true;
+          if (uGot) track(uIn, uOut);
+          else track(estTok(inChars), estTok(outChars), true);
+        };
+        const capture = (parsed: any) => {
+          const us = parsed?.usage ?? parsed?.x_groq?.usage;
+          if (us && (us.prompt_tokens || us.completion_tokens)) {
+            uIn = Number(us.prompt_tokens) || 0;
+            uOut = Number(us.completion_tokens) || 0;
+            uGot = true;
+          }
+          const d = parsed?.choices?.[0]?.delta;
+          outChars += String(d?.content ?? d?.text ?? parsed?.choices?.[0]?.text ?? "").length +
+            String(d?.reasoning_content ?? d?.reasoning ?? d?.thought ?? "").length;
+        };
 
         try {
           while (true) {
@@ -177,6 +228,7 @@ export async function POST(req: NextRequest) {
                   if (dataStr === "[DONE]") break;
                   try {
                     const parsed = JSON.parse(dataStr);
+                    capture(parsed);
                     const delta = parsed.choices?.[0]?.delta;
                     const text = delta?.content ?? delta?.text ?? "";
                     if (text) {
@@ -216,6 +268,7 @@ export async function POST(req: NextRequest) {
 
               try {
                 const parsed = JSON.parse(dataStr);
+                capture(parsed);
                 const delta = parsed.choices?.[0]?.delta;
                 const text = delta?.content ?? delta?.text ?? parsed.choices?.[0]?.text ?? "";
                 const reasoning =
@@ -249,6 +302,8 @@ export async function POST(req: NextRequest) {
           }
         } catch (err: any) {
           controller.error(err);
+        } finally {
+          flushUsage();
         }
       },
     });
@@ -276,6 +331,7 @@ async function handleAnthropic(params: {
   temperature: number;
   maxTokens: number;
   stream: boolean;
+  track: (input: number, output: number, estimated?: boolean) => void;
 }) {
   const anthropicMessages = params.messages
     .filter((m) => m.role === "user" || m.role === "assistant")
@@ -319,6 +375,12 @@ async function handleAnthropic(params: {
   if (!params.stream || !res.body) {
     const data = await res.json();
     const content = data?.content?.[0]?.text || "";
+    const au = data?.usage;
+    if (au && (au.input_tokens || au.output_tokens)) {
+      params.track((Number(au.input_tokens) || 0) + (Number(au.cache_creation_input_tokens) || 0) + (Number(au.cache_read_input_tokens) || 0), Number(au.output_tokens) || 0);
+    } else {
+      params.track(estTok(JSON.stringify(anthropicMessages).length + params.systemPrompt.length), estTok(String(content).length), true);
+    }
     return NextResponse.json({ content });
   }
 
@@ -330,6 +392,17 @@ async function handleAnthropic(params: {
   const streamResponse = new ReadableStream({
     async start(controller) {
       let buffer = "";
+      let aIn = 0;
+      let aOut = 0;
+      let aGot = false;
+      let aChars = 0;
+      let aFlushed = false;
+      const aFlush = () => {
+        if (aFlushed) return;
+        aFlushed = true;
+        if (aGot) params.track(aIn, aOut);
+        else params.track(estTok(JSON.stringify(anthropicMessages).length + params.systemPrompt.length), estTok(aChars), true);
+      };
       try {
         while (true) {
           const { done, value } = await reader.read();
@@ -350,6 +423,16 @@ async function handleAnthropic(params: {
             const dataStr = trimmed.slice(6).trim();
             try {
               const parsed = JSON.parse(dataStr);
+              if (parsed.type === "message_start" && parsed.message?.usage) {
+                const mu = parsed.message.usage;
+                aIn = (Number(mu.input_tokens) || 0) + (Number(mu.cache_creation_input_tokens) || 0) + (Number(mu.cache_read_input_tokens) || 0);
+                aOut = Number(mu.output_tokens) || 0;
+                aGot = true;
+              } else if (parsed.type === "message_delta" && parsed.usage?.output_tokens != null) {
+                aOut = Number(parsed.usage.output_tokens) || 0;
+              } else if (parsed.type === "content_block_delta" && parsed.delta?.text) {
+                aChars += String(parsed.delta.text).length;
+              }
               if (parsed.type === "content_block_delta" && parsed.delta?.text) {
                 controller.enqueue(
                   encoder.encode(`data: ${JSON.stringify({ content: parsed.delta.text })}\n\n`)
@@ -364,6 +447,8 @@ async function handleAnthropic(params: {
         }
       } catch (err: any) {
         controller.error(err);
+      } finally {
+        aFlush();
       }
     },
   });

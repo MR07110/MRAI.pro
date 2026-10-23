@@ -1,4 +1,4 @@
-import { Chat, Message, UserApiKey } from '@/types';
+import { Chat, Message, UserApiKey, UsageSummary } from '@/types';
 import { loadSettings } from '@/lib/settings';
 
 const DB_BASE = 'mrai_local_store';
@@ -597,4 +597,9 @@ export async function getTaskRuns(taskId: string, limit = 5): Promise<TaskRun[]>
   } catch {
     return [];
   }
+}
+
+// ---- Usage (token sarfi)
+export async function getUsage(days = 30): Promise<UsageSummary> {
+  return srv<UsageSummary>(`/api/db/usage?days=${encodeURIComponent(String(days))}`);
 }

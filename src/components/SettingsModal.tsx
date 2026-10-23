@@ -10,6 +10,7 @@ import * as serverDb from "@/lib/serverDb";
 import KeysManager from "./KeysManager";
 import ConnectorsPanel from "./ConnectorsPanel";
 import TasksPanel from "./TasksPanel";
+import UsagePanel from "./UsagePanel";
 import { useAuth } from "@/hooks/useAuth";
 import {
   AppSettings,
@@ -23,12 +24,13 @@ interface Props {
   onClose: () => void;
 }
 
-type SettingsTab = "keys" | "connectors" | "tasks" | "general" | "account";
+type SettingsTab = "keys" | "connectors" | "tasks" | "usage" | "general" | "account";
 
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: "keys", label: "API kalitlar" },
   { id: "connectors", label: "Connectorlar" },
   { id: "tasks", label: "Vazifalar" },
+  { id: "usage", label: "Usage" },
   { id: "general", label: "Umumiy" },
   { id: "account", label: "Hisob" },
 ];
@@ -160,12 +162,12 @@ export default function SettingsModal({ open, onClose }: Props) {
           </button>
         </div>
 
-        <div className="flex gap-1 px-5 border-b border-neutral-800 shrink-0">
+        <div className="flex gap-1 px-5 border-b border-neutral-800 shrink-0 overflow-x-auto">
           {TABS.map((t) => (
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
-              className={`px-3 py-2.5 text-xs font-medium transition cursor-pointer border-b-2 -mb-px ${
+              className={`px-3 py-2.5 text-xs font-medium transition cursor-pointer border-b-2 -mb-px shrink-0 whitespace-nowrap ${
                 activeTab === t.id
                   ? "border-white text-white"
                   : "border-transparent text-neutral-500 hover:text-neutral-200"
@@ -179,6 +181,7 @@ export default function SettingsModal({ open, onClose }: Props) {
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {activeTab === "connectors" && <ConnectorsPanel />}
           {activeTab === "tasks" && <TasksPanel />}
+          {activeTab === "usage" && <UsagePanel />}
 
           {activeTab === "keys" && <KeysManager />}
 

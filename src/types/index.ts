@@ -83,3 +83,19 @@ export interface TaskRun {
   trigger: string;
   output: string;
 }
+
+export interface UsageBucket {
+  input: number;
+  output: number;
+  calls: number;
+}
+
+export interface UsageSummary {
+  days: number;
+  totals: { today: UsageBucket; d7: UsageBucket; d30: UsageBucket; all: UsageBucket; range: UsageBucket };
+  by_day: Array<UsageBucket & { day: string }>;
+  by_model: Array<UsageBucket & { provider: string; model: string; estimated: number }>;
+  by_source: Array<UsageBucket & { source: string }>;
+  recent: Array<{ ts: number; provider: string; model: string; source: string; input: number; output: number; estimated: boolean }>;
+  estimated_calls: number;
+}

@@ -3,6 +3,7 @@ import { McpClient, McpConnector } from "@/lib/mcp";
 import { buildBuiltinTools, makeServerCtx, ToolDef } from "@/lib/agentTools";
 import { buildCodingTools } from "@/lib/codingTools";
 import { getDefaultUrl, defaultModel } from "@/lib/providers";
+import { recordUsage, estTok } from "@/lib/usage";
 
 export interface AgentInput {
   provider: string;
@@ -17,6 +18,7 @@ export interface AgentInput {
   serverUrl?: string;
   appUrl?: string;
   keyId?: string;
+  chatId?: string;
   user?: string;
   maxSteps?: number;
   scheduled?: boolean;
@@ -27,7 +29,7 @@ export interface AgentInput {
 }
 
 interface Call { id: string; name: string; args: any; argError?: string }
-interface StepResult { text: string; calls: Call[] }
+interface StepResult { text: string; calls: Call[]; usage?: { input: number; output: number; estimated?: boolean } }
 interface Adapter {
   step(tools: ToolDef[]): Promise<StepResult>;
   addResults(results: Array<{ call: Call; output: string; isError: boolean }>): void;
@@ -156,12 +158,18 @@ function openaiAdapter(inp: AgentInput, system: string): Adapter & { disableTool
       }
       const j = await res.json();
       const m = j?.choices?.[0]?.message || {};
+      const reqChars = JSON.stringify(msgs).length + (body.tools ? JSON.stringify(body.tools).length : 0);
+      const uu = j?.usage;
+      const usage: StepResult["usage"] =
+        uu && (uu.prompt_tokens || uu.completion_tokens)
+          ? { input: Number(uu.prompt_tokens) || 0, output: Number(uu.completion_tokens) || 0 }
+          : { input: estTok(reqChars), output: estTok((typeof m.content === "string" ? m.content.length : 0) + JSON.stringify(m.tool_calls || []).length), estimated: true };
       msgs.push({ role: "assistant", content: m.content ?? null, ...(m.tool_calls?.length ? { tool_calls: m.tool_calls } : {}) });
       const calls: Call[] = (m.tool_calls || []).map((tc: any, i: number) => {
         const p = parseArgs(tc.function?.arguments);
         return { id: tc.id || `call_${i}`, name: tc.function?.name, args: p.args, argError: p.err };
       });
-      return { text: typeof m.content === "string" ? m.content : "", calls };
+      return { text: typeof m.content === "string" ? m.content : "", calls, usage };
     },
     addResults(results) {
       for (const r of results) msgs.push({ role: "tool", tool_call_id: r.call.id, content: r.output });
@@ -212,10 +220,18 @@ function anthropicAdapter(inp: AgentInput, system: string): Adapter {
       if (!res.ok) throw new Error(`anthropic HTTP ${res.status}: ${await readError(res)}`);
       const j = await res.json();
       const content: any[] = j.content || [];
+      const au = j.usage;
+      const usage: StepResult["usage"] =
+        au && (au.input_tokens || au.output_tokens)
+          ? {
+              input: (Number(au.input_tokens) || 0) + (Number(au.cache_creation_input_tokens) || 0) + (Number(au.cache_read_input_tokens) || 0),
+              output: Number(au.output_tokens) || 0,
+            }
+          : { input: estTok(JSON.stringify(msgs).length + system.length), output: estTok(JSON.stringify(content).length), estimated: true };
       msgs.push({ role: "assistant", content });
       const text = content.filter((c) => c.type === "text").map((c) => c.text).join("");
       const calls: Call[] = content.filter((c) => c.type === "tool_use").map((c) => ({ id: c.id, name: c.name, args: c.input || {} }));
-      return { text, calls };
+      return { text, calls, usage };
     },
     addResults(results) {
       msgs.push({
@@ -343,6 +359,16 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
         } else {
           throw e;
         }
+      }
+      if (res.usage) {
+        recordUsage(inp.user, inp.serverUrl, {
+          provider: inp.provider,
+          model: defaultModel(inp.provider, inp.model),
+          keyId: inp.keyId,
+          source: inp.scheduled ? "task" : "agent",
+          chatId: inp.chatId,
+          ...res.usage,
+        });
       }
       if (res.text.trim()) {
         out(res.text.replace(/\s+$/, "") + "\n\n");

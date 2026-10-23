@@ -99,7 +99,7 @@ export function startRun(p: {
 
   (async () => {
     try {
-      await runAgent({ ...p.input, user: p.user, signal: run.controller.signal, emit });
+      await runAgent({ ...p.input, user: p.user, chatId: p.chatId, signal: run.controller.signal, emit });
       run.status = run.controller.signal.aborted ? "stopped" : "done";
     } catch (e: any) {
       if (e?.name === "AbortError" || run.controller.signal.aborted) {

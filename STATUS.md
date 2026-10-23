@@ -51,3 +51,10 @@
 - Faqat agent rejimi: oddiy `/api/chat` hamon brauzerga bog'liq. Web servis qayta ishga tushsa, ketayotgan ish to'xtaydi (oxirgi saqlangan qism bazada qoladi).
 - Yon paneldagi "MR AI" -> `/`.
 - Avto-ishga tushish: `deploy/install.sh` (systemd user + linger), boshqaruv: `mrai start|stop|restart|status|logs`.
+
+## 2026-10-23: Usage (token sarfi)
+- Sozlamalar -> **Usage** tabi (`src/components/UsagePanel.tsx`): davr tanlash (7/30/90 kun), jami token + kirish/chiqish progress, Bugun/7 kun/30 kun/Jami, kunlar bo'yicha ustunli grafik, modellar va manbalar (chat/agent/vazifa) bo'yicha progress, oxirgi so'rovlar. 15s da avtomatik yangilanadi.
+- Yozish: Python serverda `usage` jadvali (user_id bo'yicha izolyatsiya), `POST/GET /api/db/usage` (`mrai_server.py`, `usage_summary`). Next tomonda `src/lib/usage.ts` (`recordUsage`, fire-and-forget).
+- Yozuv manbalari: agent (`agent.ts`, har qadam, `source=agent|task`) va oddiy chat (`/api/chat`, stream ham). Provayder usage qaytarmasa — belgilar/4 bo'yicha taxminiy (`estimated=1`, UI da "≈").
+- Oddiy chat streamida `stream_options.include_usage` faqat openai/groq/openrouter/deepseek/xai/together ga yuboriladi (boshqalarda noma'lum maydon xato berishi mumkin).
+- Tarix faqat shu paytdan boshlab yoziladi (eski so'rovlar yo'q).
