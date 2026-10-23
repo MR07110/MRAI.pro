@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { UserApiKey } from "@/types";
 import ModelList from "./ModelList";
 import { buildModelItems, fetchModelsCached, peekModels, shortProviderName } from "@/lib/modelsCatalog";
@@ -8,16 +8,15 @@ import { buildModelItems, fetchModelsCached, peekModels, shortProviderName } fro
 interface Props {
   keyItem: UserApiKey;
   onClose: () => void;
-  /** Tanlov DARHOL qo'llanadi (optimistik); saqlash fonda ketadi */
   onPick: (modelId: string) => void;
   onOpenSettings?: () => void;
 }
 
-// Kiritish joyidagi model chip'i ustida (yuqoriga) ochiladigan menyu: alohida modal EMAS.
-// Tez ochilishi uchun: faol kalit tayyor (tarmoq yo'q), ro'yxat darhol keshdan/katalogdan chiqadi,
-// provayderning to'liq ro'yxati esa fonda yangilanadi.
+// Kiritish joyidagi model chip ustida ochiladi (modal emas).
 export default function ModelMenu({ keyItem, onClose, onPick, onOpenSettings }: Props) {
   const [discovered, setDiscovered] = useState<string[]>(() => peekModels(keyItem.id, keyItem.api_key) || []);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [openUp, setOpenUp] = useState(true);
 
   useEffect(() => {
     let dead = false;
@@ -37,12 +36,30 @@ export default function ModelMenu({ keyItem, onClose, onPick, onOpenSettings }: 
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // Yuqorida joy yetmasa pastga ochiladi (bo'sh ekranda greeting ustiga chiqmasin).
+  useLayoutEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    const anchor = el.offsetParent as HTMLElement | null;
+    if (!anchor) return;
+    const r = anchor.getBoundingClientRect();
+    const spaceAbove = r.top;
+    const spaceBelow = window.innerHeight - r.bottom;
+    // ~320px panel; yuqorida kam bo'lsa pastga
+    setOpenUp(spaceAbove >= 300 || spaceAbove >= spaceBelow);
+  }, [discovered.length]);
+
   const items = useMemo(() => buildModelItems(keyItem.provider, discovered), [keyItem.provider, discovered]);
 
   return (
     <>
-      <div className="fixed inset-0 z-30" onClick={onClose} />
-      <div className="absolute bottom-full left-0 mb-2 z-40 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-white/10 bg-[#161616] shadow-[0_12px_40px_rgba(0,0,0,0.6)] overflow-hidden">
+      <div className="fixed inset-0 z-30" onClick={onClose} aria-hidden />
+      <div
+        ref={panelRef}
+        className={`absolute left-0 z-40 w-[min(20rem,calc(100vw-2rem))] rounded-xl border border-white/12 bg-neutral-950 shadow-[0_16px_48px_rgba(0,0,0,0.75)] overflow-hidden ring-1 ring-black/40 ${
+          openUp ? "bottom-full mb-2" : "top-full mt-2"
+        }`}
+      >
         <ModelList
           flat
           items={items}
@@ -50,8 +67,9 @@ export default function ModelMenu({ keyItem, onClose, onPick, onOpenSettings }: 
           onChange={onPick}
           heightClass="max-h-72"
           allowTyped={keyItem.provider === "custom"}
+          forceSearch
         />
-        <div className="flex items-center justify-between gap-2 px-3 py-2 border-t border-white/[0.06] text-[11px] text-neutral-500">
+        <div className="flex items-center justify-between gap-2 px-3 py-2 border-t border-white/[0.08] bg-neutral-950 text-[11px] text-neutral-500">
           <span className="truncate">{shortProviderName(keyItem.provider)}</span>
           {onOpenSettings && (
             <button type="button" onClick={onOpenSettings} className="shrink-0 hover:text-neutral-200 transition cursor-pointer">

@@ -14,10 +14,12 @@ interface Props {
   allowTyped?: boolean;
   /** tashqi chegarasiz (menyu ichida) */
   flat?: boolean;
+  /** menyuda har doim qidiruv paneli */
+  forceSearch?: boolean;
 }
 
 // Qidiruvli model ro'yxati. Ro'yxatda yo'q nomni yozsa, "shu nomni ishlatish" qatori chiqadi.
-export default function ModelList({ items, value, onChange, heightClass = "max-h-60", allowTyped = true, flat = false }: Props) {
+export default function ModelList({ items, value, onChange, heightClass = "max-h-60", allowTyped = true, flat = false, forceSearch = false }: Props) {
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
 
@@ -32,8 +34,8 @@ export default function ModelList({ items, value, onChange, heightClass = "max-h
   const canUseTyped = allowTyped && q.length > 0 && !items.some((i) => i.id.toLowerCase() === q);
 
   return (
-    <div className={flat ? "overflow-hidden" : "rounded-xl border border-neutral-800 bg-neutral-950 overflow-hidden"}>
-      {(items.length > 6 || q) && (
+    <div className={flat ? "overflow-hidden bg-neutral-950" : "rounded-xl border border-neutral-800 bg-neutral-950 overflow-hidden"}>
+      {(forceSearch || items.length > 6 || q) && (
         <label className="flex items-center gap-2 px-3 h-10 border-b border-neutral-800 text-neutral-500 focus-within:text-neutral-300">
           <Search className="w-4 h-4 shrink-0" />
           <input
@@ -75,7 +77,7 @@ export default function ModelList({ items, value, onChange, heightClass = "max-h
               }`}
             >
               <span className="min-w-0 flex-1">
-                <span className={`block truncate text-sm ${selected ? "text-white font-medium" : "text-neutral-200"}`}>
+                <span className={`block text-sm leading-snug ${selected ? "text-white font-medium" : "text-neutral-200"}`}>
                   {m.name}
                 </span>
                 {m.name !== m.id && (

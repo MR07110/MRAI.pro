@@ -882,35 +882,28 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
       )}
 
       <main className="flex-1 min-w-0 flex flex-col relative">
-        <header className="h-12 shrink-0 flex items-center justify-between px-2 sm:px-3">
-          <div className="flex items-center gap-1 min-w-0">
-            <button onClick={() => setMobileSidebar(true)} className={`md:hidden ${iconBtn}`} title="Menyu">
-              <PanelLeft className="w-[18px] h-[18px]" />
-            </button>
-            {!sidebarOpen && (
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className={`group relative hidden md:inline-flex ${iconBtn}`}
-                title="Yon panelni ochish"
-              >
-                <Image
-                  src="/logo-white.png"
-                  alt="MR AI"
-                  width={20}
-                  height={20}
-                  className="transition-opacity duration-150 group-hover:opacity-0"
-                />
-                <PanelLeft className="absolute w-[18px] h-[18px] opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
-              </button>
-            )}
-            {currentTitle && !empty && (
-              <span className="ml-1.5 truncate text-[13.5px] text-neutral-400 max-w-[55vw] sm:max-w-[40vw]">{currentTitle}</span>
-            )}
-          </div>
-          <button onClick={createNewChat} className={iconBtn} title="Yangi suhbat">
-            <SquarePen className="w-[18px] h-[18px]" />
+        {/* Header olib tashlandi: mobil menyu + sidebar yopiqda ochish — suzuvchi tugmalar */}
+        <div className="absolute top-2 left-2 z-20 flex items-center gap-1">
+          <button onClick={() => setMobileSidebar(true)} className={`md:hidden ${iconBtn}`} title="Menyu">
+            <PanelLeft className="w-[18px] h-[18px]" />
           </button>
-        </header>
+          {!sidebarOpen && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className={`group relative hidden md:inline-flex ${iconBtn}`}
+              title="Yon panelni ochish"
+            >
+              <Image
+                src="/logo-white.png"
+                alt="MR AI"
+                width={20}
+                height={20}
+                className="transition-opacity duration-150 group-hover:opacity-0"
+              />
+              <PanelLeft className="absolute w-[18px] h-[18px] opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
+            </button>
+          )}
+        </div>
 
         {notFound && (
           <div className="mx-auto mt-1 mb-1 w-full max-w-[46rem] px-4">

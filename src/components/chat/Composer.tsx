@@ -58,7 +58,7 @@ export default function Composer({
         className={`block w-full resize-none bg-transparent px-5 pt-4 pb-2 ${fontSizeClass} leading-6 text-neutral-100 placeholder:text-neutral-600 max-h-[220px]`}
       />
       <div className="flex items-center justify-between gap-3 px-3 pb-3 pt-1">
-        <div className="relative min-w-0 max-w-[70%]">
+        <div className="relative z-10 min-w-0 max-w-[70%]">
         {modelMenu}
         <button
           type="button"
