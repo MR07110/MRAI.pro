@@ -116,3 +116,16 @@ input:focus-visible {
     linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   background-size: 24px 24px;
 }
+
+
+/* force square — terminal / for developers */
+*,
+*::before,
+*::after {
+  border-radius: 0 !important;
+}
+img,
+svg,
+video {
+  border-radius: 0 !important;
+}
