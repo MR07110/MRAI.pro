@@ -4,8 +4,7 @@ import { memo, useState } from "react";
 import { ChevronRight, Loader2 } from "lucide-react";
 import type { ToolSeg } from "./parse";
 
-// Claude uslubi: barcha asbob chaqiruvlari (shell, fayl, MCP...) javob ichida BITTA yig'ilgan qatorga o'raladi
-// ("Ishlatildi: Bash, Read"). Bosilsa ichida har bir chaqiruv ro'yxati; har biri alohida ochiladi (So'rov / Natija).
+// Claude uslubi: barcha asboblar bitta qatorga yig'iladi. Stream paytida layout sakramasin.
 
 function groupLabel(items: ToolSeg[]): { text: string; live: boolean } {
   const running = [...items].reverse().find((t) => t.status === "running");
@@ -22,8 +21,8 @@ function Section({ label, text, error }: { label: string; text: string; error?: 
     <div>
       <div className="mb-1 text-[12px] text-neutral-500">{label}</div>
       <pre
-        className={`m-0 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black/50 border border-white/[0.06] p-3 font-mono text-[12px] leading-5 ${
-          error ? "text-red-300" : "text-neutral-300"
+        className={`m-0 max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black/40 border border-white/[0.05] p-2.5 font-mono text-[11.5px] leading-5 ${
+          error ? "text-red-300" : "text-neutral-400"
         }`}
       >
         {text}
@@ -38,7 +37,7 @@ const ToolRow = memo(function ToolRow({ t }: { t: ToolSeg }) {
   const canOpen = t.status !== "running" && Boolean(t.head || t.output);
 
   return (
-    <div>
+    <div className="min-h-10">
       <button
         type="button"
         disabled={!canOpen}
@@ -57,7 +56,7 @@ const ToolRow = memo(function ToolRow({ t }: { t: ToolSeg }) {
           className={`w-3.5 h-3.5 shrink-0 text-neutral-600 transition-transform ${open ? "rotate-90" : ""} ${canOpen ? "" : "opacity-0"}`}
         />
       </button>
-      {open && (
+      {open && canOpen && (
         <div className="px-3 pb-3 pt-1 space-y-3">
           {t.head && <Section label="So‘rov" text={t.head} />}
           {t.output && <Section label="Natija" text={t.output} error={isErr} />}
@@ -72,19 +71,21 @@ export function ToolGroup({ items }: { items: ToolSeg[] }) {
   const { text, live } = groupLabel(items);
 
   return (
-    <div className="my-3">
+    <div className="my-2 contain-layout">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-1.5 text-[13px] text-neutral-500 hover:text-neutral-300 transition cursor-pointer"
       >
         <span className={live ? "shimmer" : ""}>{text}</span>
-        <ChevronRight className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-90" : ""}`} />
+        {!live && <ChevronRight className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-90" : ""}`} />}
+        {live && <Loader2 className="w-3.5 h-3.5 animate-spin opacity-70" />}
       </button>
-      {open && (
+      {/* Stream paytida ochiq qoldirmaymiz — sakrash kamayadi; tugagach ochish mumkin */}
+      {open && !live && (
         <div className="mt-2 rounded-xl border border-white/[0.08] divide-y divide-white/[0.06] overflow-hidden">
           {items.map((t, i) => (
-            <ToolRow key={i} t={t} />
+            <ToolRow key={`${t.name}-${i}-${t.secs || t.status}`} t={t} />
           ))}
         </div>
       )}
