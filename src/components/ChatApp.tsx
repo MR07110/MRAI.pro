@@ -877,18 +877,16 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
     "h-9 w-9 inline-flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-white/[0.07] transition cursor-pointer";
 
   return (
-    <div className="h-[100dvh] flex bg-black text-neutral-100 overflow-hidden">
+    <div className="h-[100dvh] flex bg-black text-neutral-100 overflow-hidden relative">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_20%_0%,rgba(80,80,100,0.18),transparent_55%),radial-gradient(ellipse_at_80%_100%,rgba(60,40,80,0.12),transparent_50%)]" aria-hidden />
       <FilePanel file={openFile} onClose={() => setOpenFile(null)} />
-      {/* Desktop sidebar */}
-      <aside
-        className={`hidden md:block shrink-0 overflow-hidden transition-[width] duration-200 ease-out ${
-          sidebarOpen ? "w-[272px]" : "w-0"
-        }`}
-      >
-        <div className="w-[272px] h-full">
+      {/* Desktop sidebar — fixed glass overlay (orqa fon blur uchun) */}
+      {sidebarOpen && (
+        <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-[272px]">
           <Sidebar {...sidebarProps} onSelect={selectChat} onOpenSettings={openSettings} onClose={() => setSidebarOpen(false)} />
-        </div>
-      </aside>
+        </aside>
+      )}
+
 
       {/* Mobile drawer */}
       {mobileSidebar && (
@@ -913,7 +911,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
         </div>
       )}
 
-      <main className="flex-1 min-w-0 flex flex-col relative">
+      <main className={`flex-1 min-w-0 flex flex-col relative transition-[padding] duration-200 ${sidebarOpen ? "md:pl-[272px]" : ""}`}>
         {/* Header olib tashlandi: mobil menyu + sidebar yopiqda ochish — suzuvchi tugmalar */}
         <div className="absolute top-2 left-2 z-20 flex items-center gap-1">
           <button onClick={() => setMobileSidebar(true)} className={`md:hidden ${iconBtn}`} title="Menyu">
