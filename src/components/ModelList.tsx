@@ -87,7 +87,6 @@ export default function ModelList({ items, value, onChange, heightClass = "max-h
                   <span className="block truncate text-[11px] text-neutral-500 font-mono">{m.id}</span>
                 )}
               </span>
-              {m.free && <span className="text-[11px] text-emerald-400/90 shrink-0">bepul</span>}
               <Check className={`w-4 h-4 shrink-0 ${selected ? "text-white" : "text-transparent"}`} />
             </button>
           );
