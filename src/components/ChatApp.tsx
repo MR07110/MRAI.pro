@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useState, useRef } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { ArrowDown, Code2, Compass, PanelLeft, PenTool, Sparkles, SquarePen } from "lucide-react";
+import { ArrowDown, Code2, Compass, Loader2, PanelLeft, PenTool, Sparkles, SquarePen } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import * as serverDb from "@/lib/serverDb";
 import SettingsModal from "./SettingsModal";
@@ -24,6 +24,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  const [notFound, setNotFound] = useState(false);
  const { user, signOut } = useAuth();
  const [chats, setChats] = useState<Chat[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
  const [currentChatId, setCurrentChatId] = useState<string | null>(initialChatId);
  const [messages, setMessages] = useState<Message[]>([]);
  const [input, setInput] = useState("");
@@ -127,6 +128,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  });
  } else {
  setMessages([]);
+ setChatLoading(false);
  }
  }, [currentChatId, authed]);
 
@@ -195,15 +197,18 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  }
 
  async function loadMessages(chatId: string) {
- try {
- const data = await serverDb.getMessages(chatId);
- setMessages(data || []);
- } catch (e) {
- console.error("loadMessages error:", e);
- }
- }
+    setChatLoading(true);
+    try {
+      const data = await serverDb.getMessages(chatId);
+      if (currentChatIdRef.current === chatId) setMessages(data || []);
+    } catch (e) {
+      console.error("loadMessages error:", e);
+    } finally {
+      if (currentChatIdRef.current === chatId) setChatLoading(false);
+    }
+  }
 
- function createNewChat() {
+  function createNewChat() {
  if (!user) return;
  if (!currentChatId || messages.length === 0) {
  setMobileSidebar(false);
@@ -956,7 +961,11 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  </div>
  )}
 
- {empty ? (
+ {chatLoading ? (
+              <div className="flex-1 flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-neutral-500" />
+              </div>
+            ) : empty ? (
  <div className="flex-1 overflow-y-auto">
  <div className="min-h-full flex flex-col items-center justify-center px-4 pb-28">
  <div className="w-full max-w-[46rem] fade-up">
