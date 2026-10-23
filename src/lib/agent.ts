@@ -295,7 +295,8 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
     emit(s);
   };
   const clients: McpClient[] = [];
-  inp.onWait = inp.onWait || ((sec) => out(`> Provayder limiti: ${sec} soniya kutilyapti…\n\n`));
+  // Ekranda jonli sanagich (WaitCountdown) chiziladi; transcript'ga (scheduler) yozilmaydi
+  inp.onWait = inp.onWait || ((sec) => emit(`\n\n[[wait:${Date.now() + sec * 1000}]]\n\n`));
   try {
     const notes: string[] = [];
     const env = { serverUrl: inp.serverUrl, appUrl: inp.appUrl, keyId: inp.keyId, signal: inp.signal, allowScheduling: !inp.scheduled };

@@ -35,6 +35,7 @@ import { useAuth } from "@/hooks/useAuth";
 import * as serverDb from "@/lib/serverDb";
 import SettingsModal from "./SettingsModal";
 import QuickModel from "./QuickModel";
+import WaitCountdown, { splitWait, stripWait } from "./WaitCountdown";
 import type { Chat, Message, UserApiKey } from "@/types";
 import { loadSettings, AppSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import ReactMarkdown from "react-markdown";
@@ -1338,12 +1339,15 @@ export default function ChatApp() {
                             <div className="markdown-content">
                               {content ? (
                                 <>
-                                  <ReactMarkdown
-                                    remarkPlugins={[remarkGfm]}
-                                    components={markdownComponents}
-                                  >
-                                    {content}
-                                  </ReactMarkdown>
+                                  {splitWait(content).map((seg, i) =>
+                                    seg.type === "wait" ? (
+                                      <WaitCountdown key={i} end={seg.end} />
+                                    ) : seg.text.trim() ? (
+                                      <ReactMarkdown key={i} remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                                        {seg.text}
+                                      </ReactMarkdown>
+                                    ) : null
+                                  )}
                                   {isStreaming && isLastAssistant && (
                                     <span className="inline-block w-1.5 h-3.5 ml-1 bg-neutral-300 rounded-xs animate-pulse align-middle" />
                                   )}
@@ -1361,7 +1365,7 @@ export default function ChatApp() {
                               <div className="flex items-center gap-1 pt-1.5 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                 <button
                                   type="button"
-                                  onClick={() => copyResponse(msg.id, msg.content)}
+                                  onClick={() => copyResponse(msg.id, stripWait(msg.content))}
                                   className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800/80 transition cursor-pointer flex items-center gap-1 text-[11px]"
                                   title="Javobni nusxalash"
                                 >
