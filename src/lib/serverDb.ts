@@ -52,7 +52,8 @@ function getRealServerUrl(): string | null {
       return (settings as any).serverUrl.trim().replace(/\/+$/, '');
     }
   } catch {}
-  return 'https://satisfy-endurance-mooned.ngrok-free.dev';
+  // Standart manzil yo'q: bo'sh bo'lsa Next server MRAI_SERVER_URL (env) dan oladi.
+  return null;
 }
 
 // Brauzer serverga to'g'ridan-to'g'ri emas, Next proxy (/api/server/proxy) orqali boradi:

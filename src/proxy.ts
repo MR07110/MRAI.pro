@@ -21,7 +21,7 @@ export async function proxy(req: NextRequest) {
   if (PUBLIC_PATHS.includes(pathname)) return NextResponse.next();
 
   const isApi = pathname.startsWith("/api/");
-  const key = process.env.MRAI_ACCESS_KEY || "";
+  const key = (process.env.MRAI_ACCESS_KEY || "").trim(); // /api/auth/access bilan bir xil (trim)
 
   if (!key) {
     // Kalit sozlanmagan: lokal developmentda ochiq, productionda yopiq (fail-closed).

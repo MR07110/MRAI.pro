@@ -5,7 +5,7 @@ import { Check, Copy, Loader2, Play } from "lucide-react";
 
 export default function CodeBlock({ language, value }: { language?: string; value: string }) {
   const [copied, setCopied] = useState(false);
-  const [serverUrl, setServerUrl] = useState("https://satisfy-endurance-mooned.ngrok-free.dev");
+  const [serverUrl, setServerUrl] = useState("");
   const [running, setRunning] = useState(false);
   const [runResult, setRunResult] = useState<{ stdout: string; stderr: string; exit_code: number } | null>(null);
 
@@ -14,12 +14,8 @@ export default function CodeBlock({ language, value }: { language?: string; valu
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      let saved = localStorage.getItem("mrai_server_url");
-      if (!saved || saved.includes("trycloudflare.com")) {
-        saved = "https://satisfy-endurance-mooned.ngrok-free.dev";
-        localStorage.setItem("mrai_server_url", saved);
-      }
-      setServerUrl(saved);
+      const saved = localStorage.getItem("mrai_server_url");
+      if (saved && !saved.includes("trycloudflare.com")) setServerUrl(saved);
     }
   }, []);
 
@@ -34,15 +30,12 @@ export default function CodeBlock({ language, value }: { language?: string; valu
   const handleExecuteOnServer = async () => {
     setRunning(true);
     setRunResult(null);
-    let targetUrl = serverUrl;
-    if (!targetUrl || targetUrl.includes("trycloudflare.com")) {
-      targetUrl = "https://satisfy-endurance-mooned.ngrok-free.dev";
-    }
+    const targetUrl = serverUrl; // bo'sh bo'lsa Next server env dagi manzilni ishlatadi
     try {
       // Token brauzerda yo'q: buyruq Next proxy (/api/server/exec) orqali yuboriladi.
       const res = await fetch("/api/server/exec", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-server-url": targetUrl },
+        headers: { "Content-Type": "application/json", ...(targetUrl ? { "x-server-url": targetUrl } : {}) },
         body: JSON.stringify({ command: value }),
       });
       setRunResult(await res.json());

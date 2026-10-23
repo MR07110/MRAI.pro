@@ -856,17 +856,15 @@ function generateSandboxHtml(language: string, rawCode: string): string {
       const trimmed = rawCmd.trim();
       if (!trimmed) return;
 
-      let savedServer = localStorage.getItem("mrai_server_url");
-      if (!savedServer || savedServer.includes("trycloudflare.com")) {
-        savedServer = "https://satisfy-endurance-mooned.ngrok-free.dev";
-      }
-      if (savedServer) {
+      let savedServer = localStorage.getItem("mrai_server_url") || "";
+      if (savedServer.includes("trycloudflare.com")) savedServer = "";
+      {
         try {
           const proxyRes = await fetch("/api/server/exec", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "x-server-url": savedServer
+              ...(savedServer ? { "x-server-url": savedServer } : {})
             },
             body: JSON.stringify({ command: trimmed, cwd: cwd }),
           });

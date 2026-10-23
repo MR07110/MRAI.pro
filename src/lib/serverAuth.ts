@@ -2,9 +2,8 @@
 // Sirlar KODDA saqlanmaydi: MRAI_AUTH_TOKEN va MRAI_SERVER_URL faqat env (.env.local / Vercel) orqali.
 import { timingSafeEqual } from "crypto";
 
-export const DEFAULT_SERVER_URL = (process.env.MRAI_SERVER_URL || "https://satisfy-endurance-mooned.ngrok-free.dev")
-  .trim()
-  .replace(/\/+$/, "");
+// Standart manzil KODDA YO'Q: faqat env (MRAI_SERVER_URL). Bo'sh bo'lsa, so'rov paytida xato beriladi.
+export const DEFAULT_SERVER_URL = (process.env.MRAI_SERVER_URL || "").trim().replace(/\/+$/, "");
 export const MRAI_AUTH_TOKEN = (process.env.MRAI_AUTH_TOKEN || "").trim();
 
 function hostOf(u: string): string {
@@ -28,6 +27,9 @@ const ALLOWED_HOSTS = new Set<string>(
 export function cleanServerUrl(u?: string | null): string {
   const c = (u || "").trim().replace(/\/+$/, "");
   if (c && /^https?:\/\//i.test(c) && ALLOWED_HOSTS.has(hostOf(c))) return c;
+  if (!DEFAULT_SERVER_URL) {
+    throw new Error("MRAI_SERVER_URL sozlanmagan (.env.local yoki Vercel env)");
+  }
   return DEFAULT_SERVER_URL;
 }
 

@@ -767,8 +767,19 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
               <PanelLeft className="w-[18px] h-[18px]" />
             </button>
             {!sidebarOpen && (
-              <button onClick={() => setSidebarOpen(true)} className={`hidden md:inline-flex ${iconBtn}`} title="Yon panelni ochish">
-                <PanelLeft className="w-[18px] h-[18px]" />
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className={`group relative hidden md:inline-flex ${iconBtn}`}
+                title="Yon panelni ochish"
+              >
+                <Image
+                  src="/logo-white.png"
+                  alt="MR AI"
+                  width={20}
+                  height={20}
+                  className="transition-opacity duration-150 group-hover:opacity-0"
+                />
+                <PanelLeft className="absolute w-[18px] h-[18px] opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
               </button>
             )}
             {currentTitle && !empty && (

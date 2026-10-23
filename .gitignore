@@ -40,3 +40,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# zaxira nusxalar va AI qulf fayllari
+*.bak-*
+.ai-lock

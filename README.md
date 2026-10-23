@@ -1,43 +1,31 @@
-# MR AI Pro (Modern)
+# MR AI Pro
 
-Professional AI chat application with user-owned API keys.
+AI chat ilovasi: foydalanuvchining o'z API kalitlari bilan ishlaydi. Barcha ma'lumotlar (hisoblar, suhbatlar,
+kalitlar, vazifalar) **faqat o'z serveringizda** (Python + SQLite, `~/MR/mrai`) saqlanadi. Tashqi baza (Supabase) yo'q.
 
-## Features
+## Imkoniyatlar
 
-- Clean light UI (ChatGPT / Claude style)
-- Supabase Auth + Database
-- **Settings → My API Keys** — user can add any provider (Groq, OpenAI, OpenRouter, Anthropic, Custom)
-- Keys stored in the user's account (Supabase table)
-- Streaming responses
-- Chat history
+- Kirish kaliti + hisoblar (ro'yxatdan o'tish / kirish), har foydalanuvchi ma'lumoti va sandboxi alohida
+- **Sozlamalar → API kalitlar**: istalgan provayder (Groq, OpenAI, OpenRouter, Anthropic, Custom)
+- Streaming javoblar, suhbatlar tarixi (`/c/<id>` manzili)
+- Agent asboblari (Bash, Read, Write, Edit, Grep...), MCP ulanishlari, rejalashtirilgan vazifalar
 
-## Vercel Environment Variables (exactly as in your screenshot)
+## Muhit o'zgaruvchilari (Vercel yoki `.env.local`)
 
 ```
-SUPABASE_URL=https://xxxx.supabase.co
-SUPABASE_ANON_KEY=eyJhbGciOi...
+MRAI_AUTH_TOKEN=   # ~/MR/mrai/token.key bilan BIR XIL (Next -> Python server)
+MRAI_ACCESS_KEY=   # saytga kirish kaliti
+MRAI_SERVER_URL=   # MAJBURIY: ngrok/tunnel manzili (kodda standart yo'q)
 ```
 
-No `NEXT_PUBLIC_` prefix needed — the app uses `/api/config` to safely expose the public anon key.
+Boshqa o'zgaruvchi kerak emas.
 
-## Setup
+## Ishga tushirish
 
-1. **Supabase**
-   - Create a project
-   - Go to SQL Editor → paste and run `supabase-schema.sql`
+```bash
+npm install
+npm run dev        # lokal
+npm run build && npm start
+```
 
-2. **Local**
-   ```bash
-   cd mrai-next
-   npm install
-   npm run dev
-   ```
-
-3. **Vercel**
-   - Push the repo
-   - Add the two env vars above
-   - Deploy
-
-## How users add keys
-
-After login → click **Settings** → **My API Keys** → add provider + model + API key.
+Python server: `~/MR/mrai/start.sh` (port 8080). Holat va qarorlar: `STATUS.md`.

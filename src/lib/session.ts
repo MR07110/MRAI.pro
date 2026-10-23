@@ -63,7 +63,7 @@ export function readCookie(header: string | null, name: string): string {
 
 // Kirish kaliti cookie'si to'g'rimi (dev'da kalit yo'q bo'lsa ochiq).
 export async function hasAccess(req: Request): Promise<boolean> {
-  const key = process.env.MRAI_ACCESS_KEY || "";
+  const key = (process.env.MRAI_ACCESS_KEY || "").trim(); // /api/auth/access bilan bir xil (trim)
   if (!key) return process.env.NODE_ENV !== "production";
   const c = readCookie(req.headers.get("cookie"), ACCESS_COOKIE);
   return !!c && ctEqual(c, await accessCookieValue(key));
