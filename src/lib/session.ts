@@ -1,13 +1,13 @@
 // Foydalanuvchi sessiyasi: imzolangan (HMAC-SHA256) cookie. Edge (proxy) va Node ikkalasida ishlaydi.
-// Maxfiy kalit MRAI_ACCESS_KEY + MRAI_AUTH_TOKEN dan olinadi (alohida sir kiritish shart emas).
-import { ACCESS_COOKIE, accessCookieValue } from "@/lib/access";
+// Maxfiy kalit MRAI_AUTH_TOKEN dan olinadi (alohida sir kiritish shart emas).
+import { ACCESS_COOKIE, verifyAccess } from "@/lib/access";
 
 export const USER_COOKIE = "mrai_user";
 export const USERNAME_RE = /^[a-z0-9_.-]{3,32}$/;
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 
 function secret(): string {
-  return "mrai-session-v1:" + (process.env.MRAI_ACCESS_KEY || "") + ":" + (process.env.MRAI_AUTH_TOKEN || "");
+  return "mrai-session-v1:" + (process.env.MRAI_AUTH_TOKEN || "").trim();
 }
 
 async function hmacHex(data: string): Promise<string> {
@@ -34,7 +34,7 @@ export async function signSession(username: string, ttlMs = SESSION_TTL_MS): Pro
 
 export async function verifySession(value?: string | null): Promise<string | null> {
   if (!value) return null;
-  if (!process.env.MRAI_ACCESS_KEY && !process.env.MRAI_AUTH_TOKEN) return null;
+  if (!(process.env.MRAI_AUTH_TOKEN || "").trim()) return null;
   const parts = value.split(":");
   if (parts.length !== 3) return null;
   const [username, expStr, sig] = parts;
@@ -61,12 +61,10 @@ export function readCookie(header: string | null, name: string): string {
   return "";
 }
 
-// Kirish kaliti cookie'si to'g'rimi (dev'da kalit yo'q bo'lsa ochiq).
+// Kirish kaliti to'g'ri kiritilganmi (imzolangan muddatli cookie). Token yo'q bo'lsa: developmentda ochiq, productionda yopiq.
 export async function hasAccess(req: Request): Promise<boolean> {
-  const key = (process.env.MRAI_ACCESS_KEY || "").trim(); // /api/auth/access bilan bir xil (trim)
-  if (!key) return process.env.NODE_ENV !== "production";
-  const c = readCookie(req.headers.get("cookie"), ACCESS_COOKIE);
-  return !!c && ctEqual(c, await accessCookieValue(key));
+  if (!(process.env.MRAI_AUTH_TOKEN || "").trim()) return process.env.NODE_ENV !== "production";
+  return verifyAccess(readCookie(req.headers.get("cookie"), ACCESS_COOKIE));
 }
 
 export async function sessionUserFromRequest(req: Request): Promise<string | null> {

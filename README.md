@@ -14,11 +14,10 @@ kalitlar, vazifalar) **faqat o'z serveringizda** (Python + SQLite, `~/MR/mrai`) 
 
 ```
 MRAI_AUTH_TOKEN=   # ~/MR/mrai/token.key bilan BIR XIL (Next -> Python server)
-MRAI_ACCESS_KEY=   # saytga kirish kaliti
 MRAI_SERVER_URL=   # MAJBURIY: ngrok/tunnel manzili (kodda standart yo'q)
 ```
 
-Boshqa o'zgaruvchi kerak emas.
+Saytga kirish kaliti env'da emas, lokal serverda `~/MR/mrai/access.key` faylida turadi. Boshqa o'zgaruvchi kerak emas.
 
 ## Ishga tushirish
 
