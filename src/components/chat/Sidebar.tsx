@@ -66,7 +66,7 @@ export default function Sidebar({
  title="Home"
  className="flex items-center gap-2 pl-1 cursor-pointer"
  >
- <Image src="/logo-white.png" alt="MR AI" width={20} height={20} />
+ <Image src="/logo-white.svg" alt="MR AI" width={20} height={20} />
  <span className="text-[15px] font-semibold tracking-tight text-neutral-100">MR AI</span>
  </a>
  <button
