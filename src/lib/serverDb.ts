@@ -349,7 +349,7 @@ export async function getKeys(): Promise<UserApiKey[]> {
 }
 
 export async function saveKey(
-  item: Omit<UserApiKey, 'id' | 'created_at' | 'user_id'> & { id?: string; user_id?: string }
+  item: Omit<UserApiKey, 'id' | 'created_at' | 'user_id'> & { id?: string; user_id?: string; created_at?: string }
 ): Promise<UserApiKey> {
   const now = new Date().toISOString();
   const key: UserApiKey = {
@@ -361,7 +361,7 @@ export async function saveKey(
     model: item.model,
     base_url: item.base_url || null,
     is_default: Boolean(item.is_default),
-    created_at: now,
+    created_at: item.created_at || now,
   };
 
   try {
@@ -381,16 +381,27 @@ export async function saveKey(
     }
   } catch {}
 
+  // Serverga yozilishini kutamiz: aks holda darhol keyingi getKeys() eski qiymatni qaytarib qo'yadi.
   const serverUrl = getServerUrl();
   if (serverUrl) {
-    fetch(`${serverUrl}/api/db/keys`, {
+    await fetch(`${serverUrl}/api/db/keys`, {
       method: 'POST',
       headers: NGROK_HEADERS,
       body: JSON.stringify(key),
+      signal: AbortSignal.timeout(4000),
     }).catch(() => {});
   }
 
   return key;
+}
+
+export async function updateKey(
+  id: string,
+  patch: Partial<Pick<UserApiKey, 'provider' | 'name' | 'api_key' | 'model' | 'base_url'>>
+): Promise<UserApiKey> {
+  const cur = (await getKeys()).find((k) => k.id === id);
+  if (!cur) throw new Error('Kalit topilmadi');
+  return saveKey({ ...cur, ...patch });
 }
 
 export async function setDefaultKey(id: string): Promise<void> {
@@ -408,10 +419,11 @@ export async function setDefaultKey(id: string): Promise<void> {
 
   const serverUrl = getServerUrl();
   if (serverUrl) {
-    fetch(`${serverUrl}/api/db/keys/default`, {
+    await fetch(`${serverUrl}/api/db/keys/default`, {
       method: 'POST',
       headers: NGROK_HEADERS,
       body: JSON.stringify({ id }),
+      signal: AbortSignal.timeout(4000),
     }).catch(() => {});
   }
 }

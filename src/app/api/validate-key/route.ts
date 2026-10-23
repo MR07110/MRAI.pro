@@ -17,6 +17,25 @@ export async function POST(req: NextRequest) {
     // 1. Anthropic uchun maxsus tekshiruv
     if (provider === "anthropic") {
       try {
+        const mres = await fetch("https://api.anthropic.com/v1/models?limit=100", {
+          headers: { "x-api-key": key, "anthropic-version": "2023-06-01" },
+          signal: AbortSignal.timeout(7000),
+        });
+        if (mres.status === 200) {
+          const d = await mres.json();
+          const models = (Array.isArray(d?.data) ? d.data : []).map((m: any) => m?.id).filter(Boolean);
+          return NextResponse.json({ valid: true, models: models.length ? models : undefined });
+        }
+        if (mres.status === 401) {
+          return NextResponse.json({
+            valid: false,
+            error: "Anthropic API kaliti noto‘g‘ri (401 Unauthorized)",
+          });
+        }
+      } catch {
+        // /models ishlamasa pastdagi oddiy tekshiruvga o'tamiz
+      }
+      try {
         const res = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
           headers: {

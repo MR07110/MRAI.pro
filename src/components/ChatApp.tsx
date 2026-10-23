@@ -34,6 +34,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import * as serverDb from "@/lib/serverDb";
 import SettingsModal from "./SettingsModal";
+import QuickModel from "./QuickModel";
 import type { Chat, Message, UserApiKey } from "@/types";
 import { loadSettings, AppSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import ReactMarkdown from "react-markdown";
@@ -259,6 +260,7 @@ export default function ChatApp() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [modelOpen, setModelOpen] = useState(false);
   const [defaultKey, setDefaultKey] = useState<UserApiKey | null>(null);
   const [mobileSidebar, setMobileSidebar] = useState(false);
   const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -1204,8 +1206,8 @@ export default function ChatApp() {
             {/* Active Model Pill */}
             {defaultKey ? (
               <button
-                onClick={() => setSettingsOpen(true)}
-                title="Modelni almashtirish uchun bosing"
+                onClick={() => setModelOpen(true)}
+                title="Model va kalitni almashtirish"
                 className="flex items-center gap-1.5 text-xs text-neutral-300 bg-neutral-900 border border-neutral-800 px-2.5 py-1.5 rounded-full hover:border-neutral-700 transition cursor-pointer"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
@@ -1217,7 +1219,7 @@ export default function ChatApp() {
               </button>
             ) : (
               <button
-                onClick={() => setSettingsOpen(true)}
+                onClick={() => setModelOpen(true)}
                 className="text-xs text-amber-300 bg-amber-950/60 border border-amber-900/60 px-2.5 py-1.5 rounded-full hover:bg-amber-900/60 transition cursor-pointer flex items-center gap-1.5"
               >
                 <Key className="w-3 h-3" />
@@ -1464,12 +1466,39 @@ export default function ChatApp() {
                 )}
               </div>
             </div>
-            <p className="text-center text-[10px] sm:text-[11px] text-neutral-500 mt-2 font-mono">
-              MR AI Pro · Algoritmik Intellektual Platforma
-            </p>
+            <div className="flex items-center justify-between gap-3 mt-2 px-1">
+              <button
+                type="button"
+                onClick={() => setModelOpen(true)}
+                title="Model va kalitni almashtirish"
+                className="inline-flex items-center gap-1.5 max-w-[75%] h-7 px-2.5 rounded-full text-[11px] sm:text-xs text-neutral-400 hover:text-white bg-neutral-900 border border-neutral-800 hover:border-neutral-700 transition cursor-pointer"
+              >
+                {defaultKey ? (
+                  <>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                    <span className="truncate">{defaultKey.model}</span>
+                  </>
+                ) : (
+                  <>
+                    <Key className="w-3 h-3 shrink-0" />
+                    <span>API kalit qo‘shish</span>
+                  </>
+                )}
+                <ChevronDown className="w-3 h-3 shrink-0 text-neutral-500" />
+              </button>
+              <p className="hidden sm:block text-[11px] text-neutral-600 font-mono">MR AI Pro</p>
+            </div>
           </div>
         </div>
       </div>
+
+      <QuickModel
+        open={modelOpen}
+        onClose={() => {
+          setModelOpen(false);
+          loadDefaultKey();
+        }}
+      />
 
       <SettingsModal
         open={settingsOpen}

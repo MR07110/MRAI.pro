@@ -3,6 +3,8 @@
 ## Oxirgi holat
 - Sana: 2026-10-23
 - Nima qilindi:
+  - Settings qayta ishlandi: API kalit bo'limi endi `KeysManager` (ro'yxat + `KeyEditor`). Kalit joylanadi -> provayder o'zi aniqlanadi -> kalit tekshiriladi -> modellar chiqadi (`ModelList`). Eski katta forma va katalog `SettingsModal` dan olib tashlandi (1176 -> ~350 qator).
+  - Chat kiritish joyi tagidagi chip va sarlavhadagi model tugmasi `QuickModel` ni ochadi: Sozlamalarga kirmasdan model/kalitni almashtirish, o'zgartirish, qo'shish.
   - `ToolDef` ga `readOnly?: boolean` qo'shildi (tsc xatolari tuzaldi).
   - `src/lib/codingTools.ts` (Claude Code uslubidagi asboblar: Bash, Read, Write, Edit, MultiEdit, Glob, Grep, LS, TodoWrite, BashOutput, KillShell) `agent.ts` ga ulandi.
   - `agentTools.ts` ga `makeServerCtx(env)` chiqarildi (exec/sf yordamchilari builtin va coding asboblari uchun umumiy).
