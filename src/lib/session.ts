@@ -78,9 +78,13 @@ export function clientIp(req: Request): string {
 }
 
 // Session cookie: brauzer yopilganda o'chadi -> sayt har safar kirish kalitini qayta so'raydi.
-export const SESSION_COOKIE_OPTS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax" as const,
-  path: "/",
-};
+// Secure bayrog'i so'rov haqiqatan HTTPS bo'lsagina qo'yiladi (http://IP:3000 da Secure cookie brauzer tomonidan tashlab yuboriladi).
+export function sessionCookieOpts(req: Request) {
+  const proto = (req.headers.get("x-forwarded-proto") || "").split(",")[0].trim() || new URL(req.url).protocol.replace(":", "");
+  return {
+    httpOnly: true,
+    secure: proto === "https",
+    sameSite: "lax" as const,
+    path: "/",
+  };
+}

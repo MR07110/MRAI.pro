@@ -24,5 +24,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: r.error }, { status: r.status });
   }
   limiter.reset(k);
-  return withSession(r.user);
+  return withSession(r.user, req);
 }

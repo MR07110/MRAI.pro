@@ -25,5 +25,5 @@ export async function POST(req: NextRequest) {
   limiter.hit(ip);
   const r = await callAuth("/api/auth/register", { username, name, password });
   if (!r.user) return NextResponse.json({ error: r.error }, { status: r.status });
-  return withSession(r.user);
+  return withSession(r.user, req);
 }

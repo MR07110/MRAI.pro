@@ -1,7 +1,7 @@
 // Next route'lar uchun: Python server /api/auth/* ga murojaat va xatoni HTTP statusga aylantirish.
 import { NextResponse } from "next/server";
 import { serverFetch } from "@/lib/serverAuth";
-import { signSession, USER_COOKIE, SESSION_COOKIE_OPTS } from "@/lib/session";
+import { signSession, USER_COOKIE, sessionCookieOpts } from "@/lib/session";
 
 export type AuthUser = { username: string; name: string };
 
@@ -20,9 +20,9 @@ export async function callAuth(path: string, body: Record<string, unknown>): Pro
   }
 }
 
-export async function withSession(user: AuthUser): Promise<NextResponse> {
+export async function withSession(user: AuthUser, req: Request): Promise<NextResponse> {
   const res = NextResponse.json({ ok: true, user });
-  res.cookies.set(USER_COOKIE, await signSession(user.username), SESSION_COOKIE_OPTS);
+  res.cookies.set(USER_COOKIE, await signSession(user.username), sessionCookieOpts(req));
   return res;
 }
 

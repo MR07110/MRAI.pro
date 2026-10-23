@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ACCESS_COOKIE, accessCookieValue } from "@/lib/access";
 import { safeEqual } from "@/lib/serverAuth";
-import { SESSION_COOKIE_OPTS, clientIp } from "@/lib/session";
+import { sessionCookieOpts, clientIp } from "@/lib/session";
 import { makeLimiter } from "@/lib/authApi";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     limiter.reset(ip);
     const res = NextResponse.json({ ok: true });
     // maxAge yo'q: session cookie — brauzer yopilsa kalit qayta so'raladi.
-    res.cookies.set(ACCESS_COOKIE, await accessCookieValue(key), SESSION_COOKIE_OPTS);
+    res.cookies.set(ACCESS_COOKIE, await accessCookieValue(key), sessionCookieOpts(req));
     return res;
   }
 
