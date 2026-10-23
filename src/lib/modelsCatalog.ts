@@ -182,6 +182,24 @@ export const PROVIDERS: ProviderOption[] = [
     ],
   },
   {
+    value: "ollama",
+    label: "Ollama Cloud (bepul modellar)",
+    placeholder: "kalit.xxxxxxxx (ollama.com/settings/keys)",
+    defaultModel: "gpt-oss:120b",
+    defaultBaseUrl: "https://ollama.com/v1",
+    hasFree: true,
+    hasPaid: false,
+    models: [
+      { id: "gpt-oss:120b", name: "GPT-OSS 120B (OpenAI ochiq model, kuchli)", isFree: true },
+      { id: "gpt-oss:20b", name: "GPT-OSS 20B (tezkor)", isFree: true },
+      { id: "gemma4:31b", name: "Gemma 4 31B (Google, tezkor va aniq)", isFree: true },
+      { id: "nemotron-3-ultra", name: "Nemotron 3 Ultra (NVIDIA, eng kuchli)", isFree: true },
+      { id: "nemotron-3-super", name: "Nemotron 3 Super (NVIDIA)", isFree: true },
+      { id: "nemotron-3-nano:30b", name: "Nemotron 3 Nano 30B (NVIDIA, sekin: uzoq o‘ylaydi)", isFree: true },
+      { id: "beam", name: "Beam", isFree: true },
+    ],
+  },
+  {
     value: "custom",
     label: "Custom / Local (Ollama, vLLM)",
     placeholder: "sk-... yoki ollama",
@@ -245,6 +263,7 @@ const SHORT_NAMES: Record<string, string> = {
   mistral: "Mistral",
   together: "Together",
   perplexity: "Perplexity",
+  ollama: "Ollama",
   custom: "Mahalliy",
 };
 
@@ -273,6 +292,7 @@ export interface Detection {
 export function detectProvider(rawKey: string): Detection {
   const key = (rawKey || "").trim();
   if (/^gsk_/.test(key)) return { provider: "groq", candidates: [] };
+  if (/^[a-f0-9]{32}\.[A-Za-z0-9_-]{16,}$/.test(key)) return { provider: "ollama", candidates: [] };
   if (/^sk-ant-/.test(key)) return { provider: "anthropic", candidates: [] };
   if (/^sk-or-/.test(key)) return { provider: "openrouter", candidates: [] };
   if (/^AIza/.test(key)) return { provider: "gemini", candidates: [] };
@@ -311,7 +331,10 @@ export function buildModelItems(provider: string | null, discovered: string[]): 
   const names = new Map(catalog.map((m) => [m.id, m.name]));
   const order = new Map(catalog.map((m, i) => [m.id, i]));
 
-  const ids = discovered.length
+  // Ollama Cloud: faqat bepul (tekshirilgan) modellar ko‘rsatiladi, pullik modellar yashiriladi.
+  const ids = provider === "ollama"
+    ? catalog.map((m) => m.id)
+    : discovered.length
     ? Array.from(new Set(discovered.map(normalizeModelId).filter(isChatModel)))
     : catalog.map((m) => m.id);
 

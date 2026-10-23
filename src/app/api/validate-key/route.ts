@@ -250,6 +250,8 @@ function getDefaultUrl(provider: string): string {
       return "https://api.together.xyz/v1";
     case "perplexity":
       return "https://api.perplexity.ai";
+    case "ollama":
+      return "https://ollama.com/v1";
     default:
       return "https://api.openai.com/v1";
   }
@@ -269,6 +271,8 @@ function getDefaultModel(provider: string): string {
       return "meta-llama/llama-3.3-70b-instruct:free";
     case "anthropic":
       return "claude-3-5-sonnet-20241022";
+    case "ollama":
+      return "gpt-oss:120b";
     default:
       return "gpt-4o-mini";
   }

@@ -250,7 +250,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
                 </option>
               ))}
               <option value="custom" className="bg-neutral-900">
-                Ollama (mahalliy)
+                Mahalliy server / o‘z manzilim (Custom)
               </option>
             </select>
           )}
@@ -286,7 +286,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
             onClick={() => setManualProvider("custom")}
             className="text-xs text-neutral-500 hover:text-neutral-200 transition cursor-pointer"
           >
-            Mahalliy model (Ollama) yoki o‘z manzilim bor
+            Mahalliy server yoki o‘z manzilim bor
           </button>
         )
       )}
