@@ -137,11 +137,13 @@ export default function FilePanel({
   function startResize(e: React.MouseEvent) {
     if (!onWidthChange) return;
     e.preventDefault();
+    e.stopPropagation();
     const startX = e.clientX;
     const startW = width;
     const onMove = (ev: MouseEvent) => {
-      const dx = startX - ev.clientX;
-      const next = Math.min(Math.max(startW + dx, 280), Math.floor(window.innerWidth * 0.72));
+      ev.preventDefault();
+      const dx = startX - ev.clientX; // chapga = kengayadi
+      const next = Math.min(Math.max(Math.round(startW + dx), 280), Math.floor(window.innerWidth * 0.72));
       onWidthChange(next);
     };
     const onUp = () => {
@@ -156,24 +158,20 @@ export default function FilePanel({
     window.addEventListener("mouseup", onUp);
   }
 
-  return (
+    return (
     <aside
-      className="relative flex flex-col bg-black border-white/15 fixed inset-0 z-50 w-full md:static md:z-auto md:shrink-0 md:border-l md:h-full" data-fp
-      style={{
-        // md+ da kenglik; mobile fixed full-screen class bilan
-        ...({ ["--fp-w" as string]: `${width}px` } as React.CSSProperties),
-      }}
+      className="relative flex flex-col bg-black border-white/15 fixed inset-0 z-50 w-full max-md:!w-full md:static md:inset-auto md:z-auto md:shrink-0 md:border-l md:h-full"
+      style={{ width: width, minWidth: 280, maxWidth: "72vw" }}
     >
-      <style>{`@media (min-width: 768px) { aside[data-fp] { width: var(--fp-w) !important; min-width: 280px; max-width: 72vw; } }`}</style>
-      {/* Desktop resize handle */}
+      {/* Desktop: chap chetdan tortib o‘lcham */}
       <div
         role="separator"
         aria-orientation="vertical"
         title="Tortib o‘lchamini o‘zgartiring"
         onMouseDown={startResize}
-        className="hidden md:block absolute left-0 top-0 bottom-0 w-2 -ml-1 z-30 cursor-col-resize"
+        className="hidden md:flex absolute left-0 top-0 bottom-0 w-4 -translate-x-1/2 z-30 cursor-col-resize items-center justify-center touch-none"
       >
-        <div className="h-full w-0.5 mx-auto hover:bg-white active:bg-white transition-colors" />
+        <div className="h-full w-1 rounded-none bg-white/20 hover:bg-white active:bg-white transition-colors" />
       </div>
 
       <div className="flex items-center justify-between gap-3 h-11 px-3 border-b border-white/15 shrink-0">
