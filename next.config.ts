@@ -10,11 +10,6 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  // Skills papkasi serverless funksiyalariga ham kirishi uchun
-  outputFileTracingIncludes: {
-    "/*": ["./skills/**/*"],
-    "/api/*": ["./skills/**/*"],
-  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

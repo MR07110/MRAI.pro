@@ -47,3 +47,9 @@ next-env.d.ts
 
 # python
 __pycache__/
+
+# server holati (navbat, UI) — sirlar bor
+.mrai-state/
+
+# skills/ lokal: ~/MR/mrai/skills da turadi, GitHub'ga chiqmaydi
+/skills/
