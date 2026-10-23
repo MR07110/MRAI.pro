@@ -31,132 +31,96 @@ export type WaitSeg = { type: "wait"; end: number };
 export type FileSeg = { type: "file"; path: string; name: string; size: number };
 export type Seg = MdSeg | ToolSeg | WaitSeg | FileSeg;
 
-function parseFenceBody(body: string, live: boolean) {
-  let b = body.replace(/^\s*````text\n?/, "").replace(/\n?````\s*$/, "");
-  const lines = b.split("\n");
+// agent.ts quyidagi formatni chiqaradi:
+//   > **Asbob:** `Nom`\n\n   +   ````text\n<buyruq>\n→ ok (1.2s)\n<natija>\n````\n\n
+const TOOL_RE = /(?:^|\n)> \*\*Asbob:\*\* `([^`\n]*)`\n+(?:````text\n([\s\S]*?)\n````)?/g;
+
+function parseFence(body: string) {
+  const lines = body.split("\n");
   const i = lines.findIndex((l) => /^→ (ok|XATO) \(/.test(l));
-  if (i < 0) {
-    return {
-      head: b.trim(),
-      status: (live ? "running" : "stopped") as "running" | "stopped",
-      secs: undefined as string | undefined,
-      output: "",
-    };
-  }
+  if (i < 0) return { head: body, status: "ok" as const, secs: undefined as string | undefined, output: "" };
   const m = lines[i].match(/^→ (ok|XATO) \(([\d.]+)s\)/);
   return {
-    head: lines.slice(0, i).join("\n").trim(),
+    head: lines.slice(0, i).join("\n"),
     status: (m?.[1] === "XATO" ? "error" : "ok") as "ok" | "error",
     secs: m?.[2],
-    output: lines.slice(i + 1).join("\n").trim(),
+    output: lines.slice(i + 1).join("\n"),
   };
+}
+
+function fileSeg(path: string, size = 0): FileSeg | null {
+  const p = path.trim();
+  if (!p.startsWith("/")) return null;
+  return { type: "file", path: p, name: p.split("/").pop() || p, size: size || 0 };
 }
 
 function parseFiles(output: string): FileSeg[] {
   const res: FileSeg[] = [];
+  const seen = new Set<string>();
   for (const line of output.split("\n")) {
     if (!line.startsWith("@file\t")) continue;
     const [, size, ...rest] = line.split("\t");
     const path = rest.join("\t");
-    if (!path.startsWith("/")) continue;
-    res.push({ type: "file", path, name: path.split("/").pop() || path, size: Number(size) || 0 });
+    const f = fileSeg(path, Number(size) || 0);
+    if (f && !seen.has(f.path)) {
+      seen.add(f.path);
+      res.push(f);
+    }
   }
   return res;
 }
 
-/** Markdown dan asbob sintaksisini olib tashlash (blockquote / *Asbob:* qoldiqlar). */
-function scrubToolLeak(md: string): string {
-  let s = md;
-  s = s.replace(/(?:^|\n)[ \t]*>[^\n]*Asbob[^\n]*/gi, "\n");
-  s = s.replace(/(?:^|\n)[ \t]*\*{1,2}Asbob:?\*{0,2}[^\n]*/gi, "\n");
-  s = s.replace(/(?:^|\n)````text\n[\s\S]*?(?:\n````|$)/g, "\n");
-  s = s.replace(/(?:^|\n)````text\n[\s\S]*$/g, "\n");
-  s = s.replace(/(?:^|\n)````[\s\S]*$/g, "\n");
-  return s.replace(/\n{3,}/g, "\n\n").trim();
+/** Model ba'zan present_files ni tool o'rniga matn qilib yozadi — shuni kartochkaga aylantiramiz. */
+const FAKE_PRESENT_RE =
+  /(?:<\|)?present_files\|?(?:\s*\()?\s*(\{[\s\S]*?\})\s*(?:\)|>)?/gi;
+const AT_FILE_LINE_RE = /^@file\t(\d+)\t(\/[^\n]+)$/gm;
+
+function extractInlineFiles(text: string): { clean: string; files: FileSeg[] } {
+  const files: FileSeg[] = [];
+  const seen = new Set<string>();
+  let clean = text;
+
+  // 1) @file\tsize\t/path qatorlari (markdown ichida)
+  clean = clean.replace(AT_FILE_LINE_RE, (_m, size, path) => {
+    const f = fileSeg(path, Number(size) || 0);
+    if (f && !seen.has(f.path)) {
+      seen.add(f.path);
+      files.push(f);
+    }
+    return "";
+  });
+
+  // 2) <|present_files|{"paths":[...]}> yoki present_files({...})
+  clean = clean.replace(FAKE_PRESENT_RE, (_m, jsonStr: string) => {
+    try {
+      const j = JSON.parse(jsonStr);
+      const raw = Array.isArray(j.paths) ? j.paths : j.path ? [j.path] : [];
+      for (const p of raw) {
+        const f = fileSeg(String(p || ""));
+        if (f && !seen.has(f.path)) {
+          seen.add(f.path);
+          files.push(f);
+        }
+      }
+    } catch {
+      /* ignore bad json */
+    }
+    return "";
+  });
+
+  // 3) ` /abs/path/file.ext ` yoki ( /abs/path ) — faqat aniq fayl yo'li ko'rinishida
+  // juda agressiv bo'lmasin: faqat present_files / yuklab kontekstida emas, umumiy yo'llarni qoldiramiz
+
+  clean = clean.replace(/\n{3,}/g, "\n\n").trim();
+  return { clean, files };
 }
 
-function extractTools(text: string, live: boolean): Seg[] {
-  const segs: Seg[] = [];
-  const startRe = /(?:^|\n)([ \t]*>[ \t]*\*\*Asbob:\*\*[ \t]*`([^`\n]+)`[^\n]*)/g;
-  const matches: { index: number; endLine: number; name: string }[] = [];
-  for (const m of text.matchAll(startRe)) {
-    const index = m.index ?? 0;
-    matches.push({ index, endLine: index + m[0].length, name: m[2] });
-  }
-
-  if (matches.length === 0) {
-    if (live) {
-      const partial = text.search(/(?:^|\n)[ \t]*>[ \t]*\*?\*?Asbob/i);
-      if (partial >= 0) {
-        const before = scrubToolLeak(text.slice(0, partial));
-        if (before) segs.push({ type: "md", text: before });
-        const after = text.slice(partial);
-        const nameM = after.match(/`([^`\n]+)`/);
-        segs.push({
-          type: "tool",
-          name: nameM?.[1] || "Asbob",
-          head: "",
-          status: "running",
-          output: "",
-        });
-        return segs;
-      }
-    }
-    const clean = scrubToolLeak(text);
-    if (clean) segs.push({ type: "md", text: clean });
-    return segs;
-  }
-
-  let cursor = 0;
-  for (let i = 0; i < matches.length; i++) {
-    const m = matches[i];
-    if (m.index > cursor) {
-      const md = scrubToolLeak(text.slice(cursor, m.index));
-      if (md) segs.push({ type: "md", text: md });
-    }
-    const bodyStart = m.endLine;
-    const nextStart = i + 1 < matches.length ? matches[i + 1].index : text.length;
-    let body = text.slice(bodyStart, nextStart);
-    let blockEnd = nextStart;
-    if (body.includes("````text")) {
-      const close = body.search(/\n````(?:\s*\n|$)/);
-      if (close >= 0) {
-        blockEnd = bodyStart + close + 5;
-        while (blockEnd < text.length && /[\n\r]/.test(text[blockEnd]!)) blockEnd++;
-        body = text.slice(bodyStart, blockEnd);
-      } else {
-        body = text.slice(bodyStart, nextStart);
-        blockEnd = nextStart;
-      }
-    } else {
-      body = "";
-      blockEnd = bodyStart;
-      while (blockEnd < nextStart && /[\n\r\s]/.test(text[blockEnd]!)) blockEnd++;
-    }
-
-    const f = parseFenceBody(body, live);
-    const files = m.name === "Fayl berish" && f.status === "ok" ? parseFiles(f.output) : [];
-    if (files.length) segs.push(...files);
-    else {
-      segs.push({
-        type: "tool",
-        name: m.name,
-        head: f.head,
-        status: f.status,
-        secs: f.secs,
-        output: f.output,
-      });
-    }
-    cursor = Math.max(blockEnd, m.endLine);
-    while (cursor < text.length && /[\n\r]/.test(text[cursor]!)) cursor++;
-  }
-  if (cursor < text.length) {
-    const md = scrubToolLeak(text.slice(cursor));
-    if (md) segs.push({ type: "md", text: md });
-  }
-  return segs;
+function isFileTool(name: string): boolean {
+  const n = name.trim().toLowerCase();
+  return n === "fayl berish" || n === "present_files" || n === "present files";
 }
 
+// Javob matnini: oddiy markdown / asbob qadamlari / kutish sanagichi / fayl kartochkalari
 export function splitAgent(content: string, live: boolean): Seg[] {
   const out: Seg[] = [];
   for (const seg of splitWait(content)) {
@@ -164,7 +128,31 @@ export function splitAgent(content: string, live: boolean): Seg[] {
       out.push({ type: "wait", end: seg.end });
       continue;
     }
-    out.push(...extractTools(seg.text, live));
+    let last = 0;
+    const text = seg.text;
+    for (const m of text.matchAll(TOOL_RE)) {
+      const i = m.index ?? 0;
+      if (i > last) {
+        const { clean, files } = extractInlineFiles(text.slice(last, i));
+        if (clean.trim()) out.push({ type: "md", text: clean });
+        out.push(...files);
+      }
+      if (m[2] === undefined) {
+        out.push({ type: "tool", name: m[1], head: "", status: live ? "running" : "stopped", output: "" });
+      } else {
+        const f = parseFence(m[2]);
+        // present_files / Fayl berish: muvaffaqiyatli bo'lsa asbob qadami o'rniga kartochkalar
+        const fromTool = isFileTool(m[1]) && f.status === "ok" ? parseFiles(f.output) : [];
+        if (fromTool.length) out.push(...fromTool);
+        else out.push({ type: "tool", name: m[1], head: f.head, status: f.status, secs: f.secs, output: f.output });
+      }
+      last = i + m[0].length;
+    }
+    if (last < text.length) {
+      const { clean, files } = extractInlineFiles(text.slice(last));
+      if (clean.trim()) out.push({ type: "md", text: clean });
+      out.push(...files);
+    }
   }
-  return out.filter((s) => s.type !== "md" || s.text.trim().length > 0);
+  return out;
 }

@@ -195,7 +195,8 @@ export function buildBuiltinTools(env: ToolEnv): ToolDef[] {
     label: "Fayl berish",
     readOnly: true,
     description:
-      "Tayyor faylni(larni) foydalanuvchiga chatda kartochka sifatida beradi: zip, html, rasm, pdf, kod, matn — istalgan fayl. Kartochka bosilsa chap yarim ekranda preview ochiladi, yuklab olish tugmasi ham bor. Fayl yaratilgach natijani foydalanuvchiga berish uchun SHU asbobdan foydalaning (yo'lni matnda yozish yetmaydi). Faqat mavjud fayllar; to'liq (absolyut) yo'l bering.",
+      "Tayyor faylni(larni) foydalanuvchiga chatda KATOCHKA sifatida beradi (markdown emas). zip/html/rasm/pdf/kod/matn. Kartochkada preview + Yuklab olish bor. Fayl tayyor bo'lgach MAJBURIY shu asbobni chaqiring — yo'lni matnda yozmang, <|present_files|...> yozmang, faqat tool call. paths: to'liq absolyut yo'llar (masalan /home/user/a.txt).",
+
     parameters: {
       type: "object",
       properties: {
