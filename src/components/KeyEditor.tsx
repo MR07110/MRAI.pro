@@ -8,6 +8,7 @@ import ModelList from "./ModelList";
 import {
   PROVIDERS,
   buildModelItems,
+  providerHasFree,
   detectProvider,
   shortProviderName,
   validateKey,
@@ -55,6 +56,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
   }, [det, manualProvider, existing]);
 
   const isCustom = provider === "custom";
+  const paidOnly = !!provider && !providerHasFree(provider);
   const effectiveBase = isCustom
     ? baseUrl.trim()
     : provider && existing && provider === existing.provider
@@ -107,12 +109,13 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
 
   const showModels =
     !!provider &&
+    !paidOnly &&
     (status === "ok" ||
       status === "offline" ||
       (status === "checking" && !!existing && existing.provider === provider));
 
   const needsProvider = !provider && trimmed.length >= 8;
-  const canSave = !!provider && !!model && status !== "checking" && status !== "auth" && (status !== "idle" || !!existing);
+  const canSave = !!provider && !paidOnly && !!model && status !== "checking" && status !== "auth" && (status !== "idle" || !!existing);
 
   async function save() {
     if (!provider || !model || saving) return;
@@ -188,7 +191,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
               Tekshirilmoqda…
             </span>
           )}
-          {status === "ok" && provider && (
+          {status === "ok" && provider && !paidOnly && (
             <span className="inline-flex items-center gap-1.5 text-emerald-400">
               <Check className="w-3.5 h-3.5" />
               {shortProviderName(provider)} kaliti tasdiqlandi
@@ -207,9 +210,17 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
               <span>Kalitni tekshirib bo‘lmadi{error ? ` (${error})` : ""}. Baribir saqlash mumkin.</span>
             </span>
           )}
+          {paidOnly && provider && (
+            <span className="inline-flex items-start gap-1.5 text-amber-400">
+              <TriangleAlert className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              <span>
+                {shortProviderName(provider)} da bepul model yo‘q. Bu ilovada faqat bepul modellar ishlaydi: Groq, Gemini, OpenRouter yoki Ollama kalitini kiriting.
+              </span>
+            </span>
+          )}
           {status === "idle" && !trimmed && !isCustom && !existing && (
             <span className="text-neutral-500">
-              Groq, OpenAI, Claude, Gemini va boshqalar. Kalit turi o‘zi aniqlanadi.
+              Groq, Gemini, OpenRouter, Ollama (faqat bepul modellar). Kalit turi o‘zi aniqlanadi.
             </span>
           )}
         </div>
@@ -244,7 +255,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
               <option value="" className="bg-neutral-900">
                 Xizmatni tanlang
               </option>
-              {PROVIDERS.filter((p) => p.value !== "custom").map((p) => (
+              {PROVIDERS.filter((p) => p.hasFree && p.value !== "custom").map((p) => (
                 <option key={p.value} value={p.value} className="bg-neutral-900">
                   {shortProviderName(p.value)}
                 </option>

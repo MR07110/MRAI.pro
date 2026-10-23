@@ -27,18 +27,11 @@ export const PROVIDERS: ProviderOption[] = [
     defaultModel: "openai/gpt-oss-120b",
     defaultBaseUrl: "https://api.groq.com/openai/v1",
     hasFree: true,
-    hasPaid: true,
+    hasPaid: false,
     models: [
       { id: "openai/gpt-oss-120b", name: "GPT OSS 120B (OpenAI Open-Weights)", isFree: true },
       { id: "openai/gpt-oss-20b", name: "GPT OSS 20B (Ultra tezkor)", isFree: true },
-      { id: "llama-3.1-8b-instant", name: "Llama 3.1 8B Instant (Ultra tezkor)", isFree: true },
-      { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B Versatile", isFree: true },
-      { id: "deepseek-r1-distill-llama-70b", name: "DeepSeek R1 Distill 70B (Reasoning)", isFree: true },
       { id: "qwen/qwen3.8-27b", name: "Qwen 3.8 27B (Mantiq va kod)", isFree: true },
-      { id: "mixtral-8x7b-32768", name: "Mixtral 8x7B (32k kontekst)", isFree: true },
-      { id: "gemma2-9b-it", name: "Google Gemma 2 9B", isFree: true },
-      { id: "llama3-70b-8192", name: "Llama 3 70B (8k)", isFree: true },
-      { id: "llama3-8b-8192", name: "Llama 3 8B (8k)", isFree: true },
     ],
   },
   {
@@ -48,35 +41,37 @@ export const PROVIDERS: ProviderOption[] = [
     defaultModel: "gemini-2.0-flash",
     defaultBaseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
     hasFree: true,
-    hasPaid: true,
+    hasPaid: false,
     models: [
       { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash (Tezkor va bepul)", isFree: true },
-      { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash (1M kontekst)", isFree: true },
-      { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro (2M ulkan kontekst)", isFree: true },
-      { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro (Pullik flagman)", isFree: false },
     ],
   },
   {
     value: "openrouter",
-    label: "OpenRouter (Bepul va Pullik)",
+    label: "OpenRouter (faqat bepul modellar)",
     placeholder: "sk-or-v1-...",
-    defaultModel: "meta-llama/llama-3.3-70b-instruct:free",
+    defaultModel: "openrouter/free",
     defaultBaseUrl: "https://openrouter.ai/api/v1",
     hasFree: true,
-    hasPaid: true,
+    hasPaid: false,
     models: [
-      { id: "meta-llama/llama-3.3-70b-instruct:free", name: "Llama 3.3 70B (:free)", isFree: true },
-      { id: "deepseek/deepseek-r1:free", name: "DeepSeek R1 (:free)", isFree: true },
-      { id: "deepseek/deepseek-chat:free", name: "DeepSeek V3 (:free)", isFree: true },
-      { id: "google/gemini-2.0-flash-exp:free", name: "Gemini 2.0 Flash (:free)", isFree: true },
-      { id: "qwen/qwen-2.5-coder-32b-instruct:free", name: "Qwen 2.5 Coder 32B (:free)", isFree: true },
-      { id: "mistralai/mistral-small-3:free", name: "Mistral Small 3 (:free)", isFree: true },
-      { id: "anthropic/claude-3.5-sonnet", name: "Claude 3.5 Sonnet", isFree: false },
-      { id: "anthropic/claude-3.7-sonnet", name: "Claude 3.7 Sonnet", isFree: false },
-      { id: "openai/gpt-4o", name: "OpenAI GPT-4o", isFree: false },
-      { id: "openai/gpt-4o-mini", name: "OpenAI GPT-4o Mini", isFree: false },
-      { id: "deepseek/deepseek-r1", name: "DeepSeek R1 (Premium pullik)", isFree: false },
-      { id: "meta-llama/llama-3.3-70b-instruct", name: "Llama 3.3 70B (Yuqori tezlik)", isFree: false },
+      { id: "openrouter/free", name: "Avto-tanlov (bepul modellardan eng mosi)", isFree: true },
+      { id: "google/gemma-4-31b-it:free", name: "Gemma 4 31B (Google)", isFree: true },
+      { id: "google/gemma-4-26b-a4b-it:free", name: "Gemma 4 26B A4B (Google)", isFree: true },
+      { id: "nvidia/nemotron-3-ultra-550b-a55b:free", name: "Nemotron 3 Ultra 550B (NVIDIA)", isFree: true },
+      { id: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super 120B (NVIDIA)", isFree: true },
+      { id: "nvidia/nemotron-3.5-lightning:free", name: "Nemotron 3.5 Lightning (NVIDIA)", isFree: true },
+      { id: "nvidia/nemotron-3.5-super-vl:free", name: "Nemotron 3.5 Super VL (NVIDIA)", isFree: true },
+      { id: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free", name: "Nemotron 3 Nano Omni 30B (NVIDIA)", isFree: true },
+      { id: "thinkingmachines/inkling:free", name: "Inkling (Thinking Machines)", isFree: true },
+      { id: "thinkingmachines/inkling-small:free", name: "Inkling Small (Thinking Machines)", isFree: true },
+      { id: "poolside/laguna-s-2.1:free", name: "Laguna S 2.1 (Poolside)", isFree: true },
+      { id: "poolside/laguna-xs-2.1:free", name: "Laguna XS 2.1 (Poolside)", isFree: true },
+      { id: "cohere/north-mini-code:free", name: "North Mini Code (Cohere)", isFree: true },
+      { id: "liquid/lfm-2.5-2.6b:free", name: "LFM 2.5 2.6B (Liquid)", isFree: true },
+      { id: "recursive/flint-v1.0:free", name: "Flint v1.0 (Recursive)", isFree: true },
+      { id: "xingchen-agi/xing4.0-29b-a4b:free", name: "Xing 4.0 29B (Xingchen)", isFree: true },
+      { id: "dots-studio/dots-3-note-preview:free", name: "Dots 3 Note (Dots Studio)", isFree: true },
     ],
   },
   {
@@ -249,6 +244,30 @@ export function isModelFree(modelId: string): boolean {
   return false;
 }
 
+/** Ilovada FAQAT bepul modellar ko‘rsatiladi. Provayderga qarab aniq qoida. */
+export function isFreeFor(provider: string | null, id: string): boolean {
+  switch (provider) {
+    case "ollama":
+      return !!PROVIDERS.find((p) => p.value === "ollama")?.models.some((m) => m.id === id);
+    case "groq":
+      return true; // Groq: barcha chat modellar bepul limit bilan ishlaydi
+    case "openrouter":
+      return id.endsWith(":free") || id === "openrouter/free";
+    case "gemini":
+      return /^gemini-/.test(id) && !/(pro|image|tts|embed|live|robotics|computer|audio|imagen)/i.test(id);
+    case "custom":
+      return true; // mahalliy server
+    default:
+      return false;
+  }
+}
+
+/** Bu xizmatda umuman bepul model bormi (OpenAI, Claude va h.k. — yo‘q). */
+export function providerHasFree(provider: string | null): boolean {
+  if (!provider) return true;
+  return PROVIDERS.find((p) => p.value === provider)?.hasFree ?? false;
+}
+
 // ---------------------------------------------------------------------------
 // Nomlar va maska
 // ---------------------------------------------------------------------------
@@ -315,7 +334,7 @@ export interface ModelItem {
 }
 
 const NON_CHAT =
-  /(whisper|tts|embed|guard|moderation|rerank|dall-e|imagen|veo|transcribe|audio|realtime|davinci|babbage|aqa|speech|image-)/i;
+  /(whisper|tts|embed|guard|safety|moderation|rerank|dall-e|imagen|veo|transcribe|audio|realtime|davinci|babbage|aqa|speech|image-)/i;
 
 export function normalizeModelId(id: string): string {
   return id.replace(/^models\//, "");
@@ -341,9 +360,9 @@ export function buildModelItems(provider: string | null, discovered: string[]): 
   const items: ModelItem[] = ids.map((id) => ({
     id,
     name: names.get(id) || id,
-    free: isModelFree(id),
+    free: isFreeFor(provider, id),
     recommended: order.has(id),
-  }));
+  })).filter((it) => it.free);
 
   items.sort((a, b) => {
     if (a.recommended !== b.recommended) return a.recommended ? -1 : 1;

@@ -496,7 +496,7 @@ function sanitizeModel(provider: string, model?: string): string {
 
   if (provider === "groq") return "llama-3.1-8b-instant";
   if (provider === "gemini") return "gemini-2.0-flash";
-  if (provider === "openrouter") return "meta-llama/llama-3.3-70b-instruct:free";
+  if (provider === "openrouter") return "openrouter/free";
   if (provider === "anthropic") return "claude-3-5-sonnet-20241022";
   if (provider === "deepseek") return "deepseek-chat";
   if (provider === "ollama") return "gpt-oss:120b";

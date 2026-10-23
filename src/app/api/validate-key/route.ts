@@ -268,7 +268,7 @@ function getDefaultModel(provider: string): string {
     case "gemini":
       return "gemini-2.0-flash";
     case "openrouter":
-      return "meta-llama/llama-3.3-70b-instruct:free";
+      return "openrouter/free";
     case "anthropic":
       return "claude-3-5-sonnet-20241022";
     case "ollama":
