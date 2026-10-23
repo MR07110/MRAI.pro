@@ -61,10 +61,14 @@ export default function Sidebar({
   return (
     <div className="flex flex-col h-full w-full bg-[#050505]">
       <div className="flex items-center justify-between h-12 px-3 shrink-0">
-        <div className="flex items-center gap-2 pl-1">
+        <a
+          href="/"
+          title="Bosh sahifa"
+          className="flex items-center gap-2 pl-1 cursor-pointer"
+        >
           <Image src="/logo-white.png" alt="MR AI" width={20} height={20} />
           <span className="text-[15px] font-semibold tracking-tight text-neutral-100">MR AI</span>
-        </div>
+        </a>
         <button
           onClick={onClose}
           title="Yopish"

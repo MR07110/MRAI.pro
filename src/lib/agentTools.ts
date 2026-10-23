@@ -56,12 +56,12 @@ export function buildBuiltinTools(env: ToolEnv): ToolDef[] {
       name: "computer_exec",
       label: "Kompyuter",
       description:
-        "Foydalanuvchining Linux sandbox kompyuterida bash buyrug'ini bajaradi (workspace papkasida, fayllar saqlanib qoladi). Ko'p qatorli skriptlar mumkin. Uzoq ishlaydigan jarayonlar (dev server, build, kuzatuvchi) uchun background=true bering va computer_job_logs bilan kuzating.",
+        "Egasining HAQIQIY Linux kompyuterida bash buyrug'ini bajaradi (sandbox yo'q; standart papka ~/MR/mrai, fayllar saqlanib qoladi). Ko'p qatorli skriptlar mumkin. Uzoq ishlaydigan jarayonlar (dev server, build, kuzatuvchi) uchun background=true bering va computer_job_logs bilan kuzating.",
       parameters: {
         type: "object",
         properties: {
           command: { type: "string", description: "bash buyrug'i/skripti" },
-          cwd: { type: "string", description: "ish papkasi (workspace ichida), ixtiyoriy" },
+          cwd: { type: "string", description: "ish papkasi (istalgan mavjud papka, standart ~/MR/mrai), ixtiyoriy" },
           timeout: { type: "number", description: "soniyalarda, standart 60, maksimum 600" },
           background: { type: "boolean", description: "fon jarayon sifatida ishga tushirish (job_id qaytaradi)" },
         },
@@ -75,7 +75,7 @@ export function buildBuiltinTools(env: ToolEnv): ToolDef[] {
     {
       name: "computer_read_file",
       label: "Fayl o'qish",
-      description: "Sandbox ichidagi fayl matnini o'qiydi (standart 20000 bayt, maksimum 100000).",
+      description: "Kompyuterdagi fayl matnini o'qiydi (standart 20000 bayt, maksimum 100000).",
       parameters: {
         type: "object",
         properties: { path: { type: "string" }, max_bytes: { type: "number" } },
@@ -89,7 +89,7 @@ export function buildBuiltinTools(env: ToolEnv): ToolDef[] {
     {
       name: "computer_write_file",
       label: "Fayl yozish",
-      description: "Sandbox ichida fayl yaratadi/ustidan yozadi (papkalar avtomatik yaratiladi). append=true bo'lsa oxiriga qo'shadi.",
+      description: "Kompyuterda fayl yaratadi/ustidan yozadi (papkalar avtomatik yaratiladi). append=true bo'lsa oxiriga qo'shadi.",
       parameters: {
         type: "object",
         properties: { path: { type: "string" }, content: { type: "string" }, append: { type: "boolean" } },

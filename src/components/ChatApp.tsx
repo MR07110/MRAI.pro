@@ -47,6 +47,10 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
   const displayedTextRef = useRef("");
   const smoothTickerRef = useRef<number | null>(null);
   const isStreamingActiveRef = useRef(false);
+  const streamSeqRef = useRef(0); // eski (to'xtatilgan) oqim yangisini buzmasligi uchun
+  const currentChatIdRef = useRef<string | null>(initialChatId);
+  currentChatIdRef.current = currentChatId;
+  const authed = !!user;
   // Avto-scroll holati: true = pastga "yopishgan". Faqat foydalanuvchi tepaga chiqsa o'chadi (kontent o'sishi buzmaydi).
   const stickRef = useRef(true);
   const lastScrollTopRef = useRef(0);
@@ -91,17 +95,22 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
 
   // Load messages when chat changes (prevent race condition during inline chat creation)
   useEffect(() => {
+    if (!authed) return;
     stickRef.current = true;
     if (skipNextLoadRef.current && skipNextLoadRef.current === currentChatId) {
       skipNextLoadRef.current = null;
       return;
     }
     if (currentChatId) {
-      loadMessages(currentChatId);
+      const cid = currentChatId;
+      // Xabarlar bazadan yuklanadi, so'ng serverda hali ishlayotgan agent bo'lsa unga qayta ulanadi (sahifa yangilansa ham davom etadi)
+      loadMessages(cid).then(() => {
+        if (currentChatIdRef.current === cid) tryAttach(cid);
+      });
     } else {
       setMessages([]);
     }
-  }, [currentChatId]);
+  }, [currentChatId, authed]);
 
   // Foydalanuvchi tepaga ko'targanini aniqlash: faqat YUQORIGA harakat stickni o'chiradi.
   // (Dastur o'zi faqat pastga suradi, shuning uchun kontent o'sishi "tepaga chiqdi" deb adashmaydi.)
@@ -183,7 +192,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
       return;
     }
     if (isStreaming) {
-      stopStreaming();
+      stopStreaming(true);
     }
     setCurrentChatId(null);
     setMessages([]);
@@ -239,24 +248,29 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
   async function executeChatStream(
     chatId: string,
     history: Array<{ role: "user" | "assistant"; content: string }>,
-    keyToUse?: UserApiKey | null
+    keyToUse?: UserApiKey | null,
+    attach?: { res: Response; msgId: string }
   ) {
-    let key = keyToUse || defaultKey;
-    if (!key) {
-      key = await loadDefaultKey();
+    let key0 = keyToUse || defaultKey;
+    if (!attach) {
+      if (!key0) {
+        key0 = await loadDefaultKey();
+      }
+      if (!key0) {
+        setSettingsOpen(true);
+        return;
+      }
     }
-    if (!key) {
-      setSettingsOpen(true);
-      return;
-    }
+    const key = key0 as UserApiKey; // attach rejimida ishlatilmaydi
 
     stickRef.current = true;
     setIsScrolledUp(false);
     setIsStreaming(true);
     const controller = new AbortController();
     abortRef.current = controller;
+    const mySeq = ++streamSeqRef.current;
 
-    const tempAiId = crypto.randomUUID();
+    const tempAiId = attach?.msgId || crypto.randomUUID();
     targetTextRef.current = "";
     displayedTextRef.current = "";
     isStreamingActiveRef.current = true;
@@ -269,20 +283,24 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
       smoothTickerRef.current = null;
     }
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: tempAiId,
-        chat_id: chatId,
-        role: "assistant",
-        content: "",
-        created_at: new Date().toISOString(),
-      },
-    ]);
+    setMessages((prev) =>
+      prev.some((m) => m.id === tempAiId)
+        ? prev
+        : [
+            ...prev,
+            {
+              id: tempAiId,
+              chat_id: chatId,
+              role: "assistant",
+              content: "",
+              created_at: new Date().toISOString(),
+            },
+          ]
+    );
 
     // Ultra-smooth typewriter ticker loop: reveals characters smoothly without jerky bursts
     const tickSmoothStream = (time: number) => {
-      if (!isStreamingActiveRef.current) return;
+      if (!isStreamingActiveRef.current || streamSeqRef.current !== mySeq) return;
 
       if (time - lastTickTime >= FRAME_MS) {
         lastTickTime = time;
@@ -335,12 +353,12 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
 
     smoothTickerRef.current = requestAnimationFrame(tickSmoothStream);
 
-    const useAgent = appSettings.agentMode !== false;
+    const useAgent = !!attach || appSettings.agentMode !== false;
     const isStream = useAgent || appSettings.stream !== false;
 
     try {
       let agentExtra: Record<string, unknown> = {};
-      if (useAgent) {
+      if (useAgent && !attach) {
         const conns = (await serverDb.getConnectors()).filter((c) => c.enabled);
         agentExtra = {
           connectors: conns.map((c) => ({ id: c.id, name: c.name, url: c.url, headers: c.headers })),
@@ -351,7 +369,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
         };
       }
 
-      const res = await fetch(useAgent ? "/api/agent" : "/api/chat", {
+      const res = attach ? attach.res : await fetch(useAgent ? "/api/agent" : "/api/chat", {
         method: "POST",
         headers: useAgent ? serverDb.authHeaders() : { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -364,6 +382,8 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
           temperature: appSettings.temperature ?? 0.7,
           maxTokens: appSettings.maxTokens ?? 4096,
           stream: isStream,
+          chatId,
+          messageId: tempAiId,
           ...agentExtra,
         }),
         signal: controller.signal,
@@ -403,6 +423,12 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
 
             try {
               const parsed = JSON.parse(dataStr);
+              if (typeof parsed.snapshot === "string") {
+                const snap: string = parsed.snapshot;
+                targetTextRef.current = snap;
+                displayedTextRef.current = snap;
+                setMessages((prev) => prev.map((m) => (m.id === tempAiId ? { ...m, content: snap } : m)));
+              }
               if (parsed.content !== undefined && parsed.content !== null) {
                 targetTextRef.current += parsed.content;
               }
@@ -435,10 +461,11 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
       );
 
       // Save assistant message to Server / SQLite
-      if (fullFinalContent.trim()) {
+      if (!useAgent && fullFinalContent.trim()) {
         await serverDb.saveMessage(chatId, "assistant", fullFinalContent, tempAiId);
       }
     } catch (err: any) {
+      if (streamSeqRef.current !== mySeq) return; // yangi oqim boshlangan: eskisi hech narsaga tegmasin
       isStreamingActiveRef.current = false;
       if (smoothTickerRef.current) {
         cancelAnimationFrame(smoothTickerRef.current);
@@ -447,11 +474,14 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
 
       if (err.name === "AbortError") {
         const partial = displayedTextRef.current || targetTextRef.current;
-        if (partial.trim()) {
+        if (!useAgent && partial.trim()) {
           try {
             await serverDb.saveMessage(chatId, "assistant", partial, tempAiId);
           } catch {}
         }
+      } else if (useAgent && (err instanceof TypeError || /network|failed to fetch|terminated|load failed|socket/i.test(String(err?.message || "")))) {
+        // Aloqa uzildi, lekin ish serverda davom etmoqda: jimgina qayta ulanamiz
+        setTimeout(() => tryAttach(chatId), 1500);
       } else {
         const errorContent = `Xatolik: ${err.message || "Noma’lum xato"}`;
         setMessages((prev) => {
@@ -474,14 +504,37 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
         });
       }
     } finally {
-      isStreamingActiveRef.current = false;
-      if (smoothTickerRef.current) {
-        cancelAnimationFrame(smoothTickerRef.current);
-        smoothTickerRef.current = null;
+      if (streamSeqRef.current === mySeq) {
+        isStreamingActiveRef.current = false;
+        if (smoothTickerRef.current) {
+          cancelAnimationFrame(smoothTickerRef.current);
+          smoothTickerRef.current = null;
+        }
+        setIsStreaming(false);
+        abortRef.current = null;
       }
-      setIsStreaming(false);
-      abortRef.current = null;
     }
+  }
+
+  // Sahifa yangilanganda/suhbat ochilganda: serverda hali ishlayotgan agentga qayta ulanish (screen sharing kabi).
+  async function tryAttach(chatId: string) {
+    if (isStreamingActiveRef.current) return;
+    try {
+      const res = await fetch(`/api/agent/attach?chatId=${encodeURIComponent(chatId)}`, { cache: "no-store" });
+      if (res.status === 204 || !res.ok) return;
+      if ((res.headers.get("content-type") || "").includes("application/json")) {
+        await loadMessages(chatId); // yaqinda tugagan: yakuniy matnni bazadan olamiz
+        return;
+      }
+      if (currentChatIdRef.current !== chatId || isStreamingActiveRef.current) {
+        try {
+          await res.body?.cancel();
+        } catch {}
+        return;
+      }
+      const msgId = res.headers.get("x-run-msg-id") || crypto.randomUUID();
+      await executeChatStream(chatId, [], null, { res, msgId });
+    } catch {}
   }
 
   // Send new user prompt
@@ -580,7 +633,15 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
     await executeChatStream(currentChatId, history, activeKey);
   }
 
-  function stopStreaming() {
+  function stopStreaming(detachOnly = false) {
+    // detachOnly: faqat ko'rinishni uzish (ish serverda davom etadi); aks holda serverdagi ishni ham to'xtatadi
+    if (!detachOnly && currentChatIdRef.current) {
+      fetch("/api/agent/stop", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chatId: currentChatIdRef.current }),
+      }).catch(() => {});
+    }
     isStreamingActiveRef.current = false;
     abortRef.current?.abort();
     if (smoothTickerRef.current) {
@@ -608,7 +669,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
       return;
     }
     if (isStreaming) {
-      stopStreaming();
+      stopStreaming(true);
     }
     setCurrentChatId(id);
     pushUrl(id);
@@ -717,7 +778,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
       }}
       onKeyDown={handleKeyDown}
       onSend={() => sendMessage()}
-      onStop={stopStreaming}
+      onStop={() => stopStreaming()}
       isStreaming={isStreaming}
       textareaRef={textareaRef}
       fontSizeClass={fontSizeClass}

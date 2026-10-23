@@ -1,0 +1,18 @@
+[Unit]
+Description=MR AI web (Next.js) - kompyuterda ishlaydi
+After=network.target mrai.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/muhamad/Claude/work/mrai-next
+EnvironmentFile=/home/muhamad/Claude/work/mrai-next/.env.local
+Environment=NODE_ENV=production
+Environment=MRAI_SERVER_URL=http://localhost:8080
+ExecStart=/usr/bin/node node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3000
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/muhamad/MR/mrai/web.log
+StandardError=append:/home/muhamad/MR/mrai/web.log
+
+[Install]
+WantedBy=default.target

@@ -44,3 +44,10 @@
 - Egasi: `mrqosimov2011` — ro'yxatdan o'tkazib bo'lmaydi (egallab olishdan himoya); hisob serverda yaratilgan, vaqtinchalik parol `~/MR/mrai/owner-temp-password.txt` (600) — kirgach Sozlamalar -> Hisob'dan almashtirib, faylni o'chirish kerak. Eski ma'lumotlar shu hisobda.
 - Sinov: `scripts/isolation-test.py` (32 ta tekshiruv, ikki vaqtinchalik hisob, oxirida o'zini tozalaydi) — 32/32 PASS.
 - Zaxira: `*.bak-20261023-pre-auth|pre-urls`, Python: `mrai_server.py.bak-20261023-pre-users|pre-isolation`, `mrai_tasks.py.bak-20261023-pre-users`.
+
+## 2026-10-23 (kech): serverda ishlaydigan agent, sandbox'siz, avto-ishga tushish
+- Sandbox olib tashlandi: buyruqlar egasining haqiqiy kompyuterida (`~/MR/mrai` standart papka), faqat egasi hisobi uchun (`EXEC_ALLOWED`). Agent promptlari shunga moslandi.
+- Agent ishi brauzerga bog'liq emas: `src/lib/runs.ts` (run manager), `/api/agent` (boshlash), `/api/agent/attach` (qayta ulanish), `/api/agent/stop`. Sahifa yangilansa ham davom etadi; provayder limiti kutishi (`[[wait:<ms>]]`) ham serverda.
+- Faqat agent rejimi: oddiy `/api/chat` hamon brauzerga bog'liq. Web servis qayta ishga tushsa, ketayotgan ish to'xtaydi (oxirgi saqlangan qism bazada qoladi).
+- Yon paneldagi "MR AI" -> `/`.
+- Avto-ishga tushish: `deploy/install.sh` (systemd user + linger), boshqaruv: `mrai start|stop|restart|status|logs`.

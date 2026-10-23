@@ -1,0 +1,14 @@
+[Unit]
+Description=MR AI edge proxy (ngrok -> /mcp=cmc, qolgani=mrai-web)
+After=network.target mrai-web.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/node /home/muhamad/MR/mrai/edge-proxy.js
+Restart=always
+RestartSec=3
+StandardOutput=append:/home/muhamad/MR/mrai/edge.log
+StandardError=append:/home/muhamad/MR/mrai/edge.log
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,15 @@
+[Unit]
+Description=MR AI 24/7 Local Server and Tunnel
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/muhamad/MR/mrai
+ExecStart=/home/muhamad/MR/mrai/start.sh
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/muhamad/MR/mrai/systemd.log
+StandardError=append:/home/muhamad/MR/mrai/systemd.log
+
+[Install]
+WantedBy=default.target

@@ -1,5 +1,5 @@
 // Claude Code uslubidagi kod asboblari: Bash, Read, Write, Edit, MultiEdit, Glob, Grep, LS, TodoWrite, BashOutput, KillShell.
-// Hammasi local serverdagi bwrap sandbox (/exec) ustida ishlaydi.
+// Hammasi local serverdagi /exec orqali egasining HAQIQIY kompyuterida ishlaydi (sandbox yo'q).
 import type { ToolDef } from "@/lib/agentTools";
 
 export interface CodingCtx {
@@ -116,7 +116,7 @@ export function buildCodingTools(ctx: CodingCtx): ToolDef[] {
     name: "Bash",
     label: "Bash",
     description:
-      "Executes a bash command in the user's Linux sandbox (workspace directory; files persist; the working directory persists between calls). Use it for git, npm/pip, builds, tests and running scripts. Do NOT use it to read, search or edit files when Read/Grep/Glob/Edit can do it. Default timeout 120000 ms (max 600000). For dev servers, watchers and other long jobs set run_in_background=true, then use BashOutput and KillShell. Quote paths containing spaces. Network is available; /usr is read-only (no apt) - install packages into the workspace.",
+      "Executes a bash command on the user's REAL Linux computer (no sandbox; default directory ~/MR/mrai; files persist; the working directory persists between calls). Use it for git, npm/pip, builds, tests and running scripts. Do NOT use it to read, search or edit files when Read/Grep/Glob/Edit can do it. Default timeout 120000 ms (max 600000). For dev servers, watchers and other long jobs set run_in_background=true, then use BashOutput and KillShell. Quote paths containing spaces. Network is available. Commands run with the owner's user permissions (git, npm, pip, notify-send, systemctl --user all work); sudo needs a password, so install packages at user level (pip --user, local npm).",
     parameters: {
       type: "object",
       properties: {
@@ -157,7 +157,7 @@ export function buildCodingTools(ctx: CodingCtx): ToolDef[] {
     label: "Read",
     readOnly: true,
     description:
-      "Reads a text file from the sandbox. file_path is relative to the working directory or absolute. Returns up to 2000 lines, each prefixed with its line number (cat -n style: number, tab, content); use offset (1-based line) and limit for large files. You MUST Read a file before you Edit or overwrite it. Lines longer than 2000 chars are cut. Use LS for directories.",
+      "Reads a text file from the computer. file_path is relative to the working directory or absolute. Returns up to 2000 lines, each prefixed with its line number (cat -n style: number, tab, content); use offset (1-based line) and limit for large files. You MUST Read a file before you Edit or overwrite it. Lines longer than 2000 chars are cut. Use LS for directories.",
     parameters: {
       type: "object",
       properties: {
