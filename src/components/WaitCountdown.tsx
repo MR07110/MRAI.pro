@@ -46,7 +46,7 @@ export default function WaitCountdown({ end }: { end: number }) {
  <div className="my-2 inline-flex items-center gap-2 px-3 py-1.5 border border-amber-900/50 bg-amber-950/30 text-amber-300 text-xs">
  <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
  <span>
- Provayder limiti: <span className="tabular-nums font-semibold">{left}</span> soniya kutilyapti…
+ Provider limit: <span className="tabular-nums font-semibold">{left}</span> soniya kutilyapti…
  </span>
  </div>
  );

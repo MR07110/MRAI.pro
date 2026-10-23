@@ -66,7 +66,7 @@ function parseArgs(raw: any): { args: any; err?: string } {
   try {
     return { args: JSON.parse(String(raw)) };
   } catch {
-    return { args: {}, err: "Asbob argumentlari yaroqsiz JSON edi. To'g'ri JSON bilan qayta chaqiring." };
+    return { args: {}, err: "Tool arguments were invalid JSON. Retry with valid JSON." };
   }
 }
 
@@ -350,19 +350,19 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
       const results: Array<{ call: Call; output: string; isError: boolean }> = [];
       for (const call of res.calls) {
         const tool = byName.get(call.name);
-        out(`\n> **Asbob:** \`${tool?.label || call.name}\`\n\n`);
+        out(`\n> **Tool:** \`${tool?.label || call.name}\`\n\n`);
         let r: { output: string; isError?: boolean };
         const t0 = Date.now();
         if (call.argError) r = { output: call.argError, isError: true };
-        else if (!tool) r = { output: `Noma'lum asbob: ${call.name}`, isError: true };
+        else if (!tool) r = { output: `Unknown tool: ${call.name}`, isError: true };
         else {
           try {
             r = await tool.run(call.args);
           } catch (e: any) {
-            r = { output: `Asbob xatosi: ${e?.message || e}`, isError: true };
+            r = { output: `Tool error: ${e?.message || e}`, isError: true };
           }
         }
-        const shown = (call.name === "computer_exec" || call.name === "Bash" ? `$ ${brief(call)}\n` : `${brief(call)}\n`) + `→ ${r.isError ? "XATO" : "ok"} (${((Date.now() - t0) / 1000).toFixed(1)}s)\n${r.output}`;
+        const shown = (call.name === "computer_exec" || call.name === "Bash" ? `$ ${brief(call)}\n` : `${brief(call)}\n`) + `→ ${r.isError ? "ERROR" : "ok"} (${((Date.now() - t0) / 1000).toFixed(1)}s)\n${r.output}`;
         out(fence(shown));
         results.push({ call, output: r.output, isError: !!r.isError });
       }

@@ -15,7 +15,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "MR AI",
-  description: "Muhammadrasul tomonidan yaratilgan AI yordamchi",
+  description: "AI assistant by Muhammadrasul",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -32,7 +32,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="uz" className={`${space.variable} h-full`}>
+    <html lang="en" className={`${space.variable} h-full`}>
       <body className="min-h-full bg-black text-neutral-100 antialiased font-[family-name:var(--font-space)] dark">
         {children}
       </body>

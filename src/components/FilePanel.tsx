@@ -12,7 +12,7 @@ async function readError(res: Response): Promise<string> {
     const j = await res.json();
     if (j?.error) return String(j.error);
   } catch {}
-  return `Xato (HTTP ${res.status})`;
+  return `Error (HTTP ${res.status})`;
 }
 
 export default function FilePanel({
@@ -46,7 +46,7 @@ export default function FilePanel({
     const needText = kind === "markdown" || kind === "text" || kind === "html";
     if (!needText && kind !== "archive") return;
     if (needText && size > TEXT_LIMIT) {
-      if (kind !== "html") setError("Fayl juda katta, ko‘rib bo‘lmaydi — yuklab oling.");
+      if (kind !== "html") setError("File is too large to preview — download it.");
       return;
     }
     const ac = new AbortController();
@@ -62,7 +62,7 @@ export default function FilePanel({
           setText(await res.text());
         }
       } catch (e: any) {
-        if (e?.name !== "AbortError") setError(e?.message || "Yuklab bo‘lmadi");
+        if (e?.name !== "AbortError") setError(e?.message || "Could not load");
       } finally {
         if (!ac.signal.aborted) setLoading(false);
       }
@@ -90,7 +90,7 @@ export default function FilePanel({
 
   let body: React.ReactNode;
   if (error) body = placeholder(error);
-  else if (loading && !(kind === "html" && tab === "preview")) body = placeholder("Yuklanmoqda…");
+  else if (loading && !(kind === "html" && tab === "preview")) body = placeholder("Loading…");
   else if (tab === "code" && text !== null)
     body = <pre className="m-0 p-4 overflow-auto h-full font-mono text-[12.5px] leading-6 text-neutral-200 whitespace-pre">{text}</pre>;
   else if (kind === "html")
@@ -128,11 +128,11 @@ export default function FilePanel({
   else if (kind === "archive" && entries)
     body = (
       <div className="h-full overflow-auto p-4 font-mono text-[12.5px] leading-6 text-neutral-300">
-        <div className="mb-2 text-neutral-500 font-sans text-xs">Arxiv ichida{entries.truncated ? " (dastlabki 400 ta)" : ""}:</div>
-        {entries.list.length ? entries.list.map((e, i) => <div key={i} className="truncate">{e}</div>) : <div className="text-neutral-500">Ro‘yxatni o‘qib bo‘lmadi.</div>}
+        <div className="mb-2 text-neutral-500 font-sans text-xs">Archive contents{entries.truncated ? " (first 400)" : ""}:</div>
+        {entries.list.length ? entries.list.map((e, i) => <div key={i} className="truncate">{e}</div>) : <div className="text-neutral-500">Could not read listing.</div>}
       </div>
     );
-  else body = placeholder("Bu fayl turini ko‘rib bo‘lmaydi — yuklab oling.");
+  else body = placeholder("This file type can’t be previewed — download it.");
 
   function startResize(e: React.MouseEvent) {
     if (!onWidthChange) return;
@@ -167,7 +167,7 @@ export default function FilePanel({
       <div
         role="separator"
         aria-orientation="vertical"
-        title="Tortib o‘lchamini o‘zgartiring"
+        title="Drag to resize"
         onMouseDown={startResize}
         className="hidden md:flex absolute left-0 top-0 bottom-0 w-4 -translate-x-1/2 z-30 cursor-col-resize items-center justify-center touch-none"
       >
@@ -192,7 +192,7 @@ export default function FilePanel({
                 }`}
               >
                 <Eye className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Ko‘rinish</span>
+                <span className="hidden sm:inline">Preview</span>
               </button>
               <button
                 onClick={() => setTab("code")}
@@ -201,22 +201,22 @@ export default function FilePanel({
                 }`}
               >
                 <Code className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Kod</span>
+                <span className="hidden sm:inline">Code</span>
               </button>
             </div>
           )}
-          <button className={btn} title="Qayta yuklash" onClick={() => setRev((v) => v + 1)}>
+          <button className={btn} title="Reload" onClick={() => setRev((v) => v + 1)}>
             <RotateCw className="w-3.5 h-3.5" />
           </button>
           {(kind === "html" || kind === "pdf" || kind === "image") && (
-            <a className={btn} title="Yangi oynada" href={url} target="_blank" rel="noopener noreferrer">
+            <a className={btn} title="New tab" href={url} target="_blank" rel="noopener noreferrer">
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           )}
-          <a className={btn} title="Yuklab olish" href={fileUrl(file.path, { dl: true })} download={file.name}>
+          <a className={btn} title="Download" href={fileUrl(file.path, { dl: true })} download={file.name}>
             <Download className="w-3.5 h-3.5" />
           </a>
-          <button className={btn} title="Yopish (Esc)" onClick={onClose}>
+          <button className={btn} title="Close (Esc)" onClick={onClose}>
             <X className="w-4 h-4" />
           </button>
         </div>

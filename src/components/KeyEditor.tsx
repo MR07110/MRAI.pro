@@ -19,7 +19,7 @@ type Status = "idle" | "checking" | "ok" | "auth" | "offline";
 const LOCAL_URL = "http://localhost:11434/v1";
 
 // Kalit qo'shish: kalitni joylaysiz → provayder aniqlanadi (aniqlanmasa ro'yxatdan tanlanadi) → kalit tekshiriladi →
-// to'g'ri bo'lsagina saqlanadi. Bu yerda MODEL tanlanmaydi va modellar ko'rsatilmaydi: model keyin Sozlamalarda tanlanadi.
+// to'g'ri bo'lsagina saqlanadi. Bu yerda MODEL tanlanmaydi va modellar ko'rsatilmaydi: model keyin Settingsda tanlanadi.
 export default function KeyEditor({ existing = null, compact = false, onDone, onCancel }: Props) {
  const [keyInput, setKeyInput] = useState(existing?.api_key || "");
  const [reveal, setReveal] = useState(false);
@@ -117,7 +117,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  if (typeof window !== "undefined") window.dispatchEvent(new Event("mr_ai_keys_updated"));
  onDone(saved);
  } catch (e: any) {
- setSaveError(e?.message || "Saqlab bo‘lmadi");
+ setSaveError(e?.message || "Could not save");
  setSaving(false);
  }
  }
@@ -146,7 +146,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  <button
  type="button"
  onClick={() => setReveal((v) => !v)}
- aria-label={reveal ? "Kalitni yashirish" : "Kalitni ko‘rsatish"}
+ aria-label={reveal ? "Hide key" : "Show key"}
  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-2 text-neutral-500 hover:text-neutral-200 transition cursor-pointer"
  >
  {reveal ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -164,20 +164,20 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  {status === "ok" && provider && !paidOnly && (
  <span className="inline-flex items-center gap-1.5 text-emerald-400">
  <Check className="w-3.5 h-3.5" />
- {shortProviderName(provider)} kaliti tasdiqlandi
+ {shortProviderName(provider)} key verified
  </span>
  )}
  {status === "auth" && (
  <span className="inline-flex items-start gap-1.5 text-red-400">
  <ShieldAlert className="w-3.5 h-3.5 mt-0.5 shrink-0" />
- <span>{error || "Kalit yaroqsiz"}</span>
+ <span>{error || "Invalid key"}</span>
  </span>
  )}
  {status === "offline" && (
  <span className="inline-flex items-start gap-1.5 text-amber-400">
  <TriangleAlert className="w-3.5 h-3.5 mt-0.5 shrink-0" />
  <span>
- Kalitni tekshirib bo‘lmadi{error ? ` (${error})` : ""}.{" "}
+ Could not verify key{error ? ` (${error})` : ""}.{" "}
  {isCustom ? "Mahalliy server bo‘lgani uchun baribir saqlash mumkin." : "Xizmat to‘g‘ri tanlanganini tekshiring yoki keyinroq urinib ko‘ring."}
  </span>
  </span>
@@ -192,7 +192,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  )}
  {status === "idle" && !paidOnly && !trimmed && !isCustom && !existing && (
  <span className="text-neutral-500">
- Kalit turi o‘zi aniqlanadi. Modelni keyin Sozlamalardan tanlaysiz.
+ Key type is detected automatically. Pick a model later in Settings.
  </span>
  )}
  </div>
@@ -201,7 +201,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  {/* Provayderni aniqlab bo'lmasa — ro'yxatdan o'zimiz tanlaymiz */}
  {showProviderSelect && (
  <div>
- <p className="text-xs text-neutral-400 mb-2">Kalit turi aniqlanmadi. Xizmatni ro‘yxatdan tanlang.</p>
+ <p className="text-xs text-neutral-400 mb-2">Could not detect key type. Choose a provider from the list.</p>
  <select
  value={provider && provider !== "custom" ? provider : ""}
  onChange={(e) => setManualProvider((e.target.value || null) as Provider | null)}
@@ -274,7 +274,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  disabled={saving}
  className="flex-1 h-11 border border-neutral-800 text-sm text-neutral-300 hover:bg-neutral-800 transition cursor-pointer disabled:opacity-50"
  >
- Bekor qilish
+ Cancel
  </button>
  <button
  type="button"
@@ -283,7 +283,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  className="flex-1 h-11 bg-white text-neutral-950 text-sm font-semibold hover:bg-neutral-200 transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
  >
  {saving && <Loader2 className="w-4 h-4 animate-spin" />}
- {existing ? "Saqlash" : "Qo‘shish"}
+ {existing ? "Save" : "Qo‘shish"}
  </button>
  </div>
  </div>

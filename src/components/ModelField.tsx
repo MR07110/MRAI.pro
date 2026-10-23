@@ -75,7 +75,7 @@ export default function ModelField({ keyItem, alwaysOpen = false, onChanged, hei
       onChanged?.(saved);
       if (!alwaysOpen) setOpen(false);
     } catch (e: any) {
-      setErr(e?.message || "Saqlab bo‘lmadi");
+      setErr(e?.message || "Could not save");
     } finally {
       setSaving(false);
     }
@@ -93,7 +93,7 @@ export default function ModelField({ keyItem, alwaysOpen = false, onChanged, hei
           }`}
         >
           <span className={`truncate ${current ? "text-neutral-100" : "text-amber-300"}`}>
-            {current || "Model tanlang"}
+            {current || "Select a model"}
           </span>
           {saving ? (
             <Loader2 className="w-4 h-4 animate-spin text-neutral-400 shrink-0" />
@@ -116,7 +116,7 @@ export default function ModelField({ keyItem, alwaysOpen = false, onChanged, hei
               <Loader2 className="w-4 h-4 animate-spin" />
             </div>
           ) : items.length === 0 ? (
-            <p className="py-4 text-center text-xs text-neutral-500">Model topilmadi</p>
+            <p className="py-4 text-center text-xs text-neutral-500">No models found</p>
           ) : (
             <>
               {loading && (

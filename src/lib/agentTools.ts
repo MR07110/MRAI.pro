@@ -192,7 +192,7 @@ export function buildBuiltinTools(env: ToolEnv): ToolDef[] {
   // Chiqish formati ("@file\t<hajm>\t<yo'l>") chat UI (components/chat/parse.ts) tomonidan kartochkaga aylantiriladi.
   tools.push({
     name: "present_files",
-    label: "Fayl berish",
+    label: "Share file",
     readOnly: true,
     description:
       "Tayyor faylni(larni) foydalanuvchiga chatda KATOCHKA sifatida beradi (markdown emas). zip/html/rasm/pdf/kod/matn. Kartochkada preview + Yuklab olish bor. Fayl tayyor bo'lgach MAJBURIY shu asbobni chaqiring — yo'lni matnda yozmang, <|present_files|...> yozmang, faqat tool call. paths: to'liq absolyut yo'llar (masalan /home/user/a.txt).",

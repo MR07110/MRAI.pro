@@ -22,12 +22,12 @@ interface Props {
 type SettingsTab = "keys" | "connectors" | "tasks" | "usage" | "skills" | "general";
 
 const TABS: { id: SettingsTab; label: string }[] = [
- { id: "keys", label: "API kalitlar" },
- { id: "connectors", label: "Connectorlar" },
- { id: "tasks", label: "Vazifalar" },
+ { id: "keys", label: "API keys" },
+ { id: "connectors", label: "Connectors" },
+ { id: "tasks", label: "Tasks" },
  { id: "usage", label: "Usage" },
  { id: "skills", label: "Skills" },
- { id: "general", label: "Umumiy" },
+ { id: "general", label: "General" },
 ];
 
 export default function SettingsModal({ open, onClose }: Props) {
@@ -55,7 +55,7 @@ export default function SettingsModal({ open, onClose }: Props) {
 
  <div className="relative w-full max-w-xl bg-neutral-900 text-neutral-100 shadow-2xl border border-neutral-800 max-h-[88vh] flex flex-col overflow-hidden">
  <div className="flex items-center justify-between px-6 pt-5 pb-3 shrink-0">
- <h2 className="text-base font-semibold text-neutral-100">Sozlamalar</h2>
+ <h2 className="text-base font-semibold text-neutral-100">Settings</h2>
  <button
  onClick={onClose}
  className="p-1.5 hover:bg-neutral-800 text-neutral-400 hover:text-white transition cursor-pointer"
@@ -111,7 +111,7 @@ export default function SettingsModal({ open, onClose }: Props) {
  onChange={(e) =>
  updateAppSettings({ systemPrompt: e.target.value, systemPromptPreset: "custom" })
  }
- placeholder="AI qanday javob berishi kerakligini yozing..."
+ placeholder="Describe how the AI should respond…"
  className="w-full p-3.5 border border-neutral-800 bg-neutral-950 text-neutral-100 text-xs placeholder:text-neutral-500 focus:border-neutral-600 focus:outline-none leading-relaxed"
  />
  </div>

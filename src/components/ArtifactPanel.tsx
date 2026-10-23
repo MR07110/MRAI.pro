@@ -206,7 +206,7 @@ export default function ArtifactPanel({ artifact, onClose }: Props) {
  }`}
  >
  <Eye className="w-3.5 h-3.5" />
- <span className="hidden sm:inline">Ko‘rinish</span>
+ <span className="hidden sm:inline">Preview</span>
  </button>
  <button
  onClick={() => setTab("code")}
@@ -217,7 +217,7 @@ export default function ArtifactPanel({ artifact, onClose }: Props) {
  }`}
  >
  <Code className="w-3.5 h-3.5" />
- <span className="hidden sm:inline">Kod</span>
+ <span className="hidden sm:inline">Code</span>
  </button>
  {(lang === "python" || lang === "py" || lang === "javascript" || lang === "js") && (
  <button
@@ -237,7 +237,7 @@ export default function ArtifactPanel({ artifact, onClose }: Props) {
  {/* Reload */}
  <button
  onClick={handleReload}
- title="Qayta yuklash"
+ title="Reload"
  className="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 transition cursor-pointer"
  >
  <RotateCw className="w-3.5 h-3.5" />
@@ -246,7 +246,7 @@ export default function ArtifactPanel({ artifact, onClose }: Props) {
  {/* Copy */}
  <button
  onClick={handleCopy}
- title="Kodni nusxalash"
+ title="Codeni nusxalash"
  className="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 transition cursor-pointer"
  >
  {copied ? (
@@ -268,7 +268,7 @@ export default function ArtifactPanel({ artifact, onClose }: Props) {
  {/* Open external */}
  <button
  onClick={handleOpenExternal}
- title="Yangi oynada ochish"
+ title="Open in new tab"
  className="hidden sm:inline-flex p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 transition cursor-pointer"
  >
  <ExternalLink className="w-3.5 h-3.5" />
@@ -290,7 +290,7 @@ export default function ArtifactPanel({ artifact, onClose }: Props) {
  {/* Close */}
  <button
  onClick={onClose}
- title="Yopish"
+ title="Close"
  className="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 transition cursor-pointer"
  >
  <X className="w-4 h-4" />
@@ -327,7 +327,7 @@ export default function ArtifactPanel({ artifact, onClose }: Props) {
  </div>
  {consoleLogs.length === 0 ? (
  <div className="text-neutral-500 italic pt-2">
- Terminalda xabarlar yo‘q. Kod ishga tushganda `print()` yoki `console.log()` natijalari shu yerda ko‘rinadi.
+ Terminalda xabarlar yo‘q. Code ishga tushganda `print()` yoki `console.log()` natijalari shu yerda ko‘rinadi.
  </div>
  ) : (
  consoleLogs.map((log, i) => (
@@ -442,11 +442,11 @@ function generateSandboxHtml(language: string, rawCode: string): string {
  if (result !== undefined && result !== null) {
  const resEl = document.createElement("div");
  resEl.className = "result";
- resEl.textContent = ">>> Natija: " + result;
+ resEl.textContent = ">>> Result: " + result;
  outputEl.appendChild(resEl);
  }
  } catch (err) {
- statusEl.innerHTML = "<span style='color: #f85149'>Xatolik yuz berdi</span>";
+ statusEl.innerHTML = "<span style='color: #f85149'>Errorlik yuz berdi</span>";
  const errSpan = document.createElement("span");
  errSpan.className = "stderr";
  errSpan.textContent = "\\n" + err.message;
@@ -554,7 +554,7 @@ function generateSandboxHtml(language: string, rawCode: string): string {
  window.onerror = function(msg, url, line, col, error) {
  const root = document.getElementById("root");
  if (root) {
- root.innerHTML = '<div style="padding: 1.5rem; color: #f87171; font-family: monospace; font-size: 13px; line-height: 1.6; background: #18181b; border: 1px solid #27272a; border-radius: 8px; margin: 1rem;"><b style="color: #ef4444;">Komponent Xatosi:</b><br/>' + (error ? error.message : msg) + '<br/><span style="color: #71717a; font-size: 11px;">Qator: ' + line + '</span></div>';
+ root.innerHTML = '<div style="padding: 1.5rem; color: #f87171; font-family: monospace; font-size: 13px; line-height: 1.6; background: #18181b; border: 1px solid #27272a; border-radius: 8px; margin: 1rem;"><b style="color: #ef4444;">Komponent Errorsi:</b><br/>' + (error ? error.message : msg) + '<br/><span style="color: #71717a; font-size: 11px;">Qator: ' + line + '</span></div>';
  }
  };
 
@@ -568,7 +568,7 @@ function generateSandboxHtml(language: string, rawCode: string): string {
  document.getElementById('root').innerHTML = '<div style="padding: 1.5rem; color: #f87171;">React App komponenti topilmadi.</div>';
  }
  } catch (err) {
- document.getElementById('root').innerHTML = '<div style="padding: 1.5rem; color: #f87171; font-family: monospace; font-size: 13px; line-height: 1.6; background: #18181b; border: 1px solid #27272a; border-radius: 8px; margin: 1rem;"><b style="color: #ef4444;">React Render Xatosi:</b><br/>' + err.message + '</div>';
+ document.getElementById('root').innerHTML = '<div style="padding: 1.5rem; color: #f87171; font-family: monospace; font-size: 13px; line-height: 1.6; background: #18181b; border: 1px solid #27272a; border-radius: 8px; margin: 1rem;"><b style="color: #ef4444;">React Render Errorsi:</b><br/>' + err.message + '</div>';
  }
  </script>
 </body>

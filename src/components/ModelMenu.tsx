@@ -74,7 +74,7 @@ export default function ModelMenu({ keyItem, onClose, onPick, onOpenSettings }: 
  <span className="truncate">{shortProviderName(keyItem.provider)}</span>
  {onOpenSettings && (
  <button type="button" onClick={onOpenSettings} className="shrink-0 hover:text-neutral-200 transition cursor-pointer">
- Provayder / kalit
+ Provider / key
  </button>
  )}
  </div>

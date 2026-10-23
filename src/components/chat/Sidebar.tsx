@@ -8,12 +8,12 @@ function groupChats(chats: Chat[]) {
  const now = new Date();
  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
  const DAY = 86400000;
- const order = ["Bugun", "Kecha", "Oxirgi 7 kun", "Oxirgi 30 kun", "Oldinroq"];
+ const order = ["Today", "Yesterday", "Previous 7 days", "Previous 30 days", "Older"];
  const map: Record<string, Array<{ c: Chat; t: number }>> = {};
  for (const c of chats) {
  const t = Date.parse(c.updated_at || c.created_at) || 0;
  const g =
- t >= today ? "Bugun" : t >= today - DAY ? "Kecha" : t >= today - 7 * DAY ? "Oxirgi 7 kun" : t >= today - 30 * DAY ? "Oxirgi 30 kun" : "Oldinroq";
+ t >= today ? "Today" : t >= today - DAY ? "Yesterday" : t >= today - 7 * DAY ? "Previous 7 days" : t >= today - 30 * DAY ? "Previous 30 days" : "Older";
  (map[g] ||= []).push({ c, t });
  }
  return order
@@ -63,7 +63,7 @@ export default function Sidebar({
  <div className="flex items-center justify-between h-12 px-3 shrink-0">
  <a
  href="/"
- title="Bosh sahifa"
+ title="Home"
  className="flex items-center gap-2 pl-1 cursor-pointer"
  >
  <Image src="/logo-white.png" alt="MR AI" width={20} height={20} />
@@ -71,7 +71,7 @@ export default function Sidebar({
  </a>
  <button
  onClick={onClose}
- title="Yopish"
+ title="Close"
  className="h-8 w-8 inline-flex items-center justify-center text-neutral-500 hover:text-neutral-200 hover:bg-white/[0.07] transition cursor-pointer"
  >
  {mobile ? <X className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
@@ -84,12 +84,12 @@ export default function Sidebar({
  className="w-full flex items-center gap-2.5 h-9 px-2.5 text-[13.5px] font-medium text-neutral-200 hover:bg-white/[0.07] transition cursor-pointer"
  >
  <SquarePen className="w-4 h-4 text-neutral-400" />
- Yangi suhbat
+ New chat
  </button>
  </div>
 
  <div className="flex-1 overflow-y-auto px-2 pb-3">
- {groups.length === 0 && <p className="px-3 py-6 text-xs text-neutral-600">Hozircha suhbat yo‘q</p>}
+ {groups.length === 0 && <p className="px-3 py-6 text-xs text-neutral-600">No chats yet</p>}
  {groups.map((g) => (
  <div key={g.label} className="mb-3">
  <div className="px-2.5 pt-3 pb-1.5 text-[11px] font-medium text-neutral-600">{g.label}</div>
@@ -130,7 +130,7 @@ export default function Sidebar({
  >
  <button
  type="button"
- title="Nomini o‘zgartirish"
+ title="Rename"
  onClick={(e) => {
  e.stopPropagation();
  setEditingChatId(chat.id);
@@ -142,7 +142,7 @@ export default function Sidebar({
  </button>
  <button
  type="button"
- title="O‘chirish"
+ title="Delete"
  onClick={(e) => onDelete(chat.id, e)}
  className="h-7 w-7 inline-flex items-center justify-center text-neutral-500 hover:text-red-400 hover:bg-white/10 transition cursor-pointer"
  >
@@ -167,14 +167,14 @@ export default function Sidebar({
  </div>
  <button
  onClick={onOpenSettings}
- title="Sozlamalar"
+ title="Settings"
  className="h-8 w-8 inline-flex items-center justify-center text-neutral-500 hover:text-white hover:bg-white/[0.07] transition cursor-pointer"
  >
  <Settings className="w-4 h-4" />
  </button>
  <button
  onClick={onSignOut}
- title="Chiqish"
+ title="Sign out"
  className="h-8 w-8 inline-flex items-center justify-center text-neutral-500 hover:text-white hover:bg-white/[0.07] transition cursor-pointer"
  >
  <LogOut className="w-4 h-4" />

@@ -41,7 +41,7 @@ export default function ModelList({ items, value, onChange, heightClass = "max-h
  <input
  value={query}
  onChange={(e) => setQuery(e.target.value)}
- placeholder={allowTyped ? "Model qidirish yoki nomini yozish" : "Model qidirish"}
+ placeholder={allowTyped ? "Search or type a model name" : "Model qidirish"}
  className="flex-1 bg-transparent text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none"
  />
  </label>
@@ -93,7 +93,7 @@ export default function ModelList({ items, value, onChange, heightClass = "max-h
  })}
 
  {rows.length === 0 && !canUseTyped && (
- <p className="px-3 py-4 text-sm text-neutral-500">Model topilmadi.</p>
+ <p className="px-3 py-4 text-sm text-neutral-500">No models found.</p>
  )}
  </div>
  </div>

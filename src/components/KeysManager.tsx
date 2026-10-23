@@ -20,7 +20,7 @@ function notify() {
  if (typeof window !== "undefined") window.dispatchEvent(new Event("mr_ai_keys_updated"));
 }
 
-// Kalitlar ro'yxati + qo'shish/o'zgartirish. Sozlamalarda ham, chat kiritish joyidan ochiladigan oynada ham shu ishlatiladi.
+// Kalitlar ro'yxati + qo'shish/o'zgartirish. Settingsda ham, chat kiritish joyidan ochiladigan oynada ham shu ishlatiladi.
 export default function KeysManager({ compact = false, onSelected }: Props) {
  const [keys, setKeys] = useState<UserApiKey[]>([]);
  const [loading, setLoading] = useState(true);
@@ -53,7 +53,7 @@ export default function KeysManager({ compact = false, onSelected }: Props) {
  }
 
  async function remove(k: UserApiKey) {
- if (!confirm("Bu kalitni o‘chirmoqchimisiz?")) return;
+ if (!confirm("Delete this key?")) return;
  setBusyId(k.id);
  await serverDb.deleteKey(k.id);
  const rest = keys.filter((x) => x.id !== k.id);
@@ -116,7 +116,7 @@ export default function KeysManager({ compact = false, onSelected }: Props) {
  <button
  type="button"
  onClick={() => pick(k)}
- title="Faol provayder qilish"
+ title="Set as active provider"
  className="flex-1 min-w-0 flex items-center gap-3 px-3.5 py-3 text-left cursor-pointer"
  >
  <span
@@ -133,7 +133,7 @@ export default function KeysManager({ compact = false, onSelected }: Props) {
  <span className="min-w-0">
  <span className="block text-sm text-neutral-100 truncate">
  {shortProviderName(k.provider)}
- {k.is_default && <span className="ml-2 text-[11px] text-emerald-400">faol</span>}
+ {k.is_default && <span className="ml-2 text-[11px] text-emerald-400">active</span>}
  </span>
  <span className="block text-[11px] text-neutral-500 font-mono mt-0.5">{maskKey(k.api_key)}</span>
  </span>
@@ -141,7 +141,7 @@ export default function KeysManager({ compact = false, onSelected }: Props) {
  <button
  type="button"
  onClick={() => setMode({ type: "edit", key: k })}
- title="Kalitni o‘zgartirish"
+ title="Edit key"
  aria-label="O‘zgartirish"
  className="p-2 text-neutral-500 hover:text-white hover:bg-neutral-800 transition cursor-pointer"
  >
@@ -150,8 +150,8 @@ export default function KeysManager({ compact = false, onSelected }: Props) {
  <button
  type="button"
  onClick={() => remove(k)}
- title="O‘chirish"
- aria-label="O‘chirish"
+ title="Delete"
+ aria-label="Delete"
  className="p-2 mr-1 text-neutral-600 hover:text-red-400 hover:bg-red-950/40 transition cursor-pointer"
  >
  <Trash2 className="w-4 h-4" />
@@ -169,7 +169,7 @@ export default function KeysManager({ compact = false, onSelected }: Props) {
  className="w-full h-11 border border-dashed border-neutral-800 text-sm text-neutral-400 hover:text-white hover:border-neutral-600 transition cursor-pointer flex items-center justify-center gap-1.5"
  >
  <Plus className="w-4 h-4" />
- Yangi kalit
+ New key
  </button>
  </div>
  );

@@ -117,11 +117,11 @@ export default function MessageView({
  let body = content;
  let errorText: string | null = null;
  if (isAssistant) {
- const em = content.match(/(?:^|\n\n)Xatolik:\s*([\s\S]*)$/);
+ const em = content.match(/(?:^|\n\n)Errorlik:\s*([\s\S]*)$/);
  if (em) {
  body = content.slice(0, em.index ?? 0);
  errorText = em[1].trim();
- } else if (content.includes("API kalit xatosi")) {
+ } else if (content.includes("API key error")) {
  body = "";
  errorText = content;
  }
@@ -211,7 +211,7 @@ export default function MessageView({
 
  {!editing && (
  <div className="flex items-center gap-0.5 mt-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
- <button type="button" className={iconBtn} title="Nusxalash" onClick={() => onCopy(msg.id, msg.content)}>
+ <button type="button" className={iconBtn} title="Copy" onClick={() => onCopy(msg.id, msg.content)}>
  {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
  </button>
  {canEdit && (
@@ -265,7 +265,7 @@ export default function MessageView({
  {live && !hasBody && !thinking && (
  <div className="flex items-center gap-2.5 py-1 text-[14px]">
  <Image src="/logo-white.png" alt="" width={16} height={16} className="animate-pulse opacity-70" />
- <span className="shimmer">Javob tayyorlanmoqda…</span>
+ <span className="shimmer">Preparing response…</span>
  </div>
  )}
  {live && !hasBody && thinking !== null && thinking === "" && (
@@ -288,7 +288,7 @@ export default function MessageView({
  className="inline-flex items-center gap-1.5 h-8 px-3 bg-white/10 hover:bg-white/15 text-white text-xs font-medium transition cursor-pointer"
  >
  <Key className="w-3.5 h-3.5" />
- Kalitni almashtirish
+ Switch key
  </button>
  )}
  {isLast && !isStreaming && (
@@ -297,7 +297,7 @@ export default function MessageView({
  className="inline-flex items-center gap-1.5 h-8 px-3 bg-white/10 hover:bg-white/15 text-white text-xs font-medium transition cursor-pointer"
  >
  <RotateCcw className="w-3.5 h-3.5" />
- Qayta urinish
+ Retry
  </button>
  )}
  </div>
@@ -310,11 +310,11 @@ export default function MessageView({
  isLast ? "opacity-100" : "opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
  }`}
  >
- <button type="button" className={iconBtn} title="Nusxalash" onClick={() => onCopy(msg.id, stripWait(body))}>
+ <button type="button" className={iconBtn} title="Copy" onClick={() => onCopy(msg.id, stripWait(body))}>
  {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
  </button>
  {isLast && (
- <button type="button" className={iconBtn} title="Qayta urinish" onClick={onRegenerate}>
+ <button type="button" className={iconBtn} title="Retry" onClick={onRegenerate}>
  <RotateCcw className="w-3.5 h-3.5" />
  </button>
  )}

@@ -32,17 +32,17 @@ export type FileSeg = { type: "file"; path: string; name: string; size: number }
 export type Seg = MdSeg | ToolSeg | WaitSeg | FileSeg;
 
 // agent.ts quyidagi formatni chiqaradi:
-//   > **Asbob:** `Nom`\n\n   +   ````text\n<buyruq>\n→ ok (1.2s)\n<natija>\n````\n\n
-const TOOL_RE = /(?:^|\n)> \*\*Asbob:\*\* `([^`\n]*)`\n+(?:````text\n([\s\S]*?)\n````)?/g;
+//   > **Tool:** `Nom`\n\n   +   ````text\n<buyruq>\n→ ok (1.2s)\n<natija>\n````\n\n
+const TOOL_RE = /(?:^|\n)> \*\*(?:Tool|Asbob):\*\* `([^`\n]*)`\n+(?:````text\n([\s\S]*?)\n````)?/g;
 
 function parseFence(body: string) {
   const lines = body.split("\n");
-  const i = lines.findIndex((l) => /^→ (ok|XATO) \(/.test(l));
+  const i = lines.findIndex((l) => /^→ (ok|ERROR) \(/.test(l));
   if (i < 0) return { head: body, status: "ok" as const, secs: undefined as string | undefined, output: "" };
-  const m = lines[i].match(/^→ (ok|XATO) \(([\d.]+)s\)/);
+  const m = lines[i].match(/^→ (ok|ERROR) \(([\d.]+)s\)/);
   return {
     head: lines.slice(0, i).join("\n"),
-    status: (m?.[1] === "XATO" ? "error" : "ok") as "ok" | "error",
+    status: (m?.[1] === "ERROR" ? "error" : "ok") as "ok" | "error",
     secs: m?.[2],
     output: lines.slice(i + 1).join("\n"),
   };
@@ -124,7 +124,7 @@ function extractInlineFiles(text: string): { clean: string; files: FileSeg[] } {
 
 function isFileTool(name: string): boolean {
   const n = name.trim().toLowerCase();
-  return n === "fayl berish" || n === "present_files" || n === "present files";
+  return n === "fayl berish" || n === "share file" || n === "present_files" || n === "present files";
 }
 
 // Javob matnini: oddiy markdown / asbob qadamlari / kutish sanagichi / fayl kartochkalari
@@ -148,7 +148,7 @@ export function splitAgent(content: string, live: boolean): Seg[] {
         out.push({ type: "tool", name: m[1], head: "", status: live ? "running" : "stopped", output: "" });
       } else {
         const f = parseFence(m[2]);
-        // present_files / Fayl berish: muvaffaqiyatli bo'lsa asbob qadami o'rniga kartochkalar
+        // present_files / Share file: muvaffaqiyatli bo'lsa asbob qadami o'rniga kartochkalar
         const fromTool = isFileTool(m[1]) && f.status === "ok" ? parseFiles(f.output) : [];
         if (fromTool.length) out.push(...fromTool);
         else out.push({ type: "tool", name: m[1], head: f.head, status: f.status, secs: f.secs, output: f.output });

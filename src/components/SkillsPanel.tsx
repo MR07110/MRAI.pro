@@ -24,14 +24,14 @@ export default function SkillsPanel() {
  const j = await r.json();
  if (cancelled) return;
  if (!j.ok) {
- setErr(j.error || "Yuklanmadi");
+ setErr(j.error || "Failed to load");
  } else {
  setSkills(j.skills || []);
  setRoot(j.root || "");
  setPython(j.python || "");
  }
  } catch (e: any) {
- if (!cancelled) setErr(e?.message || "Xato");
+ if (!cancelled) setErr(e?.message || "Error");
  } finally {
  if (!cancelled) setLoading(false);
  }
@@ -42,7 +42,7 @@ export default function SkillsPanel() {
  }, []);
 
  if (loading) {
- return <p className="text-xs text-neutral-500">Skilllar yuklanmoqda…</p>;
+ return <p className="text-xs text-neutral-500">Loading skills…</p>;
  }
  if (err) {
  return <p className="text-xs text-red-400">{err}</p>;
@@ -60,7 +60,7 @@ export default function SkillsPanel() {
  </div>
 
  {skills.length === 0 ? (
- <p className="text-xs text-neutral-500">Hali skill yo‘q. Papkaga SKILL.md tashlang.</p>
+ <p className="text-xs text-neutral-500">No skills yet. Add a SKILL.md to the folder.</p>
  ) : (
  <ul className="space-y-2">
  {skills.map((s) => (
@@ -79,7 +79,7 @@ export default function SkillsPanel() {
  )}
 
  <p className="text-[11px] text-neutral-500">
- Yangi skill: <code className="text-neutral-400">skills/{`{nom}`}/SKILL.md</code> yarating.
+ New skill: <code className="text-neutral-400">skills/{`{nom}`}/SKILL.md</code> yarating.
  Git: mrai-next/skills · runtime: ~/MR/mrai/skills (symlink).
  </p>
  </div>

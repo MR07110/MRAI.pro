@@ -8,12 +8,12 @@ import type { ToolSeg } from "./parse";
 
 function groupLabel(items: ToolSeg[]): { text: string; live: boolean } {
  const running = [...items].reverse().find((t) => t.status === "running");
- if (running) return { text: `${running.name} ishlayapti…`, live: true };
+ if (running) return { text: `${running.name} running…`, live: true };
  const names: string[] = [];
  for (const t of items) if (!names.includes(t.name)) names.push(t.name);
  const shown = names.slice(0, 3).join(", ");
  const more = names.length > 3 ? ` +${names.length - 3}` : "";
- return { text: `Ishlatildi: ${shown}${more}`, live: false };
+ return { text: `Used: ${shown}${more}`, live: false };
 }
 
 function Section({ label, text, error }: { label: string; text: string; error?: boolean }) {
@@ -47,8 +47,8 @@ const ToolRow = memo(function ToolRow({ t }: { t: ToolSeg }) {
  }`}
  >
  <span className="shrink-0 text-neutral-300">{t.name}</span>
- {isErr && <span className="shrink-0 text-red-400">Xato</span>}
- {t.status === "stopped" && <span className="shrink-0 text-neutral-600">To‘xtatilgan</span>}
+ {isErr && <span className="shrink-0 text-red-400">Error</span>}
+ {t.status === "stopped" && <span className="shrink-0 text-neutral-600">Stopped</span>}
  <span className="flex-1" />
  {t.secs && <span className="shrink-0 text-[11px] text-neutral-600 tabular-nums">{t.secs}s</span>}
  <ChevronRight
@@ -57,8 +57,8 @@ const ToolRow = memo(function ToolRow({ t }: { t: ToolSeg }) {
  </button>
  {open && canOpen && (
  <div className="px-3 pb-3 pt-1 space-y-3">
- {t.head && <Section label="So‘rov" text={t.head} />}
- {t.output && <Section label="Natija" text={t.output} error={isErr} />}
+ {t.head && <Section label="Request" text={t.head} />}
+ {t.output && <Section label="Result" text={t.output} error={isErr} />}
  </div>
  )}
  </div>

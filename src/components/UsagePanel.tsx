@@ -14,7 +14,7 @@ const RANGES = [
 const SOURCE_META: Record<string, { label: string; bar: string }> = {
  chat: { label: "Oddiy chat", bar: "bg-neutral-300" },
  agent: { label: "Agent", bar: "bg-violet-400" },
- task: { label: "Vazifalar", bar: "bg-amber-400" },
+ task: { label: "Tasks", bar: "bg-amber-400" },
 };
 
 const nf = new Intl.NumberFormat("en-US");
@@ -131,7 +131,7 @@ export default function UsagePanel() {
  </div>
  <button
  onClick={refresh}
- title="Yangilash"
+ title="Newlash"
  className="p-2 border border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-800 transition cursor-pointer"
  >
  <RefreshCw className={`w-3.5 h-3.5 ${busy ? "animate-spin" : ""}`} />
@@ -147,7 +147,7 @@ export default function UsagePanel() {
  <p className="text-xs text-red-400 py-8 text-center">{error}</p>
  ) : (
  <div className="flex items-center justify-center gap-2 py-12 text-xs text-neutral-500">
- <Loader2 className="w-4 h-4 animate-spin" /> Yuklanmoqda…
+ <Loader2 className="w-4 h-4 animate-spin" /> Loading…
  </div>
  )}
  </div>
@@ -163,7 +163,7 @@ export default function UsagePanel() {
  const sourceTotal = data.by_source.reduce((a, s) => a + s.input + s.output, 0);
 
  const tiles = [
- { label: "Bugun", b: data.totals.today },
+ { label: "Today", b: data.totals.today },
  { label: "7 kun", b: data.totals.d7 },
  { label: "30 kun", b: data.totals.d30 },
  { label: "Jami", b: data.totals.all },
@@ -212,7 +212,7 @@ export default function UsagePanel() {
  <span className="text-neutral-500 tabular-nums">{pct(range.input, total).toFixed(0)}%</span>
  </span>
  <span className="flex items-center gap-1.5 text-neutral-300">
- <Dot className="bg-emerald-400" /> Chiqish <b className="tabular-nums">{compact(range.output)}</b>
+ <Dot className="bg-emerald-400" /> Sign out <b className="tabular-nums">{compact(range.output)}</b>
  <span className="text-neutral-500 tabular-nums">{pct(range.output, total).toFixed(0)}%</span>
  </span>
  </div>
@@ -266,7 +266,7 @@ export default function UsagePanel() {
  <div className="flex justify-between mt-2 text-[10px] text-neutral-500">
  <span>{dayLabel(data.by_day[0].day)}</span>
  {data.by_day.length > 2 && <span>{dayLabel(data.by_day[Math.floor(data.by_day.length / 2)].day)}</span>}
- <span>Bugun</span>
+ <span>Today</span>
  </div>
  </Card>
 
@@ -329,9 +329,9 @@ export default function UsagePanel() {
  </Card>
  )}
 
- {/* Oxirgi so'rovlar */}
+ {/* Recent requests */}
  {data.recent.length > 0 && (
- <Card title="Oxirgi so‘rovlar">
+ <Card title="Recent requests">
  <div className="divide-y divide-neutral-900">
  {data.recent.map((r, i) => (
  <div key={r.ts + ":" + i} className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0">

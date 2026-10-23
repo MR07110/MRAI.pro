@@ -92,8 +92,8 @@ export default function LoginPage() {
         window.location.href = nextUrl();
         return;
       }
-      if (data?.error === "Avval kirish kalitini kiriting") setStep("key");
-      setError(data?.error || "Xatolik yuz berdi");
+      if (data?.error === "Enter your access key first") setStep("key");
+      setError(data?.error || "Errorlik yuz berdi");
     } catch {
       setError("Serverga ulanib bo'lmadi");
     }
@@ -135,7 +135,7 @@ export default function LoginPage() {
 
           {step === "key" && (
             <form onSubmit={submitKey} className="space-y-3">
-              <p className="text-center text-sm text-neutral-400 mb-5">Davom etish uchun kirish kalitini kiriting</p>
+              <p className="text-center text-sm text-neutral-400 mb-5">Enter your access key to continue</p>
               <div className="relative">
                 <KeyRound className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-600" />
                 <input
@@ -144,7 +144,7 @@ export default function LoginPage() {
                   autoComplete="off"
                   value={key}
                   onChange={(e) => setKey(e.target.value)}
-                  placeholder="Kirish kaliti"
+                  placeholder="Access key"
                   className={inputCls + " pl-10"}
                 />
               </div>
@@ -226,7 +226,7 @@ export default function LoginPage() {
               </button>
 
               <button type="button" onClick={changeKey} className="w-full pt-3 text-xs text-neutral-600 hover:text-neutral-300 transition cursor-pointer">
-                Kirish kalitini qayta kiritish
+                Access keyni qayta kiritish
               </button>
             </form>
           )}

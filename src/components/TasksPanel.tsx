@@ -81,8 +81,8 @@ export default function TasksPanel() {
  if (kind === "ai") {
  const keys = await serverDb.getKeys();
  const k = keys.find((x) => x.is_default) || keys[0];
- if (!k) throw new Error("Avval API kalit qo‘shing (API kalitlar bo‘limi)");
- if (!k.model) throw new Error("Avval Sozlamalar → API kalitlar bo‘limida model tanlang");
+ if (!k) throw new Error("Avval API kalit qo‘shing (API keys bo‘limi)");
+ if (!k.model) throw new Error("Avval Settings → API keys bo‘limida model tanlang");
  keyId = k.id;
  }
  await serverDb.saveTask(
@@ -92,7 +92,7 @@ export default function TasksPanel() {
  setName(""); setText(""); setShowForm(false);
  await load();
  } catch (e: any) {
- setError(e?.message || "Saqlab bo‘lmadi");
+ setError(e?.message || "Could not save");
  } finally {
  setSaving(false);
  }
@@ -111,7 +111,7 @@ export default function TasksPanel() {
  try {
  await serverDb.toggleTask(t.id, !t.enabled);
  } catch (e: any) {
- alert(e?.message || "Xato");
+ alert(e?.message || "Error");
  }
  load();
  }
@@ -138,7 +138,7 @@ export default function TasksPanel() {
  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-neutral-950 text-xs font-semibold hover:bg-neutral-200 transition cursor-pointer"
  >
  <Plus className="w-3.5 h-3.5" />
- Yangi
+ New
  </button>
  )}
  </div>
@@ -201,7 +201,7 @@ export default function TasksPanel() {
  )}
 
  {loading ? (
- <div className="text-center py-10 text-neutral-500 text-sm">Yuklanmoqda...</div>
+ <div className="text-center py-10 text-neutral-500 text-sm">Loading…</div>
  ) : tasks.length === 0 ? (
  <div className="text-center py-12 border border-dashed border-neutral-800 bg-neutral-950/40">
  <Clock className="w-9 h-9 text-neutral-600 mx-auto mb-3" />
@@ -224,7 +224,7 @@ export default function TasksPanel() {
  <p className="text-[11px] text-neutral-500 truncate">
  {t.schedule} · keyingi: {t.enabled ? fmt(t.next_run) : "o‘chiq"} · oxirgi:{" "}
  <span className={t.last_status === "ok" ? "text-emerald-400" : t.last_status === "error" ? "text-red-400" : ""}>
- {t.running ? "ishlayapti…" : t.last_status || "—"}
+ {t.running ? "running…" : t.last_status || "—"}
  </span>
  </p>
  </div>
@@ -232,7 +232,7 @@ export default function TasksPanel() {
  {t.running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
  </button>
  <Switch on={t.enabled} onChange={() => toggle(t)} />
- <button onClick={() => remove(t)} title="O‘chirish" className="p-1.5 text-neutral-500 hover:text-red-400 hover:bg-neutral-800 cursor-pointer">
+ <button onClick={() => remove(t)} title="Delete" className="p-1.5 text-neutral-500 hover:text-red-400 hover:bg-neutral-800 cursor-pointer">
  <Trash2 className="w-4 h-4" />
  </button>
  </div>

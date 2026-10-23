@@ -225,7 +225,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
 
  async function deleteChat(id: string, e: React.MouseEvent) {
  e.stopPropagation();
- if (!confirm("Suhbat o‘chirilsinmi?")) return;
+ if (!confirm("Delete this chat?")) return;
  await serverDb.deleteChat(id);
  setChats((prev) => prev.filter((c) => c.id !== id));
  if (currentChatId === id) {
@@ -543,7 +543,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  // Aloqa uzildi, lekin ish serverda davom etmoqda: jimgina qayta ulanamiz
  setTimeout(() => tryAttach(chatId), 1500);
  } else {
- const errorContent = `Xatolik: ${err.message || "Noma’lum xato"}`;
+ const errorContent = `Errorlik: ${err.message || "Unknown error"}`;
  setMessages((prev) => {
  const exists = prev.some((m) => m.id === tempAiId);
  if (exists) {
@@ -784,12 +784,12 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
 
  const suggestions = [
  {
- title: "Kod yozish",
+ title: "Code yozish",
  icon: Code2,
  prompt: "React va TypeScript da toza arxitekturali zamonaviy komponent yozib ber.",
  },
  {
- title: "Tushuntirish",
+ title: "Explain",
  icon: Sparkles,
  prompt: "Kvant kompyuterlari qanday ishlashini oddiy va tushunarli tilda tushuntirib ber.",
  },
@@ -799,18 +799,18 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  prompt: "IT kompaniyaga ishga kirish uchun ta’sirchan va professional cover letter yozib ber.",
  },
  {
- title: "Reja tuzish",
+ title: "Make a plan",
  icon: Compass,
- prompt: "Yangi AI startapni ishga tushirish uchun 30 kunlik amaliy reja tuzib ber.",
+ prompt: "New AI startapni ishga tushirish uchun 30 kunlik amaliy reja tuzib ber.",
  },
  ];
 
  const firstName = String(displayName).trim().split(/\s+/)[0] || "";
  const hour = new Date().getHours();
- const greeting = hour < 5 ? "Xayrli tun" : hour < 12 ? "Xayrli tong" : hour < 18 ? "Xayrli kun" : "Xayrli kech";
+ const greeting = hour < 5 ? "Xayrli tun" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
  const currentTitle = chats.find((c) => c.id === currentChatId)?.title || "";
  const empty = messages.length === 0;
- const modelLabel = defaultKey ? defaultKey.model || "Model tanlang" : null;
+ const modelLabel = defaultKey ? defaultKey.model || "Select a model" : null;
 
  // Yuborilgach kiritish maydoni balandligini qaytaradi
  useEffect(() => {
@@ -885,7 +885,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  ) : null
  }
  autoFocus={autoFocus}
- placeholder={empty ? "Bugun nima qilamiz?" : "Javob yozing…"}
+ placeholder={empty ? "Today nima qilamiz?" : "Type a message…"}
  />
  );
 
@@ -929,14 +929,14 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
       <main className="flex-1 min-w-0 flex flex-col relative">
  {/* Header olib tashlandi: mobil menyu + sidebar yopiqda ochish — suzuvchi tugmalar */}
  <div className="absolute top-2 left-2 z-20 flex items-center gap-1">
- <button onClick={() => setMobileSidebar(true)} className={`md:hidden ${iconBtn}`} title="Menyu">
+ <button onClick={() => setMobileSidebar(true)} className={`md:hidden ${iconBtn}`} title="Menu">
  <PanelLeft className="w-[18px] h-[18px]" />
  </button>
  {!sidebarOpen && (
  <button
  onClick={() => setSidebarOpen(true)}
  className={`group relative hidden md:inline-flex ${iconBtn}`}
- title="Yon panelni ochish"
+ title="Open sidebar"
  >
  <Image
  src="/logo-white.png"
@@ -953,9 +953,9 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  {notFound && (
  <div className="mx-auto mt-1 mb-1 w-full max-w-[46rem] px-4">
  <div className="flex items-center justify-between gap-3 border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-[13px] text-neutral-300">
- <span>Bu suhbat topilmadi yoki sizning hisobingizga tegishli emas.</span>
+ <span>This chat was not found or does not belong to your account.</span>
  <button onClick={() => setNotFound(false)} className="text-neutral-500 hover:text-white cursor-pointer">
- Yopish
+ Close
  </button>
  </div>
  </div>
@@ -1029,7 +1029,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  <button
  onClick={scrollToBottom}
  className="absolute left-1/2 -translate-x-1/2 bottom-[7.5rem] z-30 h-9 w-9 bg-[#111] border border-white/15 text-neutral-300 hover:text-white shadow-xl transition cursor-pointer flex items-center justify-center"
- title="Pastga tushish"
+ title="Scroll to bottom"
  >
  <ArrowDown className="w-4 h-4" />
  </button>
@@ -1039,7 +1039,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  <div className="max-w-[46rem] mx-auto">
  {composer(false)}
  <p className="text-center text-[11.5px] text-neutral-600 mt-2">
- MR AI xato qilishi mumkin. Muhim ma’lumotni tekshirib ko‘ring.
+ MR AI can make mistakes. Verify important information.
  </p>
  </div>
  </div>

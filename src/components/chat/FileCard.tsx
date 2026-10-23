@@ -49,7 +49,7 @@ export default function FileCard({ file, onOpen }: { file: FileRef; onOpen: (f: 
  className="shrink-0 inline-flex items-center gap-1.5 h-9 px-3.5 border border-white/25 bg-transparent hover:bg-white hover:text-black text-[12px] text-white font-medium transition font-mono"
  >
  <Download className="w-3.5 h-3.5" />
- <span className="hidden sm:inline">Yuklab olish</span>
+ <span className="hidden sm:inline">Download</span>
  </a>
  </div>
  );

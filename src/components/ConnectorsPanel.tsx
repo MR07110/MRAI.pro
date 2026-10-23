@@ -65,7 +65,7 @@ export default function ConnectorsPanel() {
  await load();
  runTest(id, { url: url.trim(), headers, name: nm });
  } catch (e: any) {
- setFormError(e?.message || "Saqlab bo‘lmadi (server ulanganmi?)");
+ setFormError(e?.message || "Could not save (server ulanganmi?)");
  } finally {
  setSaving(false);
  }
@@ -93,7 +93,7 @@ export default function ConnectorsPanel() {
  <div>
  <div className="flex items-center justify-between mb-4">
  <div>
- <h3 className="text-sm font-semibold text-neutral-100">Connectorlar (MCP)</h3>
+ <h3 className="text-sm font-semibold text-neutral-100">Connectors (MCP)</h3>
  <p className="text-xs text-neutral-400">Ulangan connector asboblarini AI avtomatik ishlata oladi. Soni cheklanmagan.</p>
  </div>
  {!showForm && (
@@ -138,7 +138,7 @@ export default function ConnectorsPanel() {
  )}
 
  {loading ? (
- <div className="text-center py-10 text-neutral-500 text-sm">Yuklanmoqda...</div>
+ <div className="text-center py-10 text-neutral-500 text-sm">Loading…</div>
  ) : items.length === 0 ? (
  <div className="text-center py-12 border border-dashed border-neutral-800 bg-neutral-950/40">
  <Plug className="w-9 h-9 text-neutral-600 mx-auto mb-3" />
@@ -165,7 +165,7 @@ export default function ConnectorsPanel() {
  {t.loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
  </button>
  <Switch on={c.enabled} onChange={() => toggle(c)} />
- <button onClick={() => remove(c)} title="O‘chirish" className="p-1.5 text-neutral-500 hover:text-red-400 hover:bg-neutral-800 cursor-pointer">
+ <button onClick={() => remove(c)} title="Delete" className="p-1.5 text-neutral-500 hover:text-red-400 hover:bg-neutral-800 cursor-pointer">
  <Trash2 className="w-4 h-4" />
  </button>
  </div>

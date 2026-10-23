@@ -63,7 +63,7 @@ export default function Composer({
  <button
  type="button"
  onClick={onModel}
- title="Model va kalitni almashtirish"
+ title="Switch model / key"
  className="inline-flex items-center gap-1.5 max-w-full h-8 px-2.5 text-[12.5px] text-neutral-400 hover:text-white hover:bg-white/[0.07] transition cursor-pointer"
  >
  {modelLabel ? (
@@ -74,7 +74,7 @@ export default function Composer({
  ) : (
  <>
  <Key className="w-3.5 h-3.5 shrink-0 text-amber-400" />
- <span className="text-amber-300">API kalit qo‘shish</span>
+ <span className="text-amber-300">Add API key</span>
  </>
  )}
  <ChevronDown className="w-3.5 h-3.5 shrink-0 text-neutral-600" />
