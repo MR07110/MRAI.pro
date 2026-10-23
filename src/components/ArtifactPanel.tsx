@@ -14,7 +14,6 @@ import {
   ExternalLink,
   Terminal,
   Sparkles,
-  Play,
 } from "lucide-react";
 
 export interface ArtifactData {

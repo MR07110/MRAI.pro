@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
     const chatTimeout = setTimeout(() => chatController.abort(), 10000);
 
     try {
-      let testModel = cleanModel || getDefaultModel(provider);
+      const testModel = cleanModel || getDefaultModel(provider);
 
       let res = await fetch(chatEndpoint, {
         method: "POST",
