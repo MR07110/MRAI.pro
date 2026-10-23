@@ -100,9 +100,6 @@ export const PROVIDERS: ProviderOption[] = [
     hasFree: false,
     hasPaid: true,
     models: [
-      { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet (Yetakchi model)", isFree: false },
-      { id: "claude-3-5-haiku-20241022", name: "Claude 3.5 Haiku (Tezkor)", isFree: false },
-      { id: "claude-3-opus-20240229", name: "Claude 3 Opus (Gigant)", isFree: false },
     ],
   },
   {

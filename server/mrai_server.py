@@ -61,7 +61,12 @@ def req_user(headers):
 EXEC_ALLOWED = {LEGACY_USER}
 DENIED_MSG = "Bu hisobda kompyuterda buyruq bajarish o'chirilgan (sandbox yo'q, shuning uchun faqat egasi uchun yoqilgan).\n"
 
+# MRAI_EXEC_ALL=1 (standart): hamma hisob buyruq bajara oladi. O'chirish uchun MRAI_EXEC_ALL=0 qo'ying -- shunda faqat EXEC_ALLOWED.
+EXEC_ALL = os.environ.get("MRAI_EXEC_ALL", "1").strip() != "0"
+
 def exec_allowed(user):
+    if EXEC_ALL:
+        return True
     return (user or LEGACY_USER) in EXEC_ALLOWED
 
 def hash_password(password, salt=None):
