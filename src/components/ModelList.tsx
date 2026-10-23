@@ -77,7 +77,10 @@ export default function ModelList({ items, value, onChange, heightClass = "max-h
               }`}
             >
               <span className="min-w-0 flex-1">
-                <span className={`block text-sm leading-snug ${selected ? "text-white font-medium" : "text-neutral-200"}`}>
+                <span
+                  className={`block truncate text-sm ${selected ? "text-white font-medium" : "text-neutral-200"}`}
+                  title={m.name}
+                >
                   {m.name}
                 </span>
                 {m.name !== m.id && (

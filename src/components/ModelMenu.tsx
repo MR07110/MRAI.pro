@@ -16,7 +16,7 @@ interface Props {
 export default function ModelMenu({ keyItem, onClose, onPick, onOpenSettings }: Props) {
   const [discovered, setDiscovered] = useState<string[]>(() => peekModels(keyItem.id, keyItem.api_key) || []);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [openUp, setOpenUp] = useState(true);
+  const [openUp, setOpenUp] = useState(false);
 
   useEffect(() => {
     let dead = false;
@@ -36,7 +36,8 @@ export default function ModelMenu({ keyItem, onClose, onPick, onOpenSettings }: 
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  // Yuqorida joy yetmasa pastga ochiladi (bo'sh ekranda greeting ustiga chiqmasin).
+  // Pastga ochish afzal (bo'sh ekranda greetingni yopmasin).
+  // Faqat pastki chetga yaqin bo'lsa — yuqoriga.
   useLayoutEffect(() => {
     const el = panelRef.current;
     if (!el) return;
@@ -45,8 +46,8 @@ export default function ModelMenu({ keyItem, onClose, onPick, onOpenSettings }: 
     const r = anchor.getBoundingClientRect();
     const spaceAbove = r.top;
     const spaceBelow = window.innerHeight - r.bottom;
-    // ~320px panel; yuqorida kam bo'lsa pastga
-    setOpenUp(spaceAbove >= 300 || spaceAbove >= spaceBelow);
+    const need = 320;
+    setOpenUp(spaceBelow < need && spaceAbove > spaceBelow);
   }, [discovered.length]);
 
   const items = useMemo(() => buildModelItems(keyItem.provider, discovered), [keyItem.provider, discovered]);
@@ -56,7 +57,7 @@ export default function ModelMenu({ keyItem, onClose, onPick, onOpenSettings }: 
       <div className="fixed inset-0 z-30" onClick={onClose} aria-hidden />
       <div
         ref={panelRef}
-        className={`absolute left-0 z-40 w-[min(20rem,calc(100vw-2rem))] rounded-xl border border-white/12 bg-neutral-950 shadow-[0_16px_48px_rgba(0,0,0,0.75)] overflow-hidden ring-1 ring-black/40 ${
+        className={`absolute left-0 z-40 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-white/12 bg-neutral-950 shadow-[0_16px_48px_rgba(0,0,0,0.75)] overflow-hidden ring-1 ring-black/40 ${
           openUp ? "bottom-full mb-2" : "top-full mt-2"
         }`}
       >
