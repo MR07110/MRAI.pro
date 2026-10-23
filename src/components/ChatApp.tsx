@@ -11,6 +11,8 @@ import QuickModel from "./QuickModel";
 import type { Chat, Message, UserApiKey } from "@/types";
 import { loadSettings, AppSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import Sidebar from "./chat/Sidebar";
+import FilePanel from "./FilePanel";
+import type { FileRef } from "./chat/fileKind";
 import MessageView from "./chat/Message";
 import Composer from "./chat/Composer";
 import { parseThinkingAndContent } from "./chat/parse";
@@ -33,6 +35,10 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
   const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [isScrolledUp, setIsScrolledUp] = useState(false);
+  const [openFile, setOpenFile] = useState<FileRef | null>(null);
+  useEffect(() => {
+    setOpenFile(null);
+  }, [currentChatId]);
 
   // Chat renaming state
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
@@ -807,6 +813,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
 
   return (
     <div className="h-[100dvh] flex bg-black text-neutral-100 overflow-hidden">
+      <FilePanel file={openFile} onClose={() => setOpenFile(null)} />
       {/* Desktop sidebar */}
       <aside
         className={`hidden md:block shrink-0 overflow-hidden transition-[width] duration-200 ease-out ${
@@ -929,6 +936,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
                     onRegenerate={regenerateResponse}
                     onEdit={editUserMessage}
                     onOpenSettings={openSettings}
+                    onOpenFile={setOpenFile}
                   />
                 ))}
                 <div ref={messagesEndRef} />

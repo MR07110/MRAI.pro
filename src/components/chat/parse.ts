@@ -28,7 +28,8 @@ export type ToolSeg = {
 };
 export type MdSeg = { type: "md"; text: string };
 export type WaitSeg = { type: "wait"; end: number };
-export type Seg = MdSeg | ToolSeg | WaitSeg;
+export type FileSeg = { type: "file"; path: string; name: string; size: number };
+export type Seg = MdSeg | ToolSeg | WaitSeg | FileSeg;
 
 // agent.ts quyidagi formatni chiqaradi:
 //   > **Asbob:** `Nom`\n\n   +   ````text\n<buyruq>\n→ ok (1.2s)\n<natija>\n````\n\n
@@ -45,6 +46,18 @@ function parseFence(body: string) {
     secs: m?.[2],
     output: lines.slice(i + 1).join("\n"),
   };
+}
+
+function parseFiles(output: string): FileSeg[] {
+  const res: FileSeg[] = [];
+  for (const line of output.split("\n")) {
+    if (!line.startsWith("@file\t")) continue;
+    const [, size, ...rest] = line.split("\t");
+    const path = rest.join("\t");
+    if (!path.startsWith("/")) continue;
+    res.push({ type: "file", path, name: path.split("/").pop() || path, size: Number(size) || 0 });
+  }
+  return res;
 }
 
 // Javob matnini: oddiy markdown / asbob qadamlari / kutish sanagichi bo'laklariga ajratadi.
@@ -65,7 +78,10 @@ export function splitAgent(content: string, live: boolean): Seg[] {
         out.push({ type: "tool", name: m[1], head: "", status: live ? "running" : "stopped", output: "" });
       } else {
         const f = parseFence(m[2]);
-        out.push({ type: "tool", name: m[1], head: f.head, status: f.status, secs: f.secs, output: f.output });
+        // "Fayl berish" asbobi (present_files): muvaffaqiyatli bo'lsa asbob qadami o'rniga fayl kartochkalari
+        const files = m[1] === "Fayl berish" && f.status === "ok" ? parseFiles(f.output) : [];
+        if (files.length) out.push(...files);
+        else out.push({ type: "tool", name: m[1], head: f.head, status: f.status, secs: f.secs, output: f.output });
       }
       last = i + m[0].length;
     }

@@ -1,0 +1,56 @@
+"use client";
+
+import { Download, File as FileIcon, FileArchive, FileAudio, FileCode, FileImage, FileText, FileVideo, Globe } from "lucide-react";
+import { extOf, fileUrl, fmtSize, kindOf, type FileKind, type FileRef } from "./fileKind";
+
+const ICONS: Record<FileKind, React.ComponentType<{ className?: string }>> = {
+  html: Globe,
+  image: FileImage,
+  pdf: FileText,
+  markdown: FileText,
+  text: FileCode,
+  video: FileVideo,
+  audio: FileAudio,
+  archive: FileArchive,
+  other: FileIcon,
+};
+
+export default function FileCard({ file, onOpen }: { file: FileRef; onOpen: (f: FileRef) => void }) {
+  const Icon = ICONS[kindOf(file.name)];
+  const label = (extOf(file.name) || "fayl").toUpperCase();
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(file)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen(file);
+        }
+      }}
+      className="my-3 flex items-center gap-3.5 max-w-[34rem] rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] px-3 py-3 transition cursor-pointer"
+      title="Ko‘rish"
+    >
+      <div className="h-12 w-12 shrink-0 rounded-lg bg-white/[0.07] flex items-center justify-center text-neutral-400">
+        <Icon className="w-5 h-5" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[14px] font-medium text-neutral-100">{file.name}</div>
+        <div className="text-[12px] text-neutral-500">
+          {label}
+          {file.size ? ` · ${fmtSize(file.size)}` : ""}
+        </div>
+      </div>
+      <a
+        href={fileUrl(file.path, { dl: true })}
+        download={file.name}
+        onClick={(e) => e.stopPropagation()}
+        className="shrink-0 inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-white/10 hover:bg-white/15 text-[13px] text-white font-medium transition"
+      >
+        <Download className="w-3.5 h-3.5" />
+        <span className="hidden sm:inline">Yuklab olish</span>
+      </a>
+    </div>
+  );
+}

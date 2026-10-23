@@ -188,5 +188,39 @@ export function buildBuiltinTools(env: ToolEnv): ToolDef[] {
       },
     });
   }
+  // Foydalanuvchiga fayl kartochkasi sifatida berish (chatda: bosilsa preview, yuklab olish tugmasi bor).
+  // Chiqish formati ("@file\t<hajm>\t<yo'l>") chat UI (components/chat/parse.ts) tomonidan kartochkaga aylantiriladi.
+  tools.push({
+    name: "present_files",
+    label: "Fayl berish",
+    readOnly: true,
+    description:
+      "Tayyor faylni(larni) foydalanuvchiga chatda kartochka sifatida beradi: zip, html, rasm, pdf, kod, matn — istalgan fayl. Kartochka bosilsa chap yarim ekranda preview ochiladi, yuklab olish tugmasi ham bor. Fayl yaratilgach natijani foydalanuvchiga berish uchun SHU asbobdan foydalaning (yo'lni matnda yozish yetmaydi). Faqat mavjud fayllar; to'liq (absolyut) yo'l bering.",
+    parameters: {
+      type: "object",
+      properties: {
+        paths: { type: "array", items: { type: "string" }, description: "fayllarning to'liq yo'llari (eng ko'pi 20 ta)" },
+      },
+      required: ["paths"],
+    },
+    run: async (a) => {
+      const raw = Array.isArray(a.paths) ? a.paths : [a.paths ?? a.path];
+      const paths: string[] = raw.map((p: any) => String(p ?? "").trim()).filter(Boolean).slice(0, 20);
+      if (!paths.length) return { output: "paths bo'sh: fayl yo'lini bering", isError: true };
+      const script = paths
+        .map(
+          (p) =>
+            `f=${shq(p)}; case "$f" in "~/"*) f="$HOME/\${f#\\~/}";; esac; ` +
+            `if [ -f "$f" ]; then printf '@file\\t%s\\t%s\\n' "$(stat -c %s -- "$f")" "$(realpath -- "$f")"; else printf '@err\\t%s\\n' "$f"; fi`
+        )
+        .join("\n");
+      const r = await execRaw(script, 30);
+      const lines = String(r.stdout || "").split("\n");
+      const files = lines.filter((l) => l.startsWith("@file\t"));
+      const bad = lines.filter((l) => l.startsWith("@err\t")).map((l) => l.slice(5));
+      if (!files.length) return { output: `Fayl topilmadi: ${(bad.length ? bad : paths).join(", ")}`, isError: true };
+      return { output: files.join("\n") + (bad.length ? `\n(topilmadi: ${bad.join(", ")})` : "") };
+    },
+  });
   return tools;
 }

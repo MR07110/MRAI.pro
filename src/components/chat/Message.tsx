@@ -8,8 +8,14 @@ import type { Message } from "@/types";
 import Md from "./Markdown";
 import { ToolGroup } from "./ToolStep";
 import { parseThinkingAndContent, splitAgent, type Seg, type ToolSeg } from "./parse";
+import FileCard from "./FileCard";
+import type { FileRef } from "./fileKind";
 
-type Block = { k: "md"; text: string } | { k: "tools"; items: ToolSeg[] } | { k: "wait"; end: number };
+type Block =
+  | { k: "md"; text: string }
+  | { k: "tools"; items: ToolSeg[] }
+  | { k: "wait"; end: number }
+  | { k: "files"; items: FileRef[] };
 
 function toBlocks(segs: Seg[]): Block[] {
   const out: Block[] = [];
@@ -18,6 +24,11 @@ function toBlocks(segs: Seg[]): Block[] {
       const last = out[out.length - 1];
       if (last && last.k === "tools") last.items.push(s);
       else out.push({ k: "tools", items: [s] });
+    } else if (s.type === "file") {
+      const last = out[out.length - 1];
+      const ref = { path: s.path, name: s.name, size: s.size };
+      if (last && last.k === "files") last.items.push(ref);
+      else out.push({ k: "files", items: [ref] });
     } else if (s.type === "md") {
       if (s.text.trim()) out.push({ k: "md", text: s.text });
     } else {
@@ -61,6 +72,7 @@ export default function MessageView({
   onRegenerate,
   onEdit,
   onOpenSettings,
+  onOpenFile,
 }: {
   msg: Message;
   isLast: boolean;
@@ -71,6 +83,7 @@ export default function MessageView({
   onRegenerate: () => void;
   onEdit: (text: string) => void;
   onOpenSettings: () => void;
+  onOpenFile: (f: FileRef) => void;
 }) {
   const isAssistant = msg.role === "assistant";
   const live = isAssistant && isStreaming && isLast;
@@ -127,6 +140,12 @@ export default function MessageView({
             <Md key={i} text={b.text} />
           ) : b.k === "tools" ? (
             <ToolGroup key={i} items={b.items} />
+          ) : b.k === "files" ? (
+            <div key={i}>
+              {b.items.map((f) => (
+                <FileCard key={f.path} file={f} onOpen={onOpenFile} />
+              ))}
+            </div>
           ) : (
             <WaitCountdown key={i} end={b.end} />
           )
