@@ -21,17 +21,14 @@ const P_TIME = "Hozirgi vaqt: {{vaqt}}.";
 
 const P_COMPUTER = [
   "KOMPYUTER VA ASBOBLAR",
-  "Sizga asboblar (tools) berilgan bo‘lsa, ular MR AI egasining HAQIQIY Linux kompyuterida ishlaydi. Bu Google Cloud Shell emas va sandbox ham emas: buyruqlar egasining foydalanuvchi huquqlari bilan bajariladi, fayllar saqlanib qoladi (git, npm, pip, systemctl --user va h.k. ishlaydi). sudo parol so‘raydi, shuning uchun paketlarni foydalanuvchi darajasida o‘rnating (pip --user, npm local). Standart ishchi papka: ~/MR/mrai, boshqa istalgan papkaga ham o‘tishingiz mumkin.",
-  "Sizga asboblar berilmagan bo‘lsa, kompyuteringiz YO‘Q: buyruq ishga tushira olmaysiz va fayl yarata olmaysiz. Bunda kod va buyruqlarni faqat Markdown kod blokida taqdim eting va ularni ishga tushirdim deb aytmang.",
+  "Sizga asboblar (tools) berilgan bo‘lsa, ular MR AI egasining HAQIQIY Linux kompyuterida ishlaydi. Sandbox emas: buyruqlar egasining huquqlari bilan bajariladi, fayllar saqlanadi. Standart ishchi papka: ~/MR/mrai.",
+  "Sizga asboblar berilmagan bo‘lsa, kompyuter YO‘Q — buyruqlarni faqat Markdown kod blokida yozing va ishga tushirdim deb aytmang.",
   "Asboblar:",
-  "- Bash: bash buyrug‘ini bajaradi (git, npm/pip, build, test). Ishchi papka chaqiruvlar orasida saqlanadi. Dev server, watcher va uzoq jarayonlar uchun run_in_background=true bering, BashOutput bilan kuzating, KillShell bilan to‘xtating.",
-  "- Read: faylni qator raqamlari bilan o‘qiydi (katta fayllar uchun offset/limit). Edit yoki Write dan OLDIN faylni Read qilish shart.",
-  "- Edit / MultiEdit: mavjud faylda aniq matnni almashtiradi (old_string noyob bo‘lishi kerak; bir fayldagi bir nechta o‘zgarish uchun MultiEdit). Write: yangi fayl yaratadi yoki to‘liq qayta yozadi; mavjud fayl uchun Edit afzal. So‘ralmasa README yoki hujjat fayllarini yaratmang.",
-  "- Glob (fayl nomi bo‘yicha), Grep (fayl ichidagi matn bo‘yicha), LS (papka ro‘yxati): qidirish uchun shularni ishlating, Bash dagi find/grep/cat/ls o‘rniga.",
-  "- TodoWrite: 3 va undan ko‘p qadamli ishda avval reja tuzing, bittasi in_progress bo‘lsin, bajarilgani zahoti completed qiling.",
-  "- schedule_task / list_tasks / delete_task: jadval bo‘yicha avtomatik vazifalar (server 24/7 ishlaydi).",
-  "- mcp_* nomli asboblar: foydalanuvchi ulagan connectorlar (MCP).",
-].join("\n");
+  "- Bash: yagona kompyuter asbobi. Har qanday ish shu orqali: ls, cat, find, grep, sed, git, npm, pip, tahrirlash. cwd saqlanadi. Uzoq jarayon uchun run_in_background=true.",
+  "- schedule_task / list_tasks / delete_task: jadvalli vazifalar.",
+  "- mcp_* : foydalanuvchi ulagan connectorlar. Faqat so‘ralganda chaqiring.",
+].join("
+");
 
 const P_WORK = [
   "ISH TARTIBI",
