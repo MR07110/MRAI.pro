@@ -6,6 +6,7 @@ import KeysManager from "./KeysManager";
 import ConnectorsPanel from "./ConnectorsPanel";
 import TasksPanel from "./TasksPanel";
 import UsagePanel from "./UsagePanel";
+import SkillsPanel from "./SkillsPanel";
 import {
   AppSettings,
   loadSettings,
@@ -18,13 +19,14 @@ interface Props {
   onClose: () => void;
 }
 
-type SettingsTab = "keys" | "connectors" | "tasks" | "usage" | "general";
+type SettingsTab = "keys" | "connectors" | "tasks" | "usage" | "skills" | "general";
 
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: "keys", label: "API kalitlar" },
   { id: "connectors", label: "Connectorlar" },
   { id: "tasks", label: "Vazifalar" },
   { id: "usage", label: "Usage" },
+  { id: "skills", label: "Skills" },
   { id: "general", label: "Umumiy" },
 ];
 
@@ -82,6 +84,7 @@ export default function SettingsModal({ open, onClose }: Props) {
           {activeTab === "connectors" && <ConnectorsPanel />}
           {activeTab === "tasks" && <TasksPanel />}
           {activeTab === "usage" && <UsagePanel />}
+          {activeTab === "skills" && <SkillsPanel />}
 
           {activeTab === "keys" && <KeysManager />}
 

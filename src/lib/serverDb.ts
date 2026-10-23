@@ -80,7 +80,8 @@ export async function getChats(): Promise<Chat[]> {
     try {
       const res = await fetch(`${serverUrl}/api/db/chats`, {
         headers: NGROK_HEADERS,
-        signal: AbortSignal.timeout(3500),
+        credentials: "include",
+        signal: AbortSignal.timeout(8000),
       });
       if (res.ok) {
         const serverChats: Chat[] = await res.json();
@@ -142,6 +143,7 @@ export async function createChat(title: string): Promise<Chat> {
     fetch(`${serverUrl}/api/db/chats`, {
       method: 'POST',
       headers: NGROK_HEADERS,
+        credentials: "include",
       body: JSON.stringify(newChat),
     }).catch(() => {});
   }
@@ -171,6 +173,7 @@ export async function updateChatTitle(id: string, title: string): Promise<void> 
     fetch(`${serverUrl}/api/db/chats`, {
       method: 'POST',
       headers: NGROK_HEADERS,
+        credentials: "include",
       body: JSON.stringify({ id, title: cleanTitle, updated_at: now }),
     }).catch(() => {});
   }
@@ -226,6 +229,7 @@ export async function getMessages(chatId: string): Promise<Message[]> {
     try {
       const res = await fetch(`${serverUrl}/api/db/messages?chat_id=${encodeURIComponent(chatId)}`, {
         headers: NGROK_HEADERS,
+        credentials: "include",
         signal: AbortSignal.timeout(3500),
       });
       if (res.ok) {
@@ -302,6 +306,7 @@ export async function saveMessage(
     fetch(`${serverUrl}/api/db/messages`, {
       method: 'POST',
       headers: NGROK_HEADERS,
+        credentials: "include",
       body: JSON.stringify(msg),
     }).catch(() => {});
   }
@@ -318,6 +323,7 @@ export async function getKeys(): Promise<UserApiKey[]> {
     try {
       const res = await fetch(`${serverUrl}/api/db/keys`, {
         headers: NGROK_HEADERS,
+        credentials: "include",
         signal: AbortSignal.timeout(3000),
       });
       if (res.ok) {
@@ -395,6 +401,7 @@ export async function saveKey(
     await fetch(`${serverUrl}/api/db/keys`, {
       method: 'POST',
       headers: NGROK_HEADERS,
+        credentials: "include",
       body: JSON.stringify(key),
       signal: AbortSignal.timeout(4000),
     }).catch(() => {});
@@ -430,6 +437,7 @@ export async function setDefaultKey(id: string): Promise<void> {
     await fetch(`${serverUrl}/api/db/keys/default`, {
       method: 'POST',
       headers: NGROK_HEADERS,
+        credentials: "include",
       body: JSON.stringify({ id }),
       signal: AbortSignal.timeout(4000),
     }).catch(() => {});
@@ -460,6 +468,7 @@ export async function getDataStats(): Promise<{ chatsCount: number; messagesCoun
     try {
       const res = await fetch(`${serverUrl}/api/db/status`, {
         headers: NGROK_HEADERS,
+        credentials: "include",
         signal: AbortSignal.timeout(3000),
       });
       if (res.ok) {
@@ -509,6 +518,7 @@ async function srv<T>(path: string, init?: { method?: string; body?: unknown; ti
   const res = await fetch(`${getServerUrl()}${path}`, {
     method: init?.method || (init?.body !== undefined ? 'POST' : 'GET'),
     headers: NGROK_HEADERS,
+        credentials: "include",
     body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
     signal: AbortSignal.timeout(init?.timeoutMs ?? 8000),
   });
@@ -545,6 +555,7 @@ export async function testConnector(
     const res = await fetch('/api/mcp/test', {
       method: 'POST',
       headers: NGROK_HEADERS,
+        credentials: "include",
       body: JSON.stringify(c),
       signal: AbortSignal.timeout(35000),
     });

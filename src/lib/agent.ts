@@ -1,5 +1,6 @@
 // Agent loop: model <-> asboblar (kompyuter, fayl, scheduler, MCP connectorlar).
 import { applyPromptVars } from "@/lib/promptVars";
+import { withSkillsCatalog } from "@/lib/skills";
 import { McpClient, McpConnector } from "@/lib/mcp";
 import { buildBuiltinTools, makeServerCtx, ToolDef } from "@/lib/agentTools";
 import { buildCodingTools } from "@/lib/codingTools";
@@ -309,7 +310,7 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
     for (const n of notes) out(`> ${n}\n\n`);
     const byName = new Map(tools.map((t) => [t.name, t]));
 
-    const system = applyPromptVars(inp.system || ""); // yashirin qo'shimcha yo'q: faqat Sozlamalardagi matn
+    const system = withSkillsCatalog(applyPromptVars(inp.system || "")); // skills: nom+path+description
     const adapter = inp.provider === "anthropic" ? anthropicAdapter(inp, system) : openaiAdapter(inp, system);
     const maxSteps = Math.min(Math.max(1, inp.maxSteps ?? 100), 1000);
     let final = "";
