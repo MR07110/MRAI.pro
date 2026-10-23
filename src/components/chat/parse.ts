@@ -72,7 +72,7 @@ function parseFiles(output: string): FileSeg[] {
 
 /** Model ba'zan present_files ni tool o'rniga matn qilib yozadi — shuni kartochkaga aylantiramiz. */
 const FAKE_PRESENT_RE =
-  /(?:<\|)?present_files\|?(?:\s*\()?\s*(\{[\s\S]*?\})\s*(?:\)|>)?/gi;
+  /(?:<\|)?\s*present_files\s*\|?\s*(?:\(\s*)?(\{[\s\S]*?\})\s*(?:\)\s*)?(?:\|>|>)?/gi;
 const AT_FILE_LINE_RE = /^@file\t(\d+)\t(\/[^\n]+)$/gm;
 
 function extractInlineFiles(text: string): { clean: string; files: FileSeg[] } {
@@ -107,6 +107,13 @@ function extractInlineFiles(text: string): { clean: string; files: FileSeg[] } {
     }
     return "";
   });
+
+  // leftover <|  |>  |>
+  clean = clean.replace(/^[ \t]*[<|/>]{1,6}[ \t]*$/gm, "");
+  // model yozgan "Yuklab olish: quyidagi karta..." — kartochka bor, kerak emas
+  if (files.length) {
+    clean = clean.replace(/^[ \t]*[📦🗂]?[ \t]*Yuklab olish:[^\n]*$/gmi, "");
+  }
 
   // 3) ` /abs/path/file.ext ` yoki ( /abs/path ) — faqat aniq fayl yo'li ko'rinishida
   // juda agressiv bo'lmasin: faqat present_files / yuklab kontekstida emas, umumiy yo'llarni qoldiramiz
