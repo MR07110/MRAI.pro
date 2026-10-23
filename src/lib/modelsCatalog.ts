@@ -424,6 +424,29 @@ export async function fetchModelsCached(
   const hit = modelsCache.get(ck);
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.models;
   const r = await validateKey(provider, apiKey, baseUrl || undefined, model);
-  if (r.valid) modelsCache.set(ck, { at: Date.now(), models: r.models });
+  if (r.valid) {
+    modelsCache.set(ck, { at: Date.now(), models: r.models });
+    try {
+      localStorage.setItem("mrai_models:" + ck, JSON.stringify({ at: Date.now(), models: r.models }));
+    } catch {}
+  }
   return r.valid ? r.models : [];
+}
+
+// Sinxron: xotira yoki localStorage keshidagi ro'yxat (eskirgan bo'lsa ham) — menyu darhol chiqishi uchun.
+export function peekModels(id: string, apiKey: string): string[] | null {
+  const ck = `${id}:${apiKey.slice(-6)}`;
+  const hit = modelsCache.get(ck);
+  if (hit) return hit.models;
+  try {
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem("mrai_models:" + ck) : null;
+    if (raw) {
+      const j = JSON.parse(raw);
+      if (Array.isArray(j.models)) {
+        modelsCache.set(ck, { at: Number(j.at) || 0, models: j.models });
+        return j.models;
+      }
+    }
+  } catch {}
+  return null;
 }

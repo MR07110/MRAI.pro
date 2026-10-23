@@ -14,6 +14,7 @@ export default function Composer({
   fontSizeClass,
   modelLabel,
   onModel,
+  modelMenu,
   placeholder,
   autoFocus,
 }: {
@@ -27,6 +28,7 @@ export default function Composer({
   fontSizeClass: string;
   modelLabel: string | null;
   onModel: () => void;
+  modelMenu?: React.ReactNode;
   placeholder?: string;
   autoFocus?: boolean;
 }) {
@@ -56,11 +58,13 @@ export default function Composer({
         className={`block w-full resize-none bg-transparent px-5 pt-4 pb-2 ${fontSizeClass} leading-6 text-neutral-100 placeholder:text-neutral-600 max-h-[220px]`}
       />
       <div className="flex items-center justify-between gap-3 px-3 pb-3 pt-1">
+        <div className="relative min-w-0 max-w-[70%]">
+        {modelMenu}
         <button
           type="button"
           onClick={onModel}
           title="Model va kalitni almashtirish"
-          className="inline-flex items-center gap-1.5 max-w-[70%] h-8 px-2.5 rounded-lg text-[12.5px] text-neutral-400 hover:text-white hover:bg-white/[0.07] transition cursor-pointer"
+          className="inline-flex items-center gap-1.5 max-w-full h-8 px-2.5 rounded-lg text-[12.5px] text-neutral-400 hover:text-white hover:bg-white/[0.07] transition cursor-pointer"
         >
           {modelLabel ? (
             <>
@@ -75,6 +79,7 @@ export default function Composer({
           )}
           <ChevronDown className="w-3.5 h-3.5 shrink-0 text-neutral-600" />
         </button>
+        </div>
 
         {isStreaming ? (
           <button

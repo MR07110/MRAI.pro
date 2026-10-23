@@ -7,7 +7,8 @@ import { ArrowDown, Code2, Compass, PanelLeft, PenTool, Sparkles, SquarePen } fr
 import { useAuth } from "@/hooks/useAuth";
 import * as serverDb from "@/lib/serverDb";
 import SettingsModal from "./SettingsModal";
-import QuickModel from "./QuickModel";
+import ModelMenu from "./ModelMenu";
+import { fetchModelsCached } from "@/lib/modelsCatalog";
 import type { Chat, Message, UserApiKey } from "@/types";
 import { loadSettings, AppSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import Sidebar from "./chat/Sidebar";
@@ -788,6 +789,25 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
     displayUsername: String(displayUsername),
   };
 
+  // Model tanlash: UI darhol yangilanadi (optimistik), saqlash fonda; xato bo'lsa eski holatga qaytadi.
+  function pickModel(id: string) {
+    const k = defaultKey;
+    setModelOpen(false);
+    if (!k || id === k.model) return;
+    const prev = k.model;
+    setDefaultKey({ ...k, model: id });
+    serverDb
+      .updateKey(k.id, { model: id })
+      .then(() => window.dispatchEvent(new Event("mr_ai_keys_updated")))
+      .catch(() => setDefaultKey((cur) => (cur && cur.id === k.id ? { ...cur, model: prev } : cur)));
+  }
+
+  // Ro'yxatni oldindan (fonda) yuklab qo'yamiz: menyu ochilganda kutish bo'lmasin.
+  useEffect(() => {
+    if (!defaultKey) return;
+    fetchModelsCached(defaultKey.id, defaultKey.provider, defaultKey.api_key, defaultKey.base_url, defaultKey.model || undefined).catch(() => {});
+  }, [defaultKey?.id, defaultKey?.api_key]);
+
   const composer = (autoFocus: boolean) => (
     <Composer
       value={input}
@@ -802,7 +822,20 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
       textareaRef={textareaRef}
       fontSizeClass={fontSizeClass}
       modelLabel={modelLabel}
-      onModel={() => setModelOpen(true)}
+      onModel={() => (defaultKey ? setModelOpen((v) => !v) : setSettingsOpen(true))}
+      modelMenu={
+        modelOpen && defaultKey ? (
+          <ModelMenu
+            keyItem={defaultKey}
+            onClose={() => setModelOpen(false)}
+            onPick={pickModel}
+            onOpenSettings={() => {
+              setModelOpen(false);
+              setSettingsOpen(true);
+            }}
+          />
+        ) : null
+      }
       autoFocus={autoFocus}
       placeholder={empty ? "Bugun nima qilamiz?" : "Javob yozing…"}
     />
@@ -964,18 +997,6 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
           </>
         )}
       </main>
-
-      <QuickModel
-        open={modelOpen}
-        onClose={() => {
-          setModelOpen(false);
-          loadDefaultKey();
-        }}
-        onOpenSettings={() => {
-          setModelOpen(false);
-          setSettingsOpen(true);
-        }}
-      />
 
       <SettingsModal
         open={settingsOpen}

@@ -12,10 +12,12 @@ interface Props {
   heightClass?: string;
   /** ro'yxatda yo'q nomni qo'lda yozib ishlatishga ruxsat (faqat mahalliy/custom uchun) */
   allowTyped?: boolean;
+  /** tashqi chegarasiz (menyu ichida) */
+  flat?: boolean;
 }
 
 // Qidiruvli model ro'yxati. Ro'yxatda yo'q nomni yozsa, "shu nomni ishlatish" qatori chiqadi.
-export default function ModelList({ items, value, onChange, heightClass = "max-h-60", allowTyped = true }: Props) {
+export default function ModelList({ items, value, onChange, heightClass = "max-h-60", allowTyped = true, flat = false }: Props) {
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
 
@@ -30,7 +32,7 @@ export default function ModelList({ items, value, onChange, heightClass = "max-h
   const canUseTyped = allowTyped && q.length > 0 && !items.some((i) => i.id.toLowerCase() === q);
 
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-950 overflow-hidden">
+    <div className={flat ? "overflow-hidden" : "rounded-xl border border-neutral-800 bg-neutral-950 overflow-hidden"}>
       {(items.length > 6 || q) && (
         <label className="flex items-center gap-2 px-3 h-10 border-b border-neutral-800 text-neutral-500 focus-within:text-neutral-300">
           <Search className="w-4 h-4 shrink-0" />
