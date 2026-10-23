@@ -878,8 +878,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
 
  return (
  <div className="h-[100dvh] flex bg-black text-neutral-100 overflow-hidden relative term-grid">
- <FilePanel file={openFile} onClose={() => setOpenFile(null)} />
- {/* Desktop sidebar — fixed glass overlay (orqa fon blur uchun) */}
+{/* Desktop sidebar — fixed glass overlay (orqa fon blur uchun) */}
  {sidebarOpen && (
  <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-[272px]">
  <Sidebar {...sidebarProps} onSelect={selectChat} onOpenSettings={openSettings} onClose={() => setSidebarOpen(false)} />
@@ -910,7 +909,8 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  </div>
  )}
 
- <main className={`flex-1 min-w-0 flex flex-col relative transition-[padding] duration-200 ${sidebarOpen ? "md:pl-[272px]" : ""}`}>
+ <div className={`flex-1 min-w-0 flex relative transition-[padding] duration-200 ${sidebarOpen ? "md:pl-[272px]" : ""}`}>
+      <main className="flex-1 min-w-0 flex flex-col relative">
  {/* Header olib tashlandi: mobil menyu + sidebar yopiqda ochish — suzuvchi tugmalar */}
  <div className="absolute top-2 left-2 z-20 flex items-center gap-1">
  <button onClick={() => setMobileSidebar(true)} className={`md:hidden ${iconBtn}`} title="Menyu">
@@ -1025,7 +1025,10 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  )}
  </main>
 
- <SettingsModal
+         <FilePanel file={openFile} onClose={() => setOpenFile(null)} />
+      </div>
+
+      <SettingsModal
  open={settingsOpen}
  onClose={() => {
  setSettingsOpen(false);
