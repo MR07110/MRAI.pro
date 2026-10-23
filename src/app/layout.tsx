@@ -33,7 +33,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="uz" className={`${inter.variable} h-full`}>
-      <body className="min-h-full bg-black text-neutral-100 antialiased font-mono dark">
+      <body className="min-h-full bg-[#1a1a1a] text-neutral-100 antialiased dark">
         {children}
       </body>
     </html>

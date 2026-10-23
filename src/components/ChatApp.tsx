@@ -877,7 +877,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  "h-9 w-9 inline-flex items-center justify-center text-neutral-400 hover:text-white hover:bg-white/[0.07] transition cursor-pointer";
 
  return (
- <div className="h-[100dvh] flex bg-black text-neutral-100 overflow-hidden relative term-grid">
+ <div className="h-[100dvh] flex bg-[#1a1a1a] text-neutral-100 overflow-hidden relative term-grid">
 {/* Desktop sidebar — fixed glass overlay (orqa fon blur uchun) */}
  {sidebarOpen && (
  <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-[272px]">

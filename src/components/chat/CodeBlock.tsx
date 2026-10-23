@@ -47,7 +47,7 @@ export default function CodeBlock({ language, value }: { language?: string; valu
  };
 
  return (
- <div className="my-4 border border-white/20 bg-black overflow-hidden font-mono">
+ <div className="my-4 border-2 border-[#1b1b1b] bg-[#0f0f0f] overflow-hidden font-mono shadow-[inset_2px_2px_0_#2d2d2d]">
  <div className="flex items-center justify-between h-9 pl-3.5 pr-2 bg-white/[0.035] text-[12px] text-neutral-500">
  <span className="font-mono lowercase">{language || "kod"}</span>
  <div className="flex items-center gap-1">
