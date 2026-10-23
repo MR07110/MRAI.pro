@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { Brain, Check, ChevronRight, Copy, Key, Pencil, RotateCcw, ShieldAlert } from "lucide-react";
+import { Check, ChevronRight, Copy, Key, Pencil, RotateCcw, ShieldAlert } from "lucide-react";
 import WaitCountdown, { stripWait } from "../WaitCountdown";
 import type { Message } from "@/types";
 import Md from "./Markdown";
@@ -36,7 +36,6 @@ function Thinking({ text, live }: { text: string; live: boolean }) {
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-1.5 text-[13px] text-neutral-500 hover:text-neutral-300 transition cursor-pointer"
       >
-        <Brain className={`w-3.5 h-3.5 ${live ? "animate-pulse text-neutral-300" : ""}`} />
         <span className={live ? "shimmer" : ""}>{live ? "O‘ylanmoqda…" : "Fikrlash jarayoni"}</span>
         <ChevronRight className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-90" : ""}`} />
       </button>
