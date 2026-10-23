@@ -37,6 +37,17 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
  const [isScrolledUp, setIsScrolledUp] = useState(false);
  const [openFile, setOpenFile] = useState<FileRef | null>(null);
+  const [filePanelWidth, setFilePanelWidth] = useState(420);
+  useEffect(() => {
+    try {
+      const w = Number(localStorage.getItem("mrai_filepanel_w"));
+      if (w >= 280 && w <= 1200) setFilePanelWidth(w);
+    } catch {}
+  }, []);
+  function setFilePanelWidthPersist(w: number) {
+    setFilePanelWidth(w);
+    try { localStorage.setItem("mrai_filepanel_w", String(w)); } catch {}
+  }
  useEffect(() => {
  setOpenFile(null);
  }, [currentChatId]);
@@ -1025,7 +1036,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  )}
  </main>
 
-         <FilePanel file={openFile} onClose={() => setOpenFile(null)} />
+         <FilePanel file={openFile} onClose={() => setOpenFile(null)} width={filePanelWidth} onWidthChange={setFilePanelWidthPersist} />
       </div>
 
       <SettingsModal

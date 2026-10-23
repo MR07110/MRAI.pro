@@ -15,7 +15,17 @@ async function readError(res: Response): Promise<string> {
   return `Xato (HTTP ${res.status})`;
 }
 
-export default function FilePanel({ file, onClose }: { file: FileRef | null; onClose: () => void }) {
+export default function FilePanel({
+  file,
+  onClose,
+  width = 420,
+  onWidthChange,
+}: {
+  file: FileRef | null;
+  onClose: () => void;
+  width?: number;
+  onWidthChange?: (w: number) => void;
+}) {
   const [tab, setTab] = useState<"preview" | "code">("preview");
   const [text, setText] = useState<string | null>(null);
   const [entries, setEntries] = useState<{ list: string[]; truncated: boolean } | null>(null);
@@ -85,13 +95,7 @@ export default function FilePanel({ file, onClose }: { file: FileRef | null; onC
     body = <pre className="m-0 p-4 overflow-auto h-full font-mono text-[12.5px] leading-6 text-neutral-200 whitespace-pre">{text}</pre>;
   else if (kind === "html")
     body = (
-      <iframe
-        key={rev}
-        src={url}
-        title={file.name}
-        sandbox="allow-scripts allow-forms allow-popups allow-modals"
-        className="w-full h-full border-0 bg-white"
-      />
+      <iframe key={rev} src={url} title={file.name} sandbox="allow-scripts allow-forms allow-popups allow-modals" className="w-full h-full border-0 bg-white" />
     );
   else if (kind === "image")
     body = (
@@ -130,16 +134,49 @@ export default function FilePanel({ file, onClose }: { file: FileRef | null; onC
     );
   else body = placeholder("Bu fayl turini ko‘rib bo‘lmaydi — yuklab oling.");
 
+  function startResize(e: React.MouseEvent) {
+    if (!onWidthChange) return;
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = width;
+    const onMove = (ev: MouseEvent) => {
+      const dx = startX - ev.clientX;
+      const next = Math.min(Math.max(startW + dx, 280), Math.floor(window.innerWidth * 0.72));
+      onWidthChange(next);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
+
   return (
     <aside
-      className={
-        // Mobile: to'liq ekran overlay | md+: o'ngda joy egallaydigan panel
-        "flex flex-col bg-black border-white/15 font-mono " +
-        "fixed inset-0 z-50 border-0 " +
-        "md:static md:inset-auto md:z-auto md:w-[min(42vw,28rem)] md:shrink-0 md:border-l md:h-full"
-      }
+      className="relative flex flex-col bg-[#2d2d2d] border-[#1b1b1b] fixed inset-0 z-50 w-full md:static md:z-auto md:shrink-0 md:border-l-2 md:h-full" data-fp
+      style={{
+        // md+ da kenglik; mobile fixed full-screen class bilan
+        ...({ ["--fp-w" as string]: `${width}px` } as React.CSSProperties),
+      }}
     >
-      <div className="flex items-center justify-between gap-3 h-11 px-3 border-b border-white/15 shrink-0">
+      <style>{`@media (min-width: 768px) { aside[data-fp] { width: var(--fp-w) !important; min-width: 280px; max-width: 72vw; } }`}</style>
+      {/* Desktop resize handle */}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        title="Tortib o‘lchamini o‘zgartiring"
+        onMouseDown={startResize}
+        className="hidden md:block absolute left-0 top-0 bottom-0 w-2 -ml-1 z-30 cursor-col-resize"
+      >
+        <div className="h-full w-0.5 mx-auto hover:bg-[#5b8c3e] active:bg-[#5b8c3e] transition-colors" />
+      </div>
+
+      <div className="flex items-center justify-between gap-3 h-11 px-3 border-b-2 border-[#1b1b1b] shrink-0">
         <div className="min-w-0">
           <div className="truncate text-[13px] font-medium text-neutral-100">{file.name}</div>
           <div className="text-[11px] text-neutral-500">
@@ -149,11 +186,11 @@ export default function FilePanel({ file, onClose }: { file: FileRef | null; onC
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
           {hasCode && (
-            <div className="flex items-center mr-1 border border-white/15 text-xs">
+            <div className="flex items-center mr-1 border-2 border-[#1b1b1b] text-xs">
               <button
                 onClick={() => setTab("preview")}
                 className={`flex items-center gap-1 px-2.5 py-1 cursor-pointer ${
-                  tab === "preview" ? "bg-white text-black" : "text-neutral-400 hover:text-white"
+                  tab === "preview" ? "bg-[#5b8c3e] text-white" : "text-neutral-400 hover:text-white"
                 }`}
               >
                 <Eye className="w-3.5 h-3.5" />
@@ -162,7 +199,7 @@ export default function FilePanel({ file, onClose }: { file: FileRef | null; onC
               <button
                 onClick={() => setTab("code")}
                 className={`flex items-center gap-1 px-2.5 py-1 cursor-pointer ${
-                  tab === "code" ? "bg-white text-black" : "text-neutral-400 hover:text-white"
+                  tab === "code" ? "bg-[#5b8c3e] text-white" : "text-neutral-400 hover:text-white"
                 }`}
               >
                 <Code className="w-3.5 h-3.5" />
@@ -174,7 +211,7 @@ export default function FilePanel({ file, onClose }: { file: FileRef | null; onC
             <RotateCw className="w-3.5 h-3.5" />
           </button>
           {(kind === "html" || kind === "pdf" || kind === "image") && (
-            <a className={btn} title="Yangi oynada ochish" href={url} target="_blank" rel="noopener noreferrer">
+            <a className={btn} title="Yangi oynada" href={url} target="_blank" rel="noopener noreferrer">
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           )}
