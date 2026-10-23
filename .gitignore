@@ -47,6 +47,3 @@ next-env.d.ts
 
 # python
 __pycache__/
-
-# skill katalogi faqat lokal diskda, GitHub ga chiqmaydi
-/skills/
