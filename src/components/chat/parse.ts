@@ -31,16 +31,13 @@ export type WaitSeg = { type: "wait"; end: number };
 export type FileSeg = { type: "file"; path: string; name: string; size: number };
 export type Seg = MdSeg | ToolSeg | WaitSeg | FileSeg;
 
-// agent.ts:  > **Asbob:** `Nom`\n\n  +  ````text\n...\n````\n\n
-const TOOL_START_RE = /(?:^|\n)> \*\*Asbob:\*\* `([^`\n]*)`/g;
-
-function parseFence(body: string, live: boolean) {
-  const lines = body.split("\n");
+function parseFenceBody(body: string, live: boolean) {
+  let b = body.replace(/^\s*````text\n?/, "").replace(/\n?````\s*$/, "");
+  const lines = b.split("\n");
   const i = lines.findIndex((l) => /^→ (ok|XATO) \(/.test(l));
   if (i < 0) {
-    // fence yopilmagan yoki natija hali yo'q — stream paytida running
     return {
-      head: body.replace(/^````text\n?/, "").replace(/\n?````\s*$/, ""),
+      head: b.trim(),
       status: (live ? "running" : "stopped") as "running" | "stopped",
       secs: undefined as string | undefined,
       output: "",
@@ -48,10 +45,10 @@ function parseFence(body: string, live: boolean) {
   }
   const m = lines[i].match(/^→ (ok|XATO) \(([\d.]+)s\)/);
   return {
-    head: lines.slice(0, i).join("\n"),
+    head: lines.slice(0, i).join("\n").trim(),
     status: (m?.[1] === "XATO" ? "error" : "ok") as "ok" | "error",
     secs: m?.[2],
-    output: lines.slice(i + 1).join("\n"),
+    output: lines.slice(i + 1).join("\n").trim(),
   };
 }
 
@@ -67,25 +64,99 @@ function parseFiles(output: string): FileSeg[] {
   return res;
 }
 
-/** Bitta asbob blokining oxirini topadi (keyingi Asbob yoki matn). */
-function toolBlockEnd(text: string, from: number): number {
-  const rest = text.slice(from);
-  // Yopiq fence bor-mi?
-  const fenceOpen = rest.match(/^\n*(````text\n)/);
-  if (fenceOpen) {
-    const afterOpen = from + (fenceOpen.index ?? 0) + fenceOpen[0].length;
-    const close = text.indexOf("\n````", afterOpen);
-    if (close >= 0) return close + "\n````".length;
-    // ochiq fence — stream oxirigacha
-    return text.length;
-  }
-  // fence hali yo'q: keyingi asbobgacha yoki bo'sh qatorlar+matn
-  const next = text.slice(from + 1).search(/\n> \*\*Asbob:\*\* `/);
-  if (next >= 0) return from + 1 + next;
-  return text.length;
+/** Markdown dan asbob sintaksisini olib tashlash (blockquote / *Asbob:* qoldiqlar). */
+function scrubToolLeak(md: string): string {
+  let s = md;
+  s = s.replace(/(?:^|\n)[ \t]*>[^\n]*Asbob[^\n]*/gi, "\n");
+  s = s.replace(/(?:^|\n)[ \t]*\*{1,2}Asbob:?\*{0,2}[^\n]*/gi, "\n");
+  s = s.replace(/(?:^|\n)````text\n[\s\S]*?(?:\n````|$)/g, "\n");
+  s = s.replace(/(?:^|\n)````text\n[\s\S]*$/g, "\n");
+  s = s.replace(/(?:^|\n)````[\s\S]*$/g, "\n");
+  return s.replace(/\n{3,}/g, "\n\n").trim();
 }
 
-// Javob matnini: markdown / asbob / kutish. live=true da yarim tayyor asbob code-box bo'lib chiqmaydi.
+function extractTools(text: string, live: boolean): Seg[] {
+  const segs: Seg[] = [];
+  const startRe = /(?:^|\n)([ \t]*>[ \t]*\*\*Asbob:\*\*[ \t]*`([^`\n]+)`[^\n]*)/g;
+  const matches: { index: number; endLine: number; name: string }[] = [];
+  for (const m of text.matchAll(startRe)) {
+    const index = m.index ?? 0;
+    matches.push({ index, endLine: index + m[0].length, name: m[2] });
+  }
+
+  if (matches.length === 0) {
+    if (live) {
+      const partial = text.search(/(?:^|\n)[ \t]*>[ \t]*\*?\*?Asbob/i);
+      if (partial >= 0) {
+        const before = scrubToolLeak(text.slice(0, partial));
+        if (before) segs.push({ type: "md", text: before });
+        const after = text.slice(partial);
+        const nameM = after.match(/`([^`\n]+)`/);
+        segs.push({
+          type: "tool",
+          name: nameM?.[1] || "Asbob",
+          head: "",
+          status: "running",
+          output: "",
+        });
+        return segs;
+      }
+    }
+    const clean = scrubToolLeak(text);
+    if (clean) segs.push({ type: "md", text: clean });
+    return segs;
+  }
+
+  let cursor = 0;
+  for (let i = 0; i < matches.length; i++) {
+    const m = matches[i];
+    if (m.index > cursor) {
+      const md = scrubToolLeak(text.slice(cursor, m.index));
+      if (md) segs.push({ type: "md", text: md });
+    }
+    const bodyStart = m.endLine;
+    const nextStart = i + 1 < matches.length ? matches[i + 1].index : text.length;
+    let body = text.slice(bodyStart, nextStart);
+    let blockEnd = nextStart;
+    if (body.includes("````text")) {
+      const close = body.search(/\n````(?:\s*\n|$)/);
+      if (close >= 0) {
+        blockEnd = bodyStart + close + 5;
+        while (blockEnd < text.length && /[\n\r]/.test(text[blockEnd]!)) blockEnd++;
+        body = text.slice(bodyStart, blockEnd);
+      } else {
+        body = text.slice(bodyStart, nextStart);
+        blockEnd = nextStart;
+      }
+    } else {
+      body = "";
+      blockEnd = bodyStart;
+      while (blockEnd < nextStart && /[\n\r\s]/.test(text[blockEnd]!)) blockEnd++;
+    }
+
+    const f = parseFenceBody(body, live);
+    const files = m.name === "Fayl berish" && f.status === "ok" ? parseFiles(f.output) : [];
+    if (files.length) segs.push(...files);
+    else {
+      segs.push({
+        type: "tool",
+        name: m.name,
+        head: f.head,
+        status: f.status,
+        secs: f.secs,
+        output: f.output,
+      });
+    }
+    cursor = Math.max(blockEnd, m.endLine);
+    while (cursor < text.length && /[\n\r]/.test(text[cursor]!)) cursor++;
+  }
+  if (cursor < text.length) {
+    const md = scrubToolLeak(text.slice(cursor));
+    if (md) segs.push({ type: "md", text: md });
+  }
+  return segs;
+}
+
 export function splitAgent(content: string, live: boolean): Seg[] {
   const out: Seg[] = [];
   for (const seg of splitWait(content)) {
@@ -93,63 +164,7 @@ export function splitAgent(content: string, live: boolean): Seg[] {
       out.push({ type: "wait", end: seg.end });
       continue;
     }
-    const text = seg.text;
-    let last = 0;
-    TOOL_START_RE.lastIndex = 0;
-    const starts: { index: number; name: string; full: string }[] = [];
-    for (const m of text.matchAll(TOOL_START_RE)) {
-      starts.push({ index: m.index ?? 0, name: m[1], full: m[0] });
-    }
-    for (let s = 0; s < starts.length; s++) {
-      const st = starts[s];
-      const nameStart = st.index;
-      // match ba'zan \n bilan boshlanadi — md uchun last ni to'g'rilash
-      const mdEnd = nameStart;
-      if (mdEnd > last) {
-        const md = text.slice(last, mdEnd);
-        if (md.trim()) out.push({ type: "md", text: md });
-      }
-      const bodyStart = nameStart + st.full.length;
-      const bodyEnd = toolBlockEnd(text, bodyStart);
-      let body = text.slice(bodyStart, bodyEnd);
-      // ````text ... ```` ni olib tashlash
-      const fm = body.match(/^\s*````text\n([\s\S]*?)(?:\n````\s*)?$/);
-      if (fm) body = fm[1];
-      else body = body.replace(/^\s*````text\n?/, "").replace(/\n?````\s*$/, "");
-
-      const f = parseFence(body, live);
-      const files = st.name === "Fayl berish" && f.status === "ok" ? parseFiles(f.output) : [];
-      if (files.length) out.push(...files);
-      else
-        out.push({
-          type: "tool",
-          name: st.name,
-          head: f.head,
-          status: f.status,
-          secs: f.secs,
-          output: f.output,
-        });
-      last = bodyEnd;
-      // fence dan keyin \n\n
-      while (last < text.length && (text[last] === "\n" || text[last] === "\r")) last++;
-    }
-    if (last < text.length) {
-      const md = text.slice(last);
-      // Stream oxiridagi ochiq ``` / yarim asbob sintaksisini yashirish
-      if (live && /(?:^|\n)> \*\*Asbob:\*\*/.test(md)) {
-        // allaqachon qayta ishlangan bo'lishi kerak; qolganini faqat toza md qoldirish
-        const cut = md.search(/(?:^|\n)> \*\*Asbob:\*\*/);
-        const clean = cut >= 0 ? md.slice(0, cut) : md;
-        if (clean.trim()) out.push({ type: "md", text: clean });
-      } else if (live && /```/.test(md) && (md.match(/```/g) || []).length % 2 === 1) {
-        // yopilmagan code fence — ko'rsatmaslik (asbob natijasi)
-        const cut = md.lastIndexOf("```");
-        const clean = cut >= 0 ? md.slice(0, cut) : "";
-        if (clean.trim()) out.push({ type: "md", text: clean });
-      } else if (md.trim()) {
-        out.push({ type: "md", text: md });
-      }
-    }
+    out.push(...extractTools(seg.text, live));
   }
-  return out;
+  return out.filter((s) => s.type !== "md" || s.text.trim().length > 0);
 }
