@@ -35,3 +35,12 @@
 - Bash cwd chaqiruvlar orasida `<<MRAI_PWD:...>>` markeri orqali saqlanadi (stderr oxirida).
 - Edit/Write: "Read before edit" va mtime bo'yicha stale tekshiruvi `reads` Map orqali (har `runAgent` uchun alohida).
 - Zaxira nusxalar (`*.bak-*`) commit qilinmaydi.
+
+## Hisoblar, suhbat manzillari va izolyatsiya (2026-10-23)
+- Kirish tartibi: **kirish kaliti (har safar, session cookie)** -> faqat kalit to'g'ri bo'lsa **ro'yxatdan o'tish / kirish** -> ilova. `src/proxy.ts` ikkala cookie'ni talab qiladi (`mrai_access`, `mrai_user` imzolangan HMAC, 24 soat).
+- Hisoblar Python serverda (`users` jadvali, scrypt). Next route'lar: `/api/auth/{access,state,register,signin,signout,profile}`. Login sahifa 2 bosqichli (`/login`, `?next=/c/<id>` qo'llab-quvvatlanadi).
+- Har suhbatning manzili: `/c/<id>` (`src/app/c/[id]/page.tsx`, `AppShell`, ChatApp `pushUrl` + `usePathname`). Suhbat shu hisobniki bo'lmasa — "topilmadi" xabari va `/` ga qaytish.
+- Izolyatsiya (Python server, `x-mrai-user` faqat Next proxy qo'shadi, token bilan): `chats/messages/api_keys/connectors/tasks` — `user_id` ustuni, hamma so'rov scoping; har foydalanuvchiga alohida sandbox (`workspace/users/<user>` bwrap'da `WORKSPACE_DIR` ga bind), jobs egasiga bog'liq; scheduler vazifa egasining kalit/connectorlari bilan ishlaydi (`/api/agent/run` ga `user` yuboriladi).
+- Egasi: `mrqosimov2011` — ro'yxatdan o'tkazib bo'lmaydi (egallab olishdan himoya); hisob serverda yaratilgan, vaqtinchalik parol `~/MR/mrai/owner-temp-password.txt` (600) — kirgach Sozlamalar -> Hisob'dan almashtirib, faylni o'chirish kerak. Eski ma'lumotlar shu hisobda.
+- Sinov: `scripts/isolation-test.py` (32 ta tekshiruv, ikki vaqtinchalik hisob, oxirida o'zini tozalaydi) — 32/32 PASS.
+- Zaxira: `*.bak-20261023-pre-auth|pre-urls`, Python: `mrai_server.py.bak-20261023-pre-users|pre-isolation`, `mrai_tasks.py.bak-20261023-pre-users`.

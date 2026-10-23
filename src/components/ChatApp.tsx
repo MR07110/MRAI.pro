@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { ArrowDown, Code2, Compass, PanelLeft, PenTool, Sparkles, SquarePen } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import * as serverDb from "@/lib/serverDb";
@@ -14,10 +15,13 @@ import MessageView from "./chat/Message";
 import Composer from "./chat/Composer";
 import { parseThinkingAndContent } from "./chat/parse";
 
-export default function ChatApp() {
+export default function ChatApp({ initialChatId = null }: { initialChatId?: string | null }) {
+  const pathname = usePathname();
+  const urlCheckedRef = useRef(false);
+  const [notFound, setNotFound] = useState(false);
   const { user, signOut } = useAuth();
   const [chats, setChats] = useState<Chat[]>([]);
-  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(initialChatId);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -43,6 +47,22 @@ export default function ChatApp() {
   const displayedTextRef = useRef("");
   const smoothTickerRef = useRef<number | null>(null);
   const isStreamingActiveRef = useRef(false);
+
+  // Har bir suhbatning o'z manzili: /c/<id>  (yangi suhbat: /)
+  function pushUrl(id: string | null, replace = false) {
+    if (typeof window === "undefined") return;
+    const url = id ? `/c/${id}` : "/";
+    if (window.location.pathname === url) return;
+    if (replace) window.history.replaceState(null, "", url);
+    else window.history.pushState(null, "", url);
+  }
+
+  // Brauzerning orqaga/oldinga tugmalari yoki to'g'ridan-to'g'ri manzil o'zgarsa -- suhbat ham almashadi
+  useEffect(() => {
+    const m = pathname.match(/^\/c\/([^/]+)/);
+    const id = m ? decodeURIComponent(m[1]) : null;
+    setCurrentChatId((cur) => (cur === id ? cur : id));
+  }, [pathname]);
 
   // Load chats + default key + settings
   useEffect(() => {
@@ -111,6 +131,16 @@ export default function ChatApp() {
     try {
       const data = await serverDb.getChats();
       setChats(data || []);
+      // Manzildagi suhbat shu hisobniki emas (yoki yo'q) bo'lsa -- hech narsa ko'rsatilmaydi, bosh sahifaga qaytiladi
+      if (!urlCheckedRef.current) {
+        urlCheckedRef.current = true;
+        if (initialChatId && !(data || []).some((c) => c.id === initialChatId)) {
+          setCurrentChatId(null);
+          setMessages([]);
+          setNotFound(true);
+          pushUrl(null, true);
+        }
+      }
     } catch (e) {
       console.error("loadChats error:", e);
     }
@@ -152,6 +182,7 @@ export default function ChatApp() {
     }
     setCurrentChatId(null);
     setMessages([]);
+    pushUrl(null);
     setMobileSidebar(false);
   }
 
@@ -163,6 +194,7 @@ export default function ChatApp() {
     if (currentChatId === id) {
       setCurrentChatId(null);
       setMessages([]);
+      pushUrl(null, true);
     }
   }
 
@@ -467,6 +499,7 @@ export default function ChatApp() {
       chatId = newChat.id;
       skipNextLoadRef.current = chatId;
       setCurrentChatId(chatId);
+      pushUrl(chatId, true);
       setChats((prev) => [newChat, ...prev]);
     }
 
@@ -571,6 +604,7 @@ export default function ChatApp() {
       stopStreaming();
     }
     setCurrentChatId(id);
+    pushUrl(id);
     setMobileSidebar(false);
   }
 
@@ -745,6 +779,17 @@ export default function ChatApp() {
             <SquarePen className="w-[18px] h-[18px]" />
           </button>
         </header>
+
+        {notFound && (
+          <div className="mx-auto mt-1 mb-1 w-full max-w-[46rem] px-4">
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-[13px] text-neutral-300">
+              <span>Bu suhbat topilmadi yoki sizning hisobingizga tegishli emas.</span>
+              <button onClick={() => setNotFound(false)} className="text-neutral-500 hover:text-white cursor-pointer">
+                Yopish
+              </button>
+            </div>
+          </div>
+        )}
 
         {empty ? (
           <div className="flex-1 overflow-y-auto">

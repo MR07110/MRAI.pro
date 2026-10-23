@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cleanServerUrl, MRAI_AUTH_TOKEN } from "@/lib/serverAuth";
+import { sessionUserFromRequest } from "@/lib/session";
 
 // Brauzer -> (shu route, token serverda qo'shiladi) -> local MR AI server.
 // Faqat ma'lumotlar bazasi va jobs endpointlari; /exec alohida route orqali.
@@ -11,6 +12,8 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
   if (!MRAI_AUTH_TOKEN) {
     return NextResponse.json({ error: "MRAI_AUTH_TOKEN sozlanmagan" }, { status: 503 });
   }
+  const user = await sessionUserFromRequest(req);
+  if (!user) return NextResponse.json({ error: "Kirish talab qilinadi" }, { status: 401 });
   const { path } = await ctx.params;
   const joined = (path || []).join("/");
   const ok = ALLOWED.some((p) => joined === p || joined.startsWith(p + "/"));
@@ -30,6 +33,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
         "Content-Type": "application/json",
         "ngrok-skip-browser-warning": "1",
         Authorization: `Bearer ${MRAI_AUTH_TOKEN}`,
+        "x-mrai-user": user,
       },
       body: body || undefined,
       signal: AbortSignal.timeout(60000),

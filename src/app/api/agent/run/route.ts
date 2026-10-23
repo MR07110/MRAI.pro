@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runAgent } from "@/lib/agent";
 import { isAuthorized } from "@/lib/serverAuth";
+import { USERNAME_RE } from "@/lib/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +15,8 @@ export async function POST(req: NextRequest) {
   try {
     const b = await req.json();
     if (!b.prompt || !b.apiKey) return NextResponse.json({ ok: false, error: "prompt va apiKey kerak" }, { status: 400 });
+    const user = typeof b.user === "string" && USERNAME_RE.test(b.user) ? b.user : "";
+    if (!user) return NextResponse.json({ ok: false, error: "user kerak" }, { status: 400 });
     const r = await runAgent({
       provider: b.provider,
       apiKey: b.apiKey,
@@ -23,6 +26,7 @@ export async function POST(req: NextRequest) {
       messages: [{ role: "user", content: String(b.prompt) }],
       connectors: Array.isArray(b.connectors) ? b.connectors : [],
       serverUrl: b.serverUrl || undefined,
+      user,
       appUrl: b.appUrl || undefined,
       keyId: b.keyId || undefined,
       maxSteps: b.maxSteps ?? 60,

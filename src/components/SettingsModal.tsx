@@ -46,7 +46,7 @@ function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
 }
 
 export default function SettingsModal({ open, onClose }: Props) {
-  const { user, signOut } = useAuth();
+  const { user, signOut, updateProfile } = useAuth();
   const [activeTab, setActiveTab] = useState<SettingsTab>("keys");
 
   // App settings state (Model, Appearance)
@@ -55,6 +55,7 @@ export default function SettingsModal({ open, onClose }: Props) {
   // Account profile state
   const [newName, setNewName] = useState("");
   const [nameSaved, setNameSaved] = useState(false);
+  const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passMessage, setPassMessage] = useState("");
@@ -74,23 +75,24 @@ export default function SettingsModal({ open, onClose }: Props) {
     saveSettings(updated);
   }
 
-  // Update Profile Name
+  // Update Profile Name (serverda saqlanadi)
   async function handleUpdateName() {
     if (!newName.trim()) return;
-    try {
-      const savedUserStr = localStorage.getItem("mrai_auth_user");
-      const savedUser = savedUserStr ? JSON.parse(savedUserStr) : {};
-      savedUser.user_metadata = { ...(savedUser.user_metadata || {}), full_name: newName.trim() };
-      localStorage.setItem("mrai_auth_user", JSON.stringify(savedUser));
+    const r = await updateProfile({ name: newName.trim() });
+    if (!r.error) {
       setNameSaved(true);
       setTimeout(() => setNameSaved(false), 2500);
-    } catch {}
+    }
   }
 
-  // Change password
+  // Change password (joriy parol serverda tekshiriladi)
   async function handleChangePassword() {
     setPassError("");
     setPassMessage("");
+    if (!oldPassword) {
+      setPassError("Joriy parolni kiriting");
+      return;
+    }
     if (!newPassword || newPassword.length < 6) {
       setPassError("Yangi parol kamida 6 ta belgidan iborat bo‘lishi kerak");
       return;
@@ -99,14 +101,15 @@ export default function SettingsModal({ open, onClose }: Props) {
       setPassError("Parollar mos kelmadi");
       return;
     }
-    try {
-      localStorage.setItem("mrai_auth_password", newPassword);
-      setPassMessage("Parol muvaffaqiyatli yangilandi!");
-      setNewPassword("");
-      setConfirmPassword("");
-    } catch (e: any) {
-      setPassError(e?.message || "Xatolik yuz berdi");
+    const r = await updateProfile({ oldPassword, newPassword });
+    if (r.error) {
+      setPassError(r.error);
+      return;
     }
+    setPassMessage("Parol muvaffaqiyatli yangilandi!");
+    setOldPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
   }
 
   // Export chats
@@ -290,6 +293,14 @@ export default function SettingsModal({ open, onClose }: Props) {
               <div>
                 <label className="block text-xs font-medium text-neutral-300 mb-1.5">Parol</label>
                 <div className="space-y-2">
+                  <input
+                    type="password"
+                    value={oldPassword}
+                    onChange={(e) => setOldPassword(e.target.value)}
+                    placeholder="Joriy parol"
+                    autoComplete="current-password"
+                    className="w-full h-10 px-3.5 rounded-xl border border-neutral-800 bg-neutral-950 text-sm text-neutral-100 focus:border-neutral-600 focus:outline-none"
+                  />
                   <input
                     type="password"
                     value={newPassword}

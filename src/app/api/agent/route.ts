@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runAgent } from "@/lib/agent";
+import { sessionUserFromRequest } from "@/lib/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +20,9 @@ export async function POST(req: NextRequest) {
   if (!Array.isArray(body.messages) || body.messages.length === 0) {
     return NextResponse.json({ error: "Xabarlar ro'yxati bo'sh" }, { status: 400 });
   }
+
+  const user = await sessionUserFromRequest(req);
+  if (!user) return NextResponse.json({ error: "Kirish talab qilinadi" }, { status: 401 });
 
   const enc = new TextEncoder();
   const stream = new ReadableStream({
@@ -45,6 +49,7 @@ export async function POST(req: NextRequest) {
           maxTokens: body.maxTokens,
           connectors: Array.isArray(body.connectors) ? body.connectors : [],
           serverUrl: body.serverUrl,
+          user,
           appUrl: body.appUrl || new URL(req.url).origin,
           keyId: body.keyId,
           maxSteps: body.maxSteps,

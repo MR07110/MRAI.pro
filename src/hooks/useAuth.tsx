@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from "react";
+import { setDbUser } from "@/lib/serverDb";
 
 export interface UserMetadata {
   full_name: string;
@@ -18,120 +19,87 @@ export interface Session {
   access_token: string;
 }
 
-export function formatUsernameToEmail(username: string): string {
-  const trimmed = username.trim().toLowerCase();
-  if (trimmed.includes("@")) return trimmed;
-  const clean = trimmed.replace(/[^a-z0-9_.-]/g, "");
-  return `${clean}@mrai.local`;
+type RawUser = { username: string; name: string };
+
+function toUser(u: RawUser): User {
+  return {
+    id: u.username,
+    email: `${u.username}@mrai.local`,
+    user_metadata: { full_name: u.name || u.username, username: u.username },
+  };
 }
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signIn: (username: string, password: string) => Promise<{ data?: any; error: string | null }>;
-  signUp: (name: string, username: string, password: string) => Promise<{ data?: any; error: string | null }>;
   signOut: () => Promise<void>;
+  updateProfile: (patch: { name?: string; oldPassword?: string; newPassword?: string }) => Promise<{ error: string | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const STORAGE_KEY_USER = "mrai_auth_user";
-const STORAGE_KEY_PASS = "mrai_auth_password";
-
-const DEFAULT_USER: User = {
-  id: "mrqosimov2011",
-  email: "mrqosimov2011@mrai.local",
-  user_metadata: {
-    full_name: "Mr Qosimov",
-    username: "mrqosimov2011",
-  },
-};
-
+// Haqiqiy hisob: sessiya serverda (imzolangan cookie). Ilovaga faqat kirish kaliti + hisob orqali kiriladi.
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_USER);
-      if (saved) {
-        const parsed: User = JSON.parse(saved);
-        setUser(parsed);
-        setSession({ user: parsed, access_token: "mrai-token" });
-      } else {
-        // By default, since this is a private personal server, auto-activate default user
-        setUser(DEFAULT_USER);
-        setSession({ user: DEFAULT_USER, access_token: "mrai-token" });
-        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(DEFAULT_USER));
-      }
-    } catch {
-      setUser(DEFAULT_USER);
-      setSession({ user: DEFAULT_USER, access_token: "mrai-token" });
-    } finally {
-      setLoading(false);
-    }
+  const apply = useCallback((raw: RawUser) => {
+    setDbUser(raw.username); // brauzer keshi (IndexedDB) har foydalanuvchiga alohida
+    setUser(toUser(raw));
   }, []);
 
-  const signIn = async (username: string, password: string) => {
-    const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, "");
-    const savedPass = localStorage.getItem(STORAGE_KEY_PASS);
-
-    if (savedPass && savedPass !== password) {
-      return { error: "Parol noto‘g‘ri kiritildi" };
-    }
-
-    const authUser: User = {
-      id: cleanUsername || "mrqosimov2011",
-      email: formatUsernameToEmail(cleanUsername || "mrqosimov2011"),
-      user_metadata: {
-        full_name: cleanUsername === "mrqosimov2011" ? "Mr Qosimov" : cleanUsername,
-        username: cleanUsername,
-      },
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/auth/state", { cache: "no-store" });
+        const data = await res.json();
+        if (!alive) return;
+        if (data?.access && data?.user) {
+          apply(data.user);
+          setLoading(false);
+          return;
+        }
+      } catch {}
+      if (alive) window.location.replace("/login");
+    })();
+    return () => {
+      alive = false;
     };
-
-    setUser(authUser);
-    setSession({ user: authUser, access_token: "mrai-token" });
-    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(authUser));
-    if (password) {
-      localStorage.setItem(STORAGE_KEY_PASS, password);
-    }
-
-    return { data: { user: authUser }, error: null };
-  };
-
-  const signUp = async (name: string, username: string, password: string) => {
-    const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, "");
-    const authUser: User = {
-      id: cleanUsername,
-      email: formatUsernameToEmail(cleanUsername),
-      user_metadata: {
-        full_name: name.trim(),
-        username: cleanUsername,
-      },
-    };
-
-    setUser(authUser);
-    setSession({ user: authUser, access_token: "mrai-token" });
-    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(authUser));
-    if (password) {
-      localStorage.setItem(STORAGE_KEY_PASS, password);
-    }
-
-    return { data: { user: authUser }, error: null };
-  };
+  }, [apply]);
 
   const signOut = async () => {
+    try {
+      await fetch("/api/auth/signout", { method: "POST" });
+    } catch {}
     setUser(null);
-    setSession(null);
-    localStorage.removeItem(STORAGE_KEY_USER);
+    window.location.href = "/login";
   };
 
+  const updateProfile = async (patch: { name?: string; oldPassword?: string; newPassword?: string }) => {
+    try {
+      const res = await fetch("/api/auth/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...(patch.name !== undefined ? { name: patch.name } : {}),
+          ...(patch.newPassword !== undefined ? { new_password: patch.newPassword, old_password: patch.oldPassword || "" } : {}),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return { error: data?.error || "Xatolik yuz berdi" };
+      if (data?.user) setUser(toUser(data.user));
+      return { error: null };
+    } catch {
+      return { error: "Serverga ulanib bo'lmadi" };
+    }
+  };
+
+  const session: Session | null = user ? { user, access_token: "session" } : null;
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut }}>
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={{ user, session, loading, signOut, updateProfile }}>{children}</AuthContext.Provider>
   );
 }
 

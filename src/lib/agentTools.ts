@@ -14,6 +14,7 @@ export interface ToolEnv {
   serverUrl?: string;
   appUrl?: string;
   keyId?: string;
+  user?: string;
   signal?: AbortSignal;
   allowScheduling: boolean;
 }
@@ -41,7 +42,7 @@ function fmtExec(r: any): { output: string; isError: boolean } {
 // Local Python serverga so'rov yuboruvchi umumiy yordamchilar (builtin va coding asboblari bir xil kanaldan foydalanadi)
 export function makeServerCtx(env: ToolEnv) {
   const sf = (path: string, body?: any, method?: string, timeoutMs?: number) =>
-    serverFetch(env.serverUrl, path, { body, method, timeoutMs, signal: env.signal });
+    serverFetch(env.serverUrl, path, { body, method, timeoutMs, signal: env.signal, user: env.user });
   const exec = (command: string, timeout = 60, cwd?: string, background = false) =>
     sf("/exec", { command, cwd, timeout, background }, "POST", (timeout + 20) * 1000);
   return { sf, exec };

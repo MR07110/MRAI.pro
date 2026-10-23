@@ -46,7 +46,7 @@ export function isAuthorized(req: Request): boolean {
 export async function serverFetch(
   serverUrl: string | undefined,
   path: string,
-  init: { method?: string; body?: unknown; timeoutMs?: number; signal?: AbortSignal } = {}
+  init: { method?: string; body?: unknown; timeoutMs?: number; signal?: AbortSignal; user?: string } = {}
 ): Promise<any> {
   if (!MRAI_AUTH_TOKEN) throw new Error("MRAI_AUTH_TOKEN sozlanmagan (.env.local yoki Vercel env)");
   const url = cleanServerUrl(serverUrl) + path;
@@ -58,6 +58,7 @@ export async function serverFetch(
       "Content-Type": "application/json",
       "ngrok-skip-browser-warning": "1",
       Authorization: `Bearer ${MRAI_AUTH_TOKEN}`,
+      ...(init.user ? { "x-mrai-user": init.user } : {}),
     },
     body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
     signal: AbortSignal.any(signals),

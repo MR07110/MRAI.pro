@@ -17,6 +17,7 @@ export interface AgentInput {
   serverUrl?: string;
   appUrl?: string;
   keyId?: string;
+  user?: string;
   maxSteps?: number;
   scheduled?: boolean;
   signal?: AbortSignal;
@@ -300,7 +301,7 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
   inp.onWait = inp.onWait || ((sec) => emit(`\n\n[[wait:${Date.now() + sec * 1000}]]\n\n`));
   try {
     const notes: string[] = [];
-    const env = { serverUrl: inp.serverUrl, appUrl: inp.appUrl, keyId: inp.keyId, signal: inp.signal, allowScheduling: !inp.scheduled };
+    const env = { serverUrl: inp.serverUrl, appUrl: inp.appUrl, keyId: inp.keyId, user: inp.user, signal: inp.signal, allowScheduling: !inp.scheduled };
     // Coding asboblari computer_exec/read/write/job_* ni to'liq almashtiradi — takroriy asboblar modelni chalg'itadi
     const builtin = buildBuiltinTools(env).filter((t) => !SUPERSEDED_BUILTINS.has(t.name));
     const coding = buildCodingTools(makeServerCtx(env));

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cleanServerUrl, MRAI_AUTH_TOKEN } from "@/lib/serverAuth";
+import { sessionUserFromRequest } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,8 @@ export async function POST(req: NextRequest) {
       { status: 200 }
     );
   }
+  const user = await sessionUserFromRequest(req);
+  if (!user) return NextResponse.json({ stdout: "", stderr: "Kirish talab qilinadi", exit_code: 1 }, { status: 401 });
   try {
     const body = await req.json();
     const base = cleanServerUrl(req.headers.get("x-server-url"));
@@ -20,6 +23,7 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
         "ngrok-skip-browser-warning": "1",
         Authorization: `Bearer ${MRAI_AUTH_TOKEN}`,
+        "x-mrai-user": user,
       },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(30000),

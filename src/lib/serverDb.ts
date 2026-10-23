@@ -1,7 +1,14 @@
 import { Chat, Message, UserApiKey } from '@/types';
 import { loadSettings } from '@/lib/settings';
 
-const DB_NAME = 'mrai_local_store';
+const DB_BASE = 'mrai_local_store';
+let dbUser = '';
+export function setDbUser(u: string) {
+  dbUser = (u || '').toLowerCase();
+}
+function dbName() {
+  return dbUser ? `${DB_BASE}_${dbUser}` : DB_BASE;
+}
 const DB_VERSION = 1;
 const STORE_CHATS = 'chats';
 const STORE_MESSAGES = 'messages';
@@ -13,7 +20,7 @@ function openLocalDb(): Promise<IDBDatabase> {
     if (typeof window === 'undefined') {
       return reject(new Error('Window not available'));
     }
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    const request = indexedDB.open(dbName(), DB_VERSION);
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE_CHATS)) {
@@ -115,7 +122,7 @@ export async function createChat(title: string): Promise<Chat> {
   const now = new Date().toISOString();
   const newChat: Chat = {
     id: crypto.randomUUID(),
-    user_id: 'mrqosimov2011',
+    user_id: dbUser,
     title: title.slice(0, 50).trim() || 'Yangi suhbat',
     created_at: now,
     updated_at: now,
