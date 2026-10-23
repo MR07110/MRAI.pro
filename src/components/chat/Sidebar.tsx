@@ -67,7 +67,7 @@ export default function Sidebar({
  className="flex items-center gap-2 pl-1 cursor-pointer"
  >
  <Image src="/logo-white.svg" alt="MR AI" width={20} height={20} />
- <span className="text-[15px] brand-font font-normal tracking-tight text-neutral-100" className="brand-font">MR AI</span>
+ <span className="brand-font text-[15px] tracking-tight text-neutral-100">MR AI</span>
  </a>
  <button
  onClick={onClose}
