@@ -21,6 +21,8 @@ export interface AgentInput {
   scheduled?: boolean;
   signal?: AbortSignal;
   emit?: (text: string) => void;
+  /** 429 sabab kutilganda chaqiriladi (soniyalarda) */
+  onWait?: (seconds: number) => void;
 }
 
 interface Call { id: string; name: string; args: any; argError?: string }
@@ -138,7 +140,8 @@ function openaiAdapter(inp: AgentInput, system: string): Adapter & { disableTool
       // 429 (TPM/RPM limit, masalan Groq bepul tarif): "try again in Ns" ko'rsatmasiga amal qilib qisqa kutib qayta uriladi
       for (let attempt = 0; res.status === 429 && attempt < 4; attempt++) {
         const wait = retryAfterMs(res.headers.get("retry-after"), await res.clone().text().catch(() => ""));
-        if (wait === null || wait > 30000) break; // uzoq kutish (kunlik limit va h.k.) — xatoni o'z holicha qaytaramiz
+        if (wait === null || wait > 65000) break; // uzoq kutish (kunlik limit va h.k.) — xatoni o'z holicha qaytaramiz
+        inp.onWait?.(Math.ceil((wait + 500) / 1000));
         await sleepAbortable(wait + 500, inp.signal);
         res = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify(body), signal: inp.signal });
       }
@@ -258,7 +261,7 @@ async function loadMcpTools(
         run: async (args) => {
           const res = await client.callTool(t.name, args);
           const txt = String(res.text ?? "");
-          const LIM = 5000;
+          const LIM = 2500;
           return { output: txt.length > LIM ? txt.slice(0, LIM) + `\n…[${txt.length - LIM} belgi qisqartirildi]` : txt, isError: res.isError };
         },
       });
@@ -292,6 +295,7 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
     emit(s);
   };
   const clients: McpClient[] = [];
+  inp.onWait = inp.onWait || ((sec) => out(`> Provayder limiti: ${sec} soniya kutilyapti…\n\n`));
   try {
     const notes: string[] = [];
     const env = { serverUrl: inp.serverUrl, appUrl: inp.appUrl, keyId: inp.keyId, signal: inp.signal, allowScheduling: !inp.scheduled };
