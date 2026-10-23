@@ -27,8 +27,7 @@ const P_COMPUTER = [
   "- Bash: yagona kompyuter asbobi. Har qanday ish shu orqali: ls, cat, find, grep, sed, git, npm, pip, tahrirlash. cwd saqlanadi. Uzoq jarayon uchun run_in_background=true.",
   "- schedule_task / list_tasks / delete_task: jadvalli vazifalar.",
   "- mcp_* : foydalanuvchi ulagan connectorlar. Faqat so‘ralganda chaqiring.",
-].join("
-");
+].join("\n");
 
 const P_WORK = [
   "ISH TARTIBI",
