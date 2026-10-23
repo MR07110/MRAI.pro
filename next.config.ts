@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -8,8 +9,12 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  // Production: Next versiyasini oshkor qilmaymiz, xavfsizlik sarlavhalari hamma sahifada.
   poweredByHeader: false,
+  // Skills papkasi serverless funksiyalariga ham kirishi uchun
+  outputFileTracingIncludes: {
+    "/*": ["./skills/**/*"],
+    "/api/*": ["./skills/**/*"],
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

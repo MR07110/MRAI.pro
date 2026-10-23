@@ -1,15 +1,30 @@
 import fs from "fs";
 import path from "path";
 
-/** Runtime skills root (symlink → mrai-next/skills). Absolute so model can run scripts/. */
-export const SKILLS_DIR =
-  process.env.MRAI_SKILLS_DIR ||
-  "/home/muhamad/MR/mrai/skills";
+function resolveSkillsDir(): string {
+  if (process.env.MRAI_SKILLS_DIR) return process.env.MRAI_SKILLS_DIR;
+  const candidates = [
+    "/home/muhamad/MR/mrai/skills",
+    path.join(process.cwd(), "skills"),
+    path.join(process.cwd(), "..", "skills"),
+  ];
+  for (const c of candidates) {
+    try {
+      if (fs.existsSync(c) && fs.statSync(c).isDirectory()) return path.resolve(c);
+    } catch {}
+  }
+  return path.join(process.cwd(), "skills");
+}
+
+/** Runtime skills root. Absolute so model can run scripts/. */
+export const SKILLS_DIR = resolveSkillsDir();
 
 /** Python venv with document packages (openpyxl, pdfplumber, …). */
 export const SKILLS_PYTHON =
   process.env.MRAI_SKILLS_PYTHON ||
-  "/home/muhamad/MR/mrai/.venv-skills/bin/python";
+  (fs.existsSync("/home/muhamad/MR/mrai/.venv-skills/bin/python")
+    ? "/home/muhamad/MR/mrai/.venv-skills/bin/python"
+    : "python3");
 
 export interface SkillMeta {
   name: string;
