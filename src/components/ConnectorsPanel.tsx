@@ -25,8 +25,6 @@ export default function ConnectorsPanel() {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
-  const [token, setToken] = useState("");
-  const [extra, setExtra] = useState("");
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
   const [tests, setTests] = useState<Record<string, TestState>>({});
@@ -38,22 +36,6 @@ export default function ConnectorsPanel() {
   useEffect(() => {
     load();
   }, []);
-
-  function buildHeaders(): Record<string, string> | null {
-    const h: Record<string, string> = {};
-    if (token.trim()) h["Authorization"] = /^bearer\s/i.test(token.trim()) ? token.trim() : `Bearer ${token.trim()}`;
-    if (extra.trim()) {
-      try {
-        const j = JSON.parse(extra);
-        if (!j || typeof j !== "object" || Array.isArray(j)) throw new Error();
-        for (const [k, v] of Object.entries(j)) h[k] = String(v);
-      } catch {
-        setFormError("Qo‘shimcha headerlar to‘g‘ri JSON obyekt bo‘lishi kerak, masalan {\"X-Api-Key\":\"...\"}");
-        return null;
-      }
-    }
-    return h;
-  }
 
   async function runTest(id: string, c: { url: string; headers?: Record<string, string>; name?: string }) {
     setTests((t) => ({ ...t, [id]: { loading: true } }));
@@ -67,8 +49,7 @@ export default function ConnectorsPanel() {
       setFormError("URL http:// yoki https:// bilan boshlanishi kerak");
       return;
     }
-    const headers = buildHeaders();
-    if (!headers) return;
+    const headers: Record<string, string> = {};
     setSaving(true);
     try {
       let nm = name.trim();
@@ -80,7 +61,7 @@ export default function ConnectorsPanel() {
         }
       }
       const id = await serverDb.saveConnector({ name: nm, url: url.trim(), headers, enabled: true });
-      setName(""); setUrl(""); setToken(""); setExtra(""); setShowForm(false);
+      setName(""); setUrl(""); setShowForm(false);
       await load();
       runTest(id, { url: url.trim(), headers, name: nm });
     } catch (e: any) {
@@ -132,19 +113,9 @@ export default function ConnectorsPanel() {
             <label className="block text-[11px] text-neutral-400 mb-1">MCP server URL</label>
             <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://mcp.example.com/mcp" className={inputCls} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] text-neutral-400 mb-1">Nomi (ixtiyoriy)</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Asana" className={inputCls} />
-            </div>
-            <div>
-              <label className="block text-[11px] text-neutral-400 mb-1">Token (ixtiyoriy)</label>
-              <input value={token} onChange={(e) => setToken(e.target.value)} type="password" placeholder="Bearer token" className={inputCls} />
-            </div>
-          </div>
           <div>
-            <label className="block text-[11px] text-neutral-400 mb-1">Qo‘shimcha headerlar (JSON, ixtiyoriy)</label>
-            <input value={extra} onChange={(e) => setExtra(e.target.value)} placeholder='{"X-Api-Key":"..."}' className={inputCls} />
+            <label className="block text-[11px] text-neutral-400 mb-1">Nomi (ixtiyoriy)</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Asana" className={inputCls} />
           </div>
           {formError && <p className="text-[11px] text-red-400">{formError}</p>}
           <div className="flex gap-2 justify-end">
