@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
@@ -7,6 +7,11 @@ const inter = Inter({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
 });
+
+export const viewport: Viewport = {
+  themeColor: "#000000",
+  colorScheme: "dark",
+};
 
 export const metadata: Metadata = {
   title: "MR AI",
@@ -28,7 +33,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="uz" className={`${inter.variable} h-full`}>
-      <body className="min-h-full bg-neutral-950 text-neutral-100 antialiased font-[family-name:var(--font-inter)] dark">
+      <body className="min-h-full bg-black text-neutral-100 antialiased font-[family-name:var(--font-inter)] dark">
         {children}
       </body>
     </html>

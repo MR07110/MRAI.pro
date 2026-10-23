@@ -89,7 +89,7 @@ function AuthScreen() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-neutral-950 text-neutral-100">
+    <div className="min-h-screen flex flex-col bg-black text-neutral-100">
       <header className="h-14 border-b border-neutral-800 flex items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-2.5">
           <Image src="/logo-white.png" alt="MR AI" width={28} height={28} />
@@ -221,7 +221,7 @@ function AppContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-950">
+      <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="flex flex-col items-center gap-3">
           <Image src="/logo-white.png" alt="MR AI" width={36} height={36} className="animate-pulse" />
           <p className="text-sm text-neutral-400">Yuklanmoqda...</p>
