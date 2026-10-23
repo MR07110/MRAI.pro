@@ -971,7 +971,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  <div className="w-full max-w-[46rem] fade-up">
  <div className="flex items-center justify-center gap-3.5 mb-8">
  <Image src="/logo-white.svg" alt="MR AI" width={34} height={34} className="shrink-0" />
- <h1 className="text-[28px] sm:text-[34px] leading-tight font-medium tracking-tight text-neutral-100">
+ <h1 className="brand-font text-[22px] sm:text-[26px] leading-tight text-neutral-100">
  {greeting}
  {firstName ? `, ${firstName}` : ""}
  </h1>

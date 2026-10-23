@@ -37,7 +37,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${space.variable} h-full`}>
-      <body className="min-h-full bg-black text-neutral-100 antialiased font-[family-name:var(--font-space)] dark">
+      <body className="min-h-full bg-black text-neutral-100 antialiased dark">
         {children}
       </body>
     </html>
