@@ -349,28 +349,14 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
     for (const n of notes) out(`> ${n}\n\n`);
     const byName = new Map(tools.map((t) => [t.name, t]));
 
-    // Adaptive, Claude-like operating guide (style + artifacts). Part of the cached system prefix.
-    const GUIDE = [
-      "## How you work",
-      "Be adaptive — match the depth, format and tone to the request. A quick question gets a short answer; a real task gets real work. Default to concise: lead with the answer, no preamble, no filler, no restating the question, no wrap-up summary unless asked. Use the fewest words that fully answer, and prefer a tight reply or list over prose. Expand only when the user asks or the task truly needs it.",
-      "",
-      "## Code and artifacts",
-      "An artifact is a real file on the computer shown in a side panel next to the chat: the panel previews or runs the file, lets the user edit it, and always downloads the latest version from disk. You create one by writing the file to disk and then calling `present_files` with its absolute path — the panel opens it automatically, and the user can close it. When you change a file you already presented, write the change and call `present_files` again; the panel refreshes to the newest version.",
-      "ALWAYS deliver code as an artifact, Claude-style: for any file, script, component, config, HTML/page, full function, or any code longer than about 5 lines — or anything the user will keep, run or edit — write it to a real file (under your working folder) and present it with `present_files`. Do NOT paste substantial code into the chat.",
-      "Use a short inline code block ONLY for a tiny snippet (≤5 lines), a command to run, or when you are explaining or illustrating a point rather than delivering a file.",
-    ].join("\n");
-    // Memory: inject what we already know and tell the model to keep it current with `remember`.
+    // The behavioural instruction lives entirely in the user's system prompt (Settings → General) — nothing
+    // hidden is injected from code. Only runtime DATA is appended: the skills catalog and any saved memories.
     let memBlock = "";
     if (memoryOn) {
       const items = mem!.items.slice(-60);
-      memBlock =
-        "\n\n## Memory\n" +
-        "These are durable facts you saved about this user/project. Use them naturally; do not repeat them back unprompted. " +
-        "When you learn a new durable fact (a preference, their name/role, recurring context, a decision), call `remember` on your own to save it.\n" +
-        (items.length ? items.map((m) => `- ${m.text}`).join("\n") : "(empty so far)");
+      memBlock = items.length ? "\n\nSAVED MEMORY (facts you saved earlier):\n" + items.map((m) => `- ${m.text}`).join("\n") : "";
     }
-    const base = applyPromptVars(inp.system || "");
-    let system = withSkillsCatalog((base ? base + "\n\n" : "") + GUIDE + memBlock); // skills: categories + names (full text is loaded on demand)
+    let system = withSkillsCatalog(applyPromptVars(inp.system || "")) + memBlock; // skills: catalog data only (names)
     // "/skill-name ..." in the last user message loads that skill up-front (like a slash command)
     const lastUser = [...(inp.messages || [])].reverse().find((m) => m.role === "user");
     const slash = lastUser && /^\s*\/([A-Za-z0-9][\w./-]*)\s*([\s\S]*)$/.exec(String(lastUser.content || ""));

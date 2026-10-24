@@ -126,28 +126,11 @@ export function buildSkillsPromptSection(skills?: SkillMeta[]): string {
     if (!cats.has(c)) cats.set(c, []);
     cats.get(c)!.push(s.name);
   }
+  // Data only (not behavioural instruction — that lives in the visible system prompt): the list of skills
+  // currently installed, plus the Python to run skill scripts. How to use skills is set in Settings → General.
   const lines = [
     SKILLS_MARKER,
-    "## Skills",
-    "Skills are expert, battle-tested playbooks stored on this computer. They make you far more capable: each one encodes the correct way to do a specialised task, plus ready-to-run scripts. Use them proactively — this is a core part of how you work, not an optional extra.",
-    "",
-    "HOW TO USE THEM (do this on your own, without being asked):",
-    "1. For EVERY request, first decide — silently — whether a skill could help. Any task touching files or formats (Word/Excel/PowerPoint/PDF/CSV/images), UI or design, web/back-end/APIs, databases, DevOps/cloud, testing, debugging, code quality, security, git, data, research, SEO, marketing, automation, documents, or anything that looks like specialised/expert work: assume a skill probably exists.",
-    "2. If a skill plausibly fits, LOAD it before doing the work — do not wait for the user to mention skills. Pick the best match from the catalog below and open it with the `Skill` tool.",
-    "3. If you are not sure which one fits, call `search_skills` with a few keywords FIRST, read the matches, then load the most specific skill. When several could apply, prefer the most specific over the general one.",
-    "4. Read the loaded SKILL.md in full and follow its instructions exactly, step by step. A skill may point to other files or skills — open and read those too, as it says.",
-    "5. Run a skill's bundled scripts by their absolute path (the `Skill` tool prints the skill's base directory; its relative paths are relative to that). Use the Python below for scripts that need document libraries.",
-    "6. Do the search/load quietly as part of working — no need to announce it or ask permission. Just use the skill and get the task done well.",
-    "",
-    "RULES:",
-    "- Never claim you followed a skill you did not actually load and read.",
-    "- Do not load skills for plain casual conversation (greetings, small talk).",
-    "- When the user types /skill-name or names a skill, load exactly that one.",
-    "- If no skill fits, proceed with your own best judgement — but check first.",
-    `- Python with document libraries (openpyxl, pdfplumber, python-docx, pptx, ...): ${SKILLS_PYTHON}`,
-    `- Save deliverables under ${WORK_DIR}`,
-    "",
-    `Available skills (${list.length}) by category — load any of these by name with the \`Skill\` tool, or call \`search_skills\` to find more by keyword:`,
+    `AVAILABLE SKILLS (${list.length}) — load by name with \`Skill\`, or find more with \`search_skills\`. Skill scripts run with: ${SKILLS_PYTHON}`,
   ];
   for (const [c, names] of [...cats.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
     lines.push(`- ${c}: ${names.join(", ")}`);
