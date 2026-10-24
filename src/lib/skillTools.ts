@@ -112,7 +112,7 @@ export function buildSkillTools(): ToolDef[] {
       label: "Skill",
       readOnly: true,
       description:
-        "Load an expert skill's full instructions by name. Call this BEFORE starting a task that a skill covers (documents, design, testing, security, research, ...) and then follow the instructions exactly. The result lists the skill's base directory and bundled files. If you are unsure of the name, call search_skills first.",
+        "Load an expert skill's full instructions by name. Use it on your own initiative, without being asked: call it BEFORE starting any task a skill covers (documents, design, web/back-end, databases, testing, debugging, security, git, data, research, ...), then follow the instructions exactly. The result lists the skill's base directory and bundled files. If you are unsure of the name, call search_skills first.",
       parameters: {
         type: "object",
         properties: {
@@ -136,7 +136,7 @@ export function buildSkillTools(): ToolDef[] {
       name: "search_skills",
       label: "Search skills",
       readOnly: true,
-      description: "Search the skills library by keywords (task, file type, technology). Returns the best matching skill names with one-line descriptions; then load one with Skill.",
+      description: "Search the skills library by keywords (task, file type, technology). Do this proactively whenever you are unsure which skill fits a request — before answering. Returns the best matching skill names with one-line descriptions; then load one with Skill.",
       parameters: {
         type: "object",
         properties: { query: { type: "string", description: "Keywords, e.g. \"excel spreadsheet formulas\"" } },
