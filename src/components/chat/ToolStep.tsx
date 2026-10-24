@@ -4,7 +4,7 @@ import { memo, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import type { ToolSeg } from "./parse";
 
-// Claude uslubi: barcha asboblar bitta qatorga yig'iladi. Stream paytida layout sakramasin.
+// Claude-style: all tools fold into one line. The layout must not jump during streaming.
 
 function groupLabel(items: ToolSeg[]): { text: string; live: boolean } {
  const running = [...items].reverse().find((t) => t.status === "running");
@@ -67,9 +67,9 @@ const ToolRow = memo(function ToolRow({ t }: { t: ToolSeg }) {
 
 export function ToolGroup({ items }: { items: ToolSeg[] }) {
  const { text, live } = groupLabel(items);
- // Auto-open while streaming (live) — the list stays even when a new Bash/LS starts.
- // If the user closes it, that state is kept until the next live run.
- const [open, setOpen] = useState(true);
+ // Collapsed by default (so after a refresh, and once a run finishes, every scope is closed — Claude-style).
+ // While streaming (live) it auto-opens; if the user closes it then, that choice is kept until the next live run.
+ const [open, setOpen] = useState(false);
  const [userClosed, setUserClosed] = useState(false);
  const show = live ? !userClosed : open;
 
