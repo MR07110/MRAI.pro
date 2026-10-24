@@ -738,7 +738,29 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(out).encode("utf-8"))
             return
 
-        # Rasm yuklash endpoint (cgi olib tashlangan)
+        # Save (edit) a text file back to disk. Same privilege as /exec: owner only, no sandbox.
+        if path == "/save":
+            xuser = req_user(self.headers)
+            if not exec_allowed(xuser):
+                return self._json(403, {"error": DENIED_MSG.strip()})
+            fp = body.get("path", "")
+            content = body.get("content", "")
+            if not isinstance(fp, str) or not fp.startswith("/") or "\0" in fp or len(fp) > 4096:
+                return self._json(400, {"error": "Invalid path"})
+            if not isinstance(content, str):
+                return self._json(400, {"error": "Invalid content"})
+            try:
+                d = os.path.dirname(fp)
+                if d and not os.path.isdir(d):
+                    os.makedirs(d, exist_ok=True)
+                with open(fp, "w", encoding="utf-8") as f:
+                    f.write(content)
+                st = os.stat(fp)
+                return self._json(200, {"ok": True, "path": fp, "size": st.st_size, "mtime": int(st.st_mtime)})
+            except Exception as e:
+                return self._json(500, {"error": str(e)})
+
+        # Image upload endpoint (cgi removed)
         if path == "/api/upload":
             self.send_cors(501)
             self.wfile.write(json.dumps({"error": "Upload is temporarily disabled"}).encode("utf-8"))

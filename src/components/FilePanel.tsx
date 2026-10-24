@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Code, Copy, Download, Eye, ExternalLink, FileQuestion, Folder, RotateCw, Table2, TriangleAlert, X } from "lucide-react";
+import { Ban, Check, Code, Copy, Download, Eye, ExternalLink, FileQuestion, Folder, Pencil, RotateCw, Save, Table2, TriangleAlert, X } from "lucide-react";
 import Md from "./chat/Markdown";
 import Highlight from "./chat/Highlight";
 import { cachePut, extOf, fileUrl, fmtAgo, fmtSize, listCache, smartKind, textCache, type FileInfo, type FileRef } from "./chat/fileKind";
@@ -68,6 +68,10 @@ export default function FilePanel({
   const [updatedAt, setUpdatedAt] = useState(0);
   const [, setTick] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState("");
 
   // ---- Responsive + size ----
   const panelRef = useRef<HTMLElement>(null);
@@ -125,6 +129,8 @@ export default function FilePanel({
     setError("");
     setTextBytes(TEXT_FIRST);
     setUpdatedAt(0);
+    setEditing(false);
+    setSaveErr("");
   }, [path]);
 
   // The computer is the source of truth: a tiny stat request (works the same for 1 MB or 1 TB).
@@ -261,6 +267,39 @@ export default function FilePanel({
     } catch {}
   };
 
+  // Editing: text files can be changed here and written back to the computer.
+  const canEdit = !missing && text !== null && (kind === "markdown" || kind === "text" || isCsv || kind === "html");
+  const startEdit = () => {
+    setDraft(text ?? "");
+    setSaveErr("");
+    setEditing(true);
+  };
+  const cancelEdit = () => {
+    setEditing(false);
+    setSaveErr("");
+  };
+  const handleSave = async () => {
+    if (!path) return;
+    setSaving(true);
+    setSaveErr("");
+    try {
+      const res = await fetch("/api/files", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path, content: draft }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j?.error || `Could not save (HTTP ${res.status})`);
+      // Show the saved text immediately; the stat poll picks up the new version/etag next tick.
+      setText(draft);
+      setEditing(false);
+    } catch (e: any) {
+      setSaveErr(e?.message || "Could not save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const placeholder = (msg: React.ReactNode) => (
     <div className="h-full flex flex-col items-center justify-center gap-3 p-6 text-sm text-neutral-500 text-center font-mono">{msg}</div>
   );
@@ -392,7 +431,42 @@ export default function FilePanel({
       </>
     );
 
-  const showMore = !missing && !!info && wantText && info.size > textBytes && !(kind === "markdown" && tab === "preview" && false);
+  // Edit mode replaces the preview with an editor that writes back to the computer.
+  if (editing) {
+    body = (
+      <div className="h-full flex flex-col">
+        {saveErr && (
+          <div className="shrink-0 px-4 py-2 text-[12px] text-red-400 border-b border-white/10 bg-red-500/[0.06]">{saveErr}</div>
+        )}
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          spellCheck={false}
+          autoFocus
+          onKeyDown={(e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+              e.preventDefault();
+              if (draft !== text && !saving) handleSave();
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              cancelEdit();
+            } else if (e.key === "Tab") {
+              e.preventDefault();
+              const t = e.currentTarget;
+              const s = t.selectionStart;
+              const en = t.selectionEnd;
+              const next = draft.slice(0, s) + "  " + draft.slice(en);
+              setDraft(next);
+              requestAnimationFrame(() => t.setSelectionRange(s + 2, s + 2));
+            }
+          }}
+          className="flex-1 w-full resize-none bg-[#0a0a0a] text-neutral-100 font-mono text-[12.5px] leading-6 p-4 outline-none whitespace-pre"
+        />
+      </div>
+    );
+  }
+
+  const showMore = !editing && !missing && !!info && wantText && info.size > textBytes && !(kind === "markdown" && tab === "preview" && false);
 
   // Pointer Events: mouse + touch (tablet/phone) + stylus; not interrupted over an iframe
   function onHandleDown(e: React.PointerEvent<HTMLDivElement>) {
@@ -506,7 +580,7 @@ export default function FilePanel({
             </div>
           </div>
           <div className="flex items-center gap-0.5 shrink-0">
-            {hasTabs && !missing && (
+            {hasTabs && !missing && !editing && (
               <div className="flex items-center mr-1 border-2 border-white/15 text-xs">
                 <button
                   onClick={() => setTab("preview")}
@@ -531,12 +605,32 @@ export default function FilePanel({
             <button className={btn} title="Reload" onClick={() => setRev((v) => v + 1)}>
               <RotateCw className="w-3.5 h-3.5" />
             </button>
-            {canCopy && (
+            {canCopy && !editing && (
               <button className={btn} title={copied ? "Copied" : "Copy text"} onClick={handleCopy}>
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
               </button>
             )}
-            {canOpenTab && (
+            {canEdit && !editing && (
+              <button className={btn} title="Edit" onClick={startEdit}>
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {editing && (
+              <>
+                <button className={btn} title="Cancel (Esc)" onClick={cancelEdit}>
+                  <Ban className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  className={`${btn} ${draft !== text && !saving ? "text-emerald-400 hover:text-emerald-300" : ""}`}
+                  title="Save (Ctrl/Cmd+S)"
+                  onClick={handleSave}
+                  disabled={saving || draft === text}
+                >
+                  {saving ? <RotateCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                </button>
+              </>
+            )}
+            {canOpenTab && !editing && (
               <a className={btn} title="Open in new tab" href={verUrl} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>

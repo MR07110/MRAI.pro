@@ -119,3 +119,41 @@ export async function GET(req: NextRequest) {
     return err("", 502, e?.message || "Could not reach the computer server");
   }
 }
+
+// Save (edit) a text file back to the computer: { path, content }.
+export async function POST(req: NextRequest) {
+  const user = await sessionUserFromRequest(req);
+  if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 });
+  if (!MRAI_AUTH_TOKEN) return NextResponse.json({ error: "MRAI_AUTH_TOKEN is not configured" }, { status: 503 });
+
+  let bodyObj: { path?: string; content?: string };
+  try {
+    bodyObj = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  const path = bodyObj.path || "";
+  const content = typeof bodyObj.content === "string" ? bodyObj.content : "";
+  if (!path.startsWith("/") || path.includes("\0") || path.length > 4096) return err("bad_path");
+  if (content.length > 32 * 1024 * 1024) return NextResponse.json({ error: "File is too large to edit here" }, { status: 413 });
+
+  try {
+    const base = cleanServerUrl(undefined);
+    const r = await fetch(`${base}/save`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${MRAI_AUTH_TOKEN}`,
+        "x-mrai-user": user,
+        "ngrok-skip-browser-warning": "1",
+      },
+      body: JSON.stringify({ path, content }),
+      signal: AbortSignal.any([AbortSignal.timeout(20000), req.signal]),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return err(String(j?.error || ""), r.status, j?.error);
+    return NextResponse.json(j, { headers: { "Cache-Control": "no-store" } });
+  } catch (e: any) {
+    return err("", 502, e?.message || "Could not reach the computer server");
+  }
+}
