@@ -533,13 +533,9 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
 
  if (current.length < target.length) {
  const diff = target.length - current.length;
- let step = 1;
- if (diff < 20) step = 1;
- else if (diff < 50) step = 2;
- else if (diff < 120) step = 3;
- else if (diff < 250) step = 4;
- else if (diff < 500) step = 6;
- else step = Math.ceil(diff / 25);
+ // Smooth ease-out: reveal a fraction of the remaining backlog each frame, capped so it never dumps
+ // a big chunk and never crawls. This gives the calm, even flow of Claude.ai rather than steppy bursts.
+ const step = Math.max(2, Math.min(Math.ceil(diff * 0.14), 28));
 
  const nextLen = Math.min(target.length, current.length + step);
  const nextText = target.slice(0, nextLen);
