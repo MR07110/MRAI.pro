@@ -175,13 +175,17 @@ function anthropicAdapter(inp: AgentInput, system: string): Adapter {
     async step(tools) {
       const body: any = {
         model,
-        ...(system ? { system } : {}),
+        // Cache the system prompt (base + skills catalog): read back at ~10% cost on every step and turn.
+        ...(system ? { system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }] } : {}),
         messages: msgs,
         temperature: Math.min(Math.max(0, inp.temperature ?? 0.7), 1),
         max_tokens: Math.min(Math.max(1, inp.maxTokens ?? 4096), 16384),
       };
       if (tools.length) {
         body.tools = tools.map((t) => ({ name: t.name, description: t.description.slice(0, 1500), input_schema: cleanSchema(t.parameters) }));
+        // Cache the whole tool set (large, constant): a breakpoint on the last tool caches all tools before it.
+        const lastTool = body.tools[body.tools.length - 1];
+        if (lastTool) lastTool.cache_control = { type: "ephemeral" };
       }
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -311,7 +315,11 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
     for (const n of notes) out(`> ${n}\n\n`);
     const byName = new Map(tools.map((t) => [t.name, t]));
 
-    let system = withSkillsCatalog(applyPromptVars(inp.system || "")); // skills: categories + names (full text is loaded on demand)
+    // Concise, Claude-like style — keeps replies (and output tokens) short. Part of the cached system prefix.
+    const STYLE =
+      "Response style: be direct and concise, like a senior engineer. Lead with the answer — no preamble, no filler, do not restate the question, no wrap-up summary unless asked. Use the fewest words that fully answer; prefer a short reply or a tight list over prose. Expand only when the user asks or the task genuinely needs detail.";
+    const base = applyPromptVars(inp.system || "");
+    let system = withSkillsCatalog((base ? base + "\n\n" : "") + STYLE); // skills: categories + names (full text is loaded on demand)
     // "/skill-name ..." in the last user message loads that skill up-front (like a slash command)
     const lastUser = [...(inp.messages || [])].reverse().find((m) => m.role === "user");
     const slash = lastUser && /^\s*\/([A-Za-z0-9][\w./-]*)\s*([\s\S]*)$/.exec(String(lastUser.content || ""));
