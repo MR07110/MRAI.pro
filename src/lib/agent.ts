@@ -1,5 +1,6 @@
-// Agent loop: model <-> asboblar (kompyuter, fayl, scheduler, MCP connectorlar).
+// Agent loop: model <-> tools (computer, files, scheduler, MCP connectors).
 import { applyPromptVars } from "@/lib/promptVars";
+import { addMemory, getMemory } from "@/lib/stateStore";
 import { withSkillsCatalog, listSkills } from "@/lib/skills";
 import { buildSkillTools, findSkill, loadSkillText } from "@/lib/skillTools";
 import { McpClient, McpConnector } from "@/lib/mcp";
@@ -241,11 +242,12 @@ async function loadMcpTools(
   const list = connectors.filter((c) => c && c.url && c.enabled !== false);
   const settled = await Promise.allSettled(
     list.map(async (c, i) => {
-      const client = new McpClient(c, 60000);
+      const client = new McpClient(c, 15000);
       clients.push(client);
+      // Fast fail: a down connector must not stall the first reply (keeps the app realtime, e.g. a plain "hello").
       await Promise.race([
         client.connect(),
-        new Promise((_, rej) => setTimeout(() => rej(new Error("connection timed out (20s)")), 20000)),
+        new Promise((_, rej) => setTimeout(() => rej(new Error("connection timed out (5s)")), 5000)),
       ]);
       const tools = await client.listTools();
       return { c, i, client, tools };
@@ -270,7 +272,7 @@ async function loadMcpTools(
           const res = await client.callTool(t.name, args);
           const txt = String(res.text ?? "");
           const LIM = 2500;
-          return { output: txt.length > LIM ? txt.slice(0, LIM) + `\n…[${txt.length - LIM} belgi qisqartirildi]` : txt, isError: res.isError };
+          return { output: txt.length > LIM ? txt.slice(0, LIM) + `\n…[${txt.length - LIM} chars truncated]` : txt, isError: res.isError };
         },
       });
     }
@@ -303,8 +305,11 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
     emit(s);
   };
   const clients: McpClient[] = [];
-  // Ekranda jonli sanagich (WaitCountdown) chiziladi; transcript'ga (scheduler) yozilmaydi
+  // A live countdown (WaitCountdown) is drawn on screen; not written to the transcript (scheduler)
   inp.onWait = inp.onWait || ((sec) => emit(`\n\n[[wait:${Date.now() + sec * 1000}]]\n\n`));
+  // Memory (Claude-style): when enabled, past facts are injected and a `remember` tool is offered. When off, neither.
+  const mem = inp.user ? await getMemory(inp.user).catch(() => null) : null;
+  const memoryOn = !!(mem && mem.enabled && inp.user);
   try {
     const notes: string[] = [];
     const env = { serverUrl: inp.serverUrl, appUrl: inp.appUrl, keyId: inp.keyId, user: inp.user, signal: inp.signal, allowScheduling: !inp.scheduled };
@@ -314,7 +319,22 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
     const mcp = inp.connectors?.length ? await loadMcpTools(inp.connectors, clients, notes) : [];
     let tools: ToolDef[] = [];
     const seen = new Set<string>();
-    for (const t of [...coding, ...buildSkillTools(), ...builtin, ...mcp]) {
+    const memoryTools: ToolDef[] = memoryOn
+      ? [
+          {
+            name: "remember",
+            label: "Remember",
+            description:
+              "Save a durable fact to long-term memory (the user's name/role, preferences, recurring project context, decisions). Use it on your own whenever you learn something worth recalling in future chats — one concise fact per call. Do not save secrets, passwords or one-off trivia.",
+            parameters: { type: "object", properties: { fact: { type: "string", description: "one concise fact to remember" } }, required: ["fact"] },
+            run: async (a: any) => {
+              const it = await addMemory(inp.user!, String(a?.fact || ""));
+              return { output: it ? `Saved to memory: ${it.text}` : "Nothing saved (empty or already known)." };
+            },
+          },
+        ]
+      : [];
+    for (const t of [...coding, ...buildSkillTools(), ...memoryTools, ...builtin, ...mcp]) {
       if (seen.has(t.name)) {
         notes.push(`Duplicate tool name skipped: ${t.name}`);
         continue;
@@ -329,11 +349,28 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
     for (const n of notes) out(`> ${n}\n\n`);
     const byName = new Map(tools.map((t) => [t.name, t]));
 
-    // Concise, Claude-like style — keeps replies (and output tokens) short. Part of the cached system prefix.
-    const STYLE =
-      "Response style: be direct and concise, like a senior engineer. Lead with the answer — no preamble, no filler, do not restate the question, no wrap-up summary unless asked. Use the fewest words that fully answer; prefer a short reply or a tight list over prose. Expand only when the user asks or the task genuinely needs detail.";
+    // Adaptive, Claude-like operating guide (style + artifacts). Part of the cached system prefix.
+    const GUIDE = [
+      "## How you work",
+      "Be adaptive — match the depth, format and tone to the request. A quick question gets a short answer; a real task gets real work. Default to concise: lead with the answer, no preamble, no filler, no restating the question, no wrap-up summary unless asked. Use the fewest words that fully answer, and prefer a tight reply or list over prose. Expand only when the user asks or the task truly needs it.",
+      "",
+      "## Code and artifacts",
+      "An artifact is a real file on the computer shown in a side panel next to the chat: the panel previews or runs the file, lets the user edit it, and always downloads the latest version from disk. You create one by writing the file to disk and then calling `present_files` with its absolute path — the panel opens it automatically, and the user can close it. When you change a file you already presented, write the change and call `present_files` again; the panel refreshes to the newest version.",
+      "ALWAYS deliver code as an artifact, Claude-style: for any file, script, component, config, HTML/page, full function, or any code longer than about 5 lines — or anything the user will keep, run or edit — write it to a real file (under your working folder) and present it with `present_files`. Do NOT paste substantial code into the chat.",
+      "Use a short inline code block ONLY for a tiny snippet (≤5 lines), a command to run, or when you are explaining or illustrating a point rather than delivering a file.",
+    ].join("\n");
+    // Memory: inject what we already know and tell the model to keep it current with `remember`.
+    let memBlock = "";
+    if (memoryOn) {
+      const items = mem!.items.slice(-60);
+      memBlock =
+        "\n\n## Memory\n" +
+        "These are durable facts you saved about this user/project. Use them naturally; do not repeat them back unprompted. " +
+        "When you learn a new durable fact (a preference, their name/role, recurring context, a decision), call `remember` on your own to save it.\n" +
+        (items.length ? items.map((m) => `- ${m.text}`).join("\n") : "(empty so far)");
+    }
     const base = applyPromptVars(inp.system || "");
-    let system = withSkillsCatalog((base ? base + "\n\n" : "") + STYLE); // skills: categories + names (full text is loaded on demand)
+    let system = withSkillsCatalog((base ? base + "\n\n" : "") + GUIDE + memBlock); // skills: categories + names (full text is loaded on demand)
     // "/skill-name ..." in the last user message loads that skill up-front (like a slash command)
     const lastUser = [...(inp.messages || [])].reverse().find((m) => m.role === "user");
     const slash = lastUser && /^\s*\/([A-Za-z0-9][\w./-]*)\s*([\s\S]*)$/.exec(String(lastUser.content || ""));

@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BarChart3, CalendarClock, KeyRound, Plug, Sparkles, SlidersHorizontal, X } from "lucide-react";
+import { BarChart3, Brain, CalendarClock, KeyRound, Plug, Sparkles, SlidersHorizontal, X } from "lucide-react";
 import KeysManager from "./KeysManager";
 import ConnectorsPanel from "./ConnectorsPanel";
 import TasksPanel from "./TasksPanel";
 import UsagePanel from "./UsagePanel";
 import SkillsPanel from "./SkillsPanel";
+import MemoryPanel from "./MemoryPanel";
 import { AppSettings, loadSettings, saveSettings, DEFAULT_SETTINGS, SYSTEM_PROMPT_PRESETS } from "@/lib/settings";
 import { Field, Row, SectionHead, Segmented, Switch, ui } from "./ui";
 
@@ -15,7 +16,7 @@ interface Props {
   onClose: () => void;
 }
 
-type SettingsTab = "keys" | "connectors" | "tasks" | "usage" | "skills" | "general";
+type SettingsTab = "keys" | "connectors" | "tasks" | "usage" | "skills" | "memory" | "general";
 
 const TABS: { id: SettingsTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "keys", label: "API keys", icon: KeyRound },
@@ -23,6 +24,7 @@ const TABS: { id: SettingsTab; label: string; icon: React.ComponentType<{ classN
   { id: "tasks", label: "Tasks", icon: CalendarClock },
   { id: "usage", label: "Usage", icon: BarChart3 },
   { id: "skills", label: "Skills", icon: Sparkles },
+  { id: "memory", label: "Memory", icon: Brain },
   { id: "general", label: "General", icon: SlidersHorizontal },
 ];
 
@@ -116,6 +118,7 @@ export default function SettingsModal({ open, onClose }: Props) {
             {activeTab === "tasks" && <TasksPanel />}
             {activeTab === "usage" && <UsagePanel />}
             {activeTab === "skills" && <SkillsPanel />}
+            {activeTab === "memory" && <MemoryPanel />}
             {activeTab === "keys" && <KeysManager />}
 
             {activeTab === "general" && (

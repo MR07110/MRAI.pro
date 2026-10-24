@@ -98,6 +98,22 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
     putUi({ openFile: { chatId: cid, file: f ? { name: f.name, path: f.path, size: f.size } : null } });
   }
 
+  // Auto-open the artifact when the agent presents a file (Claude-style). Opens each newly presented file once;
+  // if the user then closes it, it stays closed (only a different, newer file opens the panel again).
+  const autoOpenedRef = useRef("");
+  useEffect(() => {
+    const lastA = [...messages].reverse().find((m) => m.role === "assistant");
+    if (!lastA) return;
+    const m = [...String(lastA.content).matchAll(/@file\t\d+\t(\/[^\n\t]+)/g)];
+    if (!m.length) return;
+    const p = m[m.length - 1][1];
+    if (p && p !== autoOpenedRef.current) {
+      autoOpenedRef.current = p;
+      changeOpenFile({ path: p, name: p.split("/").pop() || p, size: 0 });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
+
   // On switching chats: that chat's open file and draft text are restored from the server
   useEffect(() => {
     if (!uiReady) return;
