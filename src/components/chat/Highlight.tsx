@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useRef, useState } from "react";
 import hljs from "highlight.js/lib/common";
 
 // Map the language tags we see (from markdown fences, file extensions) to highlight.js language names.
@@ -38,7 +38,25 @@ export function highlightToHtml(code: string, language?: string): string {
 }
 
 // Syntax-highlighted code. The caller supplies the <pre> wrapper and its sizing/scroll.
+// While the code is changing fast (streaming), it shows plain (escaped) text — cheap — and colorizes
+// ~90ms after it settles, so a growing code block does not get re-tokenized on every frame.
 export default function Highlight({ code, language, className = "" }: { code: string; language?: string; className?: string }) {
-  const html = useMemo(() => highlightToHtml(code, language), [code, language]);
-  return <code className={`hljs ${className}`} dangerouslySetInnerHTML={{ __html: html }} />;
+  const [html, setHtml] = useState(() => highlightToHtml(code, language));
+  const [settled, setSettled] = useState(true);
+  const first = useRef(true);
+
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return; // initial value already highlighted
+    }
+    setSettled(false);
+    const id = setTimeout(() => {
+      setHtml(highlightToHtml(code, language));
+      setSettled(true);
+    }, 90);
+    return () => clearTimeout(id);
+  }, [code, language]);
+
+  return <code className={`hljs ${className}`} dangerouslySetInnerHTML={{ __html: settled ? html : escapeHtml(code) }} />;
 }

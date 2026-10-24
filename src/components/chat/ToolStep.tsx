@@ -63,7 +63,11 @@ const ToolRow = memo(function ToolRow({ t }: { t: ToolSeg }) {
  )}
  </div>
  );
-});
+}, (a, b) =>
+ // Parsing creates fresh objects every streamed token; skip re-render unless this row's content actually
+ // changed, so a completed tool list is not redrawn on every token (only the running row updates).
+ a.t.name === b.t.name && a.t.status === b.t.status && a.t.secs === b.t.secs && a.t.head === b.t.head && a.t.output === b.t.output
+);
 
 export function ToolGroup({ items }: { items: ToolSeg[] }) {
  const { text, live } = groupLabel(items);
