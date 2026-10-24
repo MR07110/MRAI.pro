@@ -72,3 +72,10 @@
 ---
 ### 2026-10-24 03:21
 - Qilindi: ToolStep list — stream (LS/Bash ishlayapti) paytida ham list ochiq qoladi (default open=true, userClosed alohida). Message.tsx ToolGroup key barqarorlashtirildi.
+
+## Skills (2026-10-24)
+- Skills endi repoda YO'Q va GitHub'ga chiqmaydi: faqat lokal `~/MR/mrai/skills` (haqiqiy papka, symlink emas).
+- Tuzilma: `skills/<kategoriya>/<skill>/SKILL.md` (19 kategoriya, 388 skill) + `INDEX.md` (tavsiflar) + `_meta/sources.tsv` (manba).
+- Loader: `src/lib/skills.ts` (kategoriyali + eski yassi tuzilma, 15s kesh). Prompt'da faqat kategoriya -> nomlar, tavsiflar INDEX.md da.
+- Manba: ~/Downloads (skills-harvest, plugins, skills-main) dan sifat/umumiylik filtri bilan saralangan (generator: ~/Claude/work/skill-curate/build.py).
+- Vercel'da skills bo'lmaydi (ataylab) — ro'yxat bo'sh qaytadi.

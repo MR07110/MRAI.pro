@@ -12,6 +12,7 @@ export async function GET() {
     python: SKILLS_PYTHON,
     skills: skills.map((s) => ({
       name: s.name,
+      category: s.category,
       description: s.description,
       dir: s.dir,
       skillMd: s.skillMd,

@@ -31,6 +31,8 @@ export interface SkillMeta {
   description: string;
   dir: string;
   skillMd: string;
+  /** Kategoriya papkasi nomi (bo'sh = ildizdagi kategoriyasiz skill). */
+  category: string;
 }
 
 function parseFrontmatter(raw: string): { name?: string; description?: string } {
@@ -54,52 +56,87 @@ function parseFrontmatter(raw: string): { name?: string; description?: string } 
   return { name: out.name, description: out.description };
 }
 
-/** Diskdagi skills/ papkasini o'qiydi. Faqat SKILL.md bor papkalar. */
+function readHead(p: string, n = 8192): string {
+  const fd = fs.openSync(p, "r");
+  try {
+    const buf = Buffer.alloc(n);
+    const len = fs.readSync(fd, buf, 0, n, 0);
+    return buf.toString("utf8", 0, len);
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+function readSkill(dir: string, category: string, fallbackName: string): SkillMeta | null {
+  const skillMd = path.join(dir, "SKILL.md");
+  if (!fs.existsSync(skillMd)) return null;
+  const fm = parseFrontmatter(readHead(skillMd));
+  const name = (fm.name || fallbackName).trim();
+  const description = (fm.description || "").trim() || `Skill: ${name}`;
+  return { name, description, dir, skillMd, category };
+}
+
+const hidden = (n: string) => n.startsWith("_") || n.startsWith(".");
+let _cache: { at: number; list: SkillMeta[] } | null = null;
+
+/**
+ * Diskdagi skills ildizini o'qiydi. Tuzilma: <ildiz>/<kategoriya>/<skill>/SKILL.md
+ * (eski yassi <ildiz>/<skill>/SKILL.md ham ishlaydi). 15 soniya keshlanadi.
+ */
 export function listSkills(): SkillMeta[] {
+  if (_cache && Date.now() - _cache.at < 15000) return _cache.list;
   try {
     if (!fs.existsSync(SKILLS_DIR)) return [];
-    const entries = fs.readdirSync(SKILLS_DIR, { withFileTypes: true });
     const out: SkillMeta[] = [];
-    for (const e of entries) {
-      if (!e.isDirectory()) continue;
+    for (const e of fs.readdirSync(SKILLS_DIR, { withFileTypes: true })) {
+      if (!e.isDirectory() || hidden(e.name)) continue;
       const dir = path.join(SKILLS_DIR, e.name);
-      const skillMd = path.join(dir, "SKILL.md");
-      if (!fs.existsSync(skillMd)) continue;
-      const raw = fs.readFileSync(skillMd, "utf8");
-      const fm = parseFrontmatter(raw);
-      const name = (fm.name || e.name).trim();
-      const description = (fm.description || "").trim() || `Skill: ${name}`;
-      out.push({ name, description, dir, skillMd });
+      const flat = readSkill(dir, "", e.name);
+      if (flat) {
+        out.push(flat);
+        continue;
+      }
+      for (const c of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (!c.isDirectory() || hidden(c.name)) continue;
+        const m = readSkill(path.join(dir, c.name), e.name, c.name);
+        if (m) out.push(m);
+      }
     }
-    out.sort((a, b) => a.name.localeCompare(b.name));
+    out.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+    _cache = { at: Date.now(), list: out };
     return out;
   } catch {
     return [];
   }
 }
 
-/** System promptga qo'shiladigan qisqa katalog (to'liq SKILL.md emas). */
+/** System promptga qo'shiladigan ixcham katalog: kategoriya -> skill nomlari (tavsiflar INDEX.md da). */
 export function buildSkillsPromptSection(skills?: SkillMeta[]): string {
   const list = skills ?? listSkills();
   if (list.length === 0) return "";
+  const cats = new Map<string, string[]>();
+  for (const s of list) {
+    const c = s.category || "(kategoriyasiz)";
+    if (!cats.has(c)) cats.set(c, []);
+    cats.get(c)!.push(s.name);
+  }
   const lines = [
     "SKILLS (ixtiyoriy qobiliyatlar)",
-    "Maxsus ish (Word, Excel, PDF, PowerPoint, UI dizayn, MCP, test, skill yozish) uchun avval tegishli skillning SKILL.md faylini Read bilan o'qing, keyin undagi ko'rsatmalarga amal qiling. Skriptlar skill papkasiga nisbatan — ishga tushirishdan oldin cd qiling yoki absolyut yo'l bering.",
+    "Maxsus ish (Word, Excel, PDF, PowerPoint, UI dizayn, MCP, test, debug, SEO, tadqiqot va h.k.) uchun avval mos skillni toping, uning SKILL.md faylini Read bilan o'qing va ko'rsatmalarga amal qiling. Skriptlar skill papkasiga nisbatan — ishga tushirishdan oldin cd qiling yoki absolyut yo'l bering.",
     `Skills ildiz: ${SKILLS_DIR}`,
+    `SKILL.md yo'li: ${SKILLS_DIR}/<kategoriya>/<skill>/SKILL.md`,
+    `Tavsiflar: ${SKILLS_DIR}/INDEX.md — kalit so'z bilan Grep qiling (masalan: grep -i pdf INDEX.md), so'ng tegishli SKILL.md ni Read qiling.`,
     `Hujjat skriptlari uchun Python: ${SKILLS_PYTHON}`,
     `Chiqish papkasi: /home/muhamad/MR/mrai/workspace/outputs`,
     "",
-    "Mavjud skilllar:",
+    `Kategoriyalar va skill nomlari (${list.length} ta):`,
   ];
-  for (const s of list) {
-    // description uzun bo'lsa qisqartirish — 120B routing chalkashmasin
-    const desc = s.description.length > 220 ? s.description.slice(0, 217) + "…" : s.description;
-    lines.push(`- ${s.name}: ${desc}`);
-    lines.push(`  path: ${s.skillMd}`);
+  for (const [c, names] of [...cats.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    lines.push(`- ${c}: ${names.join(", ")}`);
   }
   lines.push("");
   lines.push(
-    "Foydalanuvchi ‘/skill-name’ yoki ‘X skillini o\'qi’ desa, path dagi SKILL.md ni Read qiling. Oddiy suhbatda skill chaqirmang."
+    "Foydalanuvchi ‘/skill-name’ yoki ‘X skillini o\'qi’ desa, shu skillning SKILL.md ini Read qiling. Oddiy suhbatda skill chaqirmang."
   );
   return lines.join("\n");
 }
