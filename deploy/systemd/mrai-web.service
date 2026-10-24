@@ -1,18 +1,20 @@
 [Unit]
-Description=MR AI web (Next.js) - kompyuterda ishlaydi
+Description=MR AI web (Next.js) — runs on this computer
 After=network.target mrai.service
 
 [Service]
 Type=simple
-WorkingDirectory=/home/muhamad/Claude/work/mrai-next
-EnvironmentFile=/home/muhamad/Claude/work/mrai-next/.env.local
+WorkingDirectory=/home/muhamad/Claude/work/MRAI
+EnvironmentFile=-/home/muhamad/Claude/work/MRAI/.env.local
 Environment=NODE_ENV=production
-Environment=MRAI_SERVER_URL=http://localhost:8080
+Environment=MRAI_SERVER_URL=http://127.0.0.1:8080
+Environment=MRAI_STATE_DIR=/home/muhamad/.mrai/state
+ExecStartPre=/bin/bash -c 'for i in $(seq 1 30); do curl -sf -m 1 http://127.0.0.1:8080/health >/dev/null && exit 0; sleep 1; done; echo "python health timeout" >&2; exit 1'
 ExecStart=/usr/bin/node node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3000
 Restart=always
 RestartSec=5
-StandardOutput=append:/home/muhamad/MR/mrai/web.log
-StandardError=append:/home/muhamad/MR/mrai/web.log
+StandardOutput=append:/home/muhamad/.mrai/logs/web.log
+StandardError=append:/home/muhamad/.mrai/logs/web.log
 
 [Install]
 WantedBy=default.target

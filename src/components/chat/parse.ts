@@ -70,7 +70,7 @@ function parseFiles(output: string): FileSeg[] {
   return res;
 }
 
-/** Model ba'zan present_files ni tool o'rniga matn qilib yozadi — shuni kartochkaga aylantiramiz. */
+/** The model sometimes writes present_files as text instead of a tool — turn that into a card. */
 const FAKE_PRESENT_RE =
   /(?:<\|)?\s*present_files\s*\|?\s*(?:\(\s*)?(\{[\s\S]*?\})\s*(?:\)\s*)?(?:\|>|>)?/gi;
 const AT_FILE_LINE_RE = /^@file\t(\d+)\t(\/[^\n]+)$/gm;
@@ -90,7 +90,7 @@ function extractInlineFiles(text: string): { clean: string; files: FileSeg[] } {
     return "";
   });
 
-  // 2) <|present_files|{"paths":[...]}> yoki present_files({...})
+  // 2) <|present_files|{"paths":[...]}> or present_files({...})
   clean = clean.replace(FAKE_PRESENT_RE, (_m, jsonStr: string) => {
     try {
       const j = JSON.parse(jsonStr);
@@ -110,13 +110,13 @@ function extractInlineFiles(text: string): { clean: string; files: FileSeg[] } {
 
   // leftover <|  |>  |>
   clean = clean.replace(/^[ \t]*[<|/>]{1,6}[ \t]*$/gm, "");
-  // model yozgan "Yuklab olish: quyidagi karta..." — kartochka bor, kerak emas
+  // the model's "Download: the card below..." line — the card exists, so it is not needed
   if (files.length) {
     clean = clean.replace(/^[ \t]*[📦🗂]?[ \t]*Yuklab olish:[^\n]*$/gmi, "");
   }
 
-  // 3) ` /abs/path/file.ext ` yoki ( /abs/path ) — faqat aniq fayl yo'li ko'rinishida
-  // juda agressiv bo'lmasin: faqat present_files / yuklab kontekstida emas, umumiy yo'llarni qoldiramiz
+  // 3) ` /abs/path/file.ext ` or ( /abs/path ) — only when it clearly looks like a file path
+  // do not be too aggressive: keep general paths, not only those in a present_files / download context
 
   clean = clean.replace(/\n{3,}/g, "\n\n").trim();
   return { clean, files };
@@ -148,7 +148,7 @@ export function splitAgent(content: string, live: boolean): Seg[] {
         out.push({ type: "tool", name: m[1], head: "", status: live ? "running" : "stopped", output: "" });
       } else {
         const f = parseFence(m[2]);
-        // present_files / Share file: muvaffaqiyatli bo'lsa asbob qadami o'rniga kartochkalar
+        // present_files / Share file: on success, show cards instead of the tool step
         const fromTool = isFileTool(m[1]) && f.status === "ok" ? parseFiles(f.output) : [];
         if (fromTool.length) out.push(...fromTool);
         else out.push({ type: "tool", name: m[1], head: f.head, status: f.status, secs: f.secs, output: f.output });
@@ -162,4 +162,29 @@ export function splitAgent(content: string, live: boolean): Seg[] {
     }
   }
   return out;
+}
+
+// For a user message: pull out `@file\t<size>\t/abs/path` lines (attachments) so they render as file cards,
+// leaving the typed text behind. Attachments the user uploaded travel in the message content this way, which
+// also lets the agent see the absolute paths and read the files.
+export function pullInlineFiles(content: string): { text: string; files: FileSeg[] } {
+  const files: FileSeg[] = [];
+  const seen = new Set<string>();
+  const text = content
+    .replace(/^@file\t(\d+)\t(\/[^\n]+)$/gm, (_m, size: string, path: string) => {
+      const f = fileSeg(path, Number(size) || 0);
+      if (f && !seen.has(f.path)) {
+        seen.add(f.path);
+        files.push(f);
+      }
+      return "";
+    })
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return { text, files };
+}
+
+// Build the `@file` lines appended to a user message for the given attachments.
+export function fileLines(files: { path: string; size?: number }[]): string {
+  return files.map((f) => `@file\t${f.size || 0}\t${f.path}`).join("\n");
 }

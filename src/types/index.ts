@@ -71,7 +71,7 @@ export interface ScheduledTask {
   app_url?: string;
   server_url?: string;
   key_id?: string;
-  /** jadvalli AI vazifa ishlatadigan tizim ko'rsatmasi */
+  /** system prompt used by a scheduled AI task */
   system?: string;
   created_at?: string;
 }

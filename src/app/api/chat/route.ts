@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sessionUserFromRequest } from "@/lib/session";
 import { recordUsage, estTok } from "@/lib/usage";
 
-// stream_options.include_usage ni qabul qilishi ishonchli ma'lum provayderlar (boshqalarda noma'lum maydon xato berishi mumkin)
+// providers known to reliably accept stream_options.include_usage (others may error on the unknown field)
 const USAGE_STREAM_PROVIDERS = new Set(["openai", "groq", "openrouter", "deepseek", "xai", "together"]);
 
 export const runtime = "nodejs";
@@ -26,14 +26,14 @@ export async function POST(req: NextRequest) {
 
     if (!apiKey || typeof apiKey !== "string" || !apiKey.trim()) {
       return NextResponse.json(
-        { error: "API kalit kiritilmagan. Iltimos, Sozlamalar bo‘limidan kalit qo‘shing." },
+        { error: "No API key entered. Please add one in Settings." },
         { status: 400 }
       );
     }
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json(
-        { error: "Xabarlar ro‘yxati bo‘sh bo‘lishi mumkin emas." },
+        { error: "The message list cannot be empty." },
         { status: 400 }
       );
     }
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
         estimated,
       });
     const finalMaxTokens = Math.min(Math.max(1, Number(maxTokens) || 4096), 8192);
-    const cleanSystem = applyPromptVars(typeof systemPrompt === "string" ? systemPrompt : ""); // yashirin zaxira matn yo'q
+    const cleanSystem = applyPromptVars(typeof systemPrompt === "string" ? systemPrompt : ""); // no hidden fallback text
 
     // 1. ANTHROPIC CLAUDE NATIVE API
     if (provider === "anthropic") {
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
 
     if (!res.ok) {
       const errText = await res.text();
-      let errorMsg = `Xatolik: HTTP ${res.status}`;
+      let errorMsg = `Error: HTTP ${res.status}`;
       try {
         const parsed = JSON.parse(errText);
         errorMsg =
@@ -158,12 +158,12 @@ export async function POST(req: NextRequest) {
 
       if (res.status === 401) {
         errorMsg =
-          "API kalit xatosi: Kiritilgan kalit yaroqsiz yoki muddati tugagan (401 Invalid API Key). Iltimos, Sozlamalar bo‘limidan yangi kalit kiriting.";
+          "API key error: the key is invalid or expired (401 Invalid API Key). Please enter a new key in Settings.";
       } else if (res.status === 404) {
-        errorMsg = `Model (${cleanModel}) provayderda topilmadi (404). Iltimos, Sozlamalardan faol modelni tanlang.`;
+        errorMsg = `Model (${cleanModel}) was not found at the provider (404). Please choose an active model in Settings.`;
       } else if (res.status === 429) {
         errorMsg =
-          "Provayder so‘rovlar limiti yoki balans tugagan (429 Rate limit / Quota exceeded). Biroz kuting yoki boshqa model/kalit tanlang.";
+          "The provider's rate limit or balance is exhausted (429 Rate limit / Quota exceeded). Wait a moment or choose another model/key.";
       }
 
       return NextResponse.json({ error: errorMsg }, { status: res.status });
@@ -316,7 +316,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (err: any) {
     return NextResponse.json(
-      { error: err.message || "Server ichki xatoligi" },
+      { error: err.message || "Internal server error" },
       { status: 500 }
     );
   }
@@ -358,14 +358,14 @@ async function handleAnthropic(params: {
 
   if (!res.ok) {
     const errText = await res.text();
-    let message = `Anthropic xatosi (${res.status})`;
+    let message = `Anthropic error (${res.status})`;
     try {
       const parsed = JSON.parse(errText);
       message = parsed?.error?.message || message;
     } catch {}
 
     if (res.status === 401) {
-      message = "Anthropic API kaliti noto‘g‘ri yoki yaroqsiz (401 Unauthorized).";
+      message = "The Anthropic API key is wrong or invalid (401 Unauthorized).";
     }
 
     return NextResponse.json({ error: message }, { status: res.status });

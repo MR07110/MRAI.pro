@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
 
     if (!apiKey || typeof apiKey !== "string" || !apiKey.trim()) {
       return NextResponse.json(
-        { valid: false, error: "API kalit kiritilmadi" },
+        { valid: false, error: "No API key entered" },
         { status: 400 }
       );
     }
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     const key = apiKey.trim();
     const cleanModel = (model || "").trim();
 
-    // 1. Anthropic uchun maxsus tekshiruv
+    // 1. Special check for Anthropic
     if (provider === "anthropic") {
       try {
         const mres = await fetch("https://api.anthropic.com/v1/models?limit=100", {
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
         if (mres.status === 401) {
           return NextResponse.json({
             valid: false,
-            error: "Anthropic API kaliti noto‘g‘ri (401 Unauthorized)",
+            error: "The Anthropic API key is wrong (401 Unauthorized)",
           });
         }
       } catch {
@@ -55,26 +55,26 @@ export async function POST(req: NextRequest) {
         }
 
         const errText = await res.text();
-        let message = `Anthropic xatosi (${res.status})`;
+        let message = `Anthropic error (${res.status})`;
         try {
           const parsed = JSON.parse(errText);
           if (parsed?.error?.message) message = parsed.error.message;
         } catch {}
 
         if (res.status === 401) {
-          message = "Anthropic API kaliti noto‘g‘ri (401 Unauthorized)";
+          message = "The Anthropic API key is wrong (401 Unauthorized)";
         }
 
         return NextResponse.json({ valid: false, error: message });
       } catch (err: any) {
         return NextResponse.json({
           valid: false,
-          error: `Anthropic serveriga ulanib bo‘lmadi: ${err.message}`,
+          error: `Could not connect to Anthropic: ${err.message}`,
         });
       }
     }
 
-    // 2. Barcha OpenAI-mos provayderlar
+    // 2. All OpenAI-compatible providers
     let targetBase = baseUrl ? baseUrl.trim().replace(/\/+$/, "") : "";
     if (!targetBase) {
       targetBase = getDefaultUrl(provider);
@@ -89,8 +89,8 @@ export async function POST(req: NextRequest) {
       headers["X-Title"] = "MR AI Pro";
     }
 
-    // Qadam 1: Avval /models orqali kalitning o'zini tekshirish
-    // Bu usul model eskirib qolgan bo'lsa ham kalit to'g'riligini 100% aniqlaydi va faol modellarni qaytaradi
+    // Step 1: First verify the key itself via /models
+    // This reliably confirms the key is valid even if a model is outdated, and returns the active models
     const modelsEndpoint = targetBase.endsWith("/models")
       ? targetBase
       : `${targetBase}/models`;
@@ -120,25 +120,25 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
           valid: true,
           models: fetchedModels.length > 0 ? fetchedModels : undefined,
-          message: "API kalit muvaffaqiyatli tasdiqlandi!",
+          message: "API key verified successfully!",
         });
       }
 
       if (modelsRes.status === 401) {
         return NextResponse.json({
           valid: false,
-          error: "API kalit noto‘g‘ri yoki yaroqsiz (401 Invalid API Key). Kalitni qayta tekshirib nusxalang.",
+          error: "The API key is wrong or invalid (401 Invalid API Key). Check it and copy it again.",
         });
       }
 
       if (modelsRes.status === 403) {
         return NextResponse.json({
           valid: false,
-          error: "Ushbu API kalitga ruxsat yo‘q (403 Forbidden).",
+          error: "This API key is not allowed (403 Forbidden).",
         });
       }
     } catch {
-      // /models ishlamasa yoki timeout bo'lsa chat/completions orqali davom etamiz
+      // if /models fails or times out, fall back to chat/completions
     }
 
     // Qadam 2: /chat/completions orqali test qilish
@@ -184,7 +184,7 @@ export async function POST(req: NextRequest) {
       }
 
       const errText = await res.text();
-      let errorMsg = `Xatolik: HTTP ${res.status}`;
+      let errorMsg = `Error: HTTP ${res.status}`;
       try {
         const parsed = JSON.parse(errText);
         errorMsg =
@@ -195,16 +195,16 @@ export async function POST(req: NextRequest) {
       } catch {}
 
       if (res.status === 401) {
-        errorMsg = "API kalit noto‘g‘ri yoki yaroqsiz (401 Invalid API Key). Kalitni tekshiring.";
+        errorMsg = "The API key is wrong or invalid (401 Invalid API Key). Check the key.";
       } else if (res.status === 403) {
-        errorMsg = "Ushbu API kalitga ruxsat yo‘q (403 Forbidden).";
+        errorMsg = "This API key is not allowed (403 Forbidden).";
       } else if (res.status === 404) {
-        errorMsg = `Model (${cleanModel}) provayderda mavjud emas yoki eskirgan (404). Boshqa modelni tanlang.`;
+        errorMsg = `Model (${cleanModel}) does not exist at the provider or is outdated (404). Choose another model.`;
       } else if (res.status === 429) {
         if (errorMsg.toLowerCase().includes("quota") || errorMsg.toLowerCase().includes("credit")) {
-          errorMsg = "Hisobingizda mablag‘ yoki bepul limit tugagan (Quota exceeded).";
+          errorMsg = "Your account balance or free quota is used up (Quota exceeded).";
         } else {
-          errorMsg = "Juda ko‘p so‘rov yuborildi (429 Rate limit). Biroz kuting.";
+          errorMsg = "Too many requests were sent (429 Rate limit). Wait a moment.";
         }
       }
 
@@ -219,12 +219,12 @@ export async function POST(req: NextRequest) {
       }
       return NextResponse.json({
         valid: false,
-        error: `Ulanishda xatolik: ${err.message}`,
+        error: `Connection error: ${err.message}`,
       });
     }
   } catch (err: any) {
     return NextResponse.json(
-      { valid: false, error: err.message || "Server xatosi" },
+      { valid: false, error: err.message || "Server error" },
       { status: 500 }
     );
   }

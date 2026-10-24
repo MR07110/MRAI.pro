@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# MR AI boshqaruvi:  mrai start | stop | restart | status | logs
+# MR AI control:  mrai start | stop | restart | status | logs
 #
-# Servislar kompyuter yoqilganda O'ZLARI ishga tushadi (systemd --user + linger), shuning uchun
-# `mrai start` odatda kerak emas: u faqat `mrai stop` dan keyin qayta yoqish uchun.
-# `mrai stop` vaqtincha: kompyuter qayta yoqilganda hammasi yana o'zi ishga tushadi.
+# The services start on their own when the computer boots (systemd --user + linger), so `mrai start`
+# is usually not needed: it is only to turn them back on after `mrai stop`.
+# `mrai stop` is temporary: everything comes back by itself after a reboot.
 set -u
 
-UNITS=(mrai.service mrai-web.service mrai-edge.service)   # tartib: python server -> web -> edge
-LOG_DIR="$HOME/MR/mrai"
+UNITS=(mrai.service mrai-web.service mrai-edge.service)   # order: python server -> web -> edge
+LOG_DIR="$HOME/.mrai/logs"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=$XDG_RUNTIME_DIR/bus}"
 
@@ -19,19 +19,19 @@ show_status() {
   for u in "${UNITS[@]}"; do
     s="$(state "$u")"
     if [ "$s" = "active" ]; then mark="●"; else mark="○"; fi
-    printf '  %s %-22s %s\n' "$mark" "$(label "$u")" "${s:-nomalum}"
+    printf '  %s %-22s %s\n' "$mark" "$(label "$u")" "${s:-unknown}"
   done
   h8="$(curl -s -m 3 -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/health 2>/dev/null)"
   h3="$(curl -s -m 3 -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/login 2>/dev/null)"
-  printf '  health: python=%s  web=%s\n' "${h8:-yoq}" "${h3:-yoq}"
+  printf '  health: python=%s  web=%s\n' "${h8:-down}" "${h3:-down}"
 }
 
 cmd_start() {
   for u in "${UNITS[@]}"; do
     if [ "$(state "$u")" = "active" ]; then
-      echo "  ✓ $(label "$u") allaqachon ishlayapti"
+      echo "  ✓ $(label "$u") already running"
     else
-      sc start "$u" && echo "  ▶ $(label "$u") yoqildi" || echo "  ✗ $(label "$u") yoqilmadi"
+      sc start "$u" && echo "  ▶ $(label "$u") started" || echo "  ✗ $(label "$u") failed to start"
     fi
   done
   sleep 2
@@ -41,9 +41,9 @@ cmd_start() {
 cmd_stop() {
   for ((i=${#UNITS[@]}-1; i>=0; i--)); do
     u="${UNITS[$i]}"
-    sc stop "$u" && echo "  ■ $(label "$u") to'xtatildi" || echo "  ✗ $(label "$u") to'xtamadi"
+    sc stop "$u" && echo "  ■ $(label "$u") stopped" || echo "  ✗ $(label "$u") did not stop"
   done
-  echo "To'xtatildi. Kompyuter qayta yoqilganda yana o'zi ishga tushadi; hozir yoqish: mrai start"
+  echo "Stopped. It starts again by itself after a reboot; to start now: mrai start"
 }
 
 case "${1:-status}" in
@@ -51,6 +51,6 @@ case "${1:-status}" in
   stop)    cmd_stop ;;
   restart) cmd_stop; echo; cmd_start ;;
   status)  show_status ;;
-  logs)    tail -n 40 -f "$LOG_DIR/systemd.log" "$LOG_DIR/web.log" "$LOG_DIR/edge.log" ;;
-  *)       echo "Ishlatilishi: mrai start | stop | restart | status | logs"; exit 1 ;;
+  logs)    tail -n 40 -f "$LOG_DIR/server.log" "$LOG_DIR/web.log" "$LOG_DIR/edge.log" ;;
+  *)       echo "Usage: mrai start | stop | restart | status | logs"; exit 1 ;;
 esac

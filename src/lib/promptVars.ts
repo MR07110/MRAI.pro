@@ -1,5 +1,5 @@
-// Promptdagi {{vaqt}} belgisi so'rov yuborilayotganda joriy mahalliy vaqt bilan almashtiriladi.
-// Boshqa hech narsa promptga yashirin qo'shilmaydi: AI ga nima aytilsa, faqat Sozlamalardagi "Tizim ko'rsatmasi" matni yuboriladi.
+// {{time}} in a prompt is replaced with the current local time when a request is sent ({{vaqt}} is accepted for old saved prompts).
+// Nothing else is added to the prompt in secret: the AI receives only the "System prompt" text from Settings.
 export function promptTime(): string {
   const tz = process.env.MRAI_TZ || "Asia/Tashkent";
   try {
@@ -11,5 +11,5 @@ export function promptTime(): string {
 
 export function applyPromptVars(prompt: string): string {
   if (!prompt) return "";
-  return prompt.replace(/\{\{\s*vaqt\s*\}\}/gi, promptTime());
+  return prompt.replace(/\{\{\s*(?:time|vaqt)\s*\}\}/gi, promptTime());
 }

@@ -1,10 +1,11 @@
 import fs from "fs";
+import os from "os";
 import path from "path";
 
 function resolveSkillsDir(): string {
   if (process.env.MRAI_SKILLS_DIR) return process.env.MRAI_SKILLS_DIR;
   const candidates = [
-    "/home/muhamad/MR/mrai/skills",
+    path.join(os.homedir(), "MR", "mrai", "skills"),
     path.join(process.cwd(), "skills"),
     path.join(process.cwd(), "..", "skills"),
   ];
@@ -22,8 +23,8 @@ export const SKILLS_DIR = resolveSkillsDir();
 /** Python venv with document packages (openpyxl, pdfplumber, …). */
 export const SKILLS_PYTHON =
   process.env.MRAI_SKILLS_PYTHON ||
-  (fs.existsSync("/home/muhamad/MR/mrai/.venv-skills/bin/python")
-    ? "/home/muhamad/MR/mrai/.venv-skills/bin/python"
+  (fs.existsSync(path.join(os.homedir(), "MR", "mrai", ".venv-skills", "bin", "python"))
+    ? path.join(os.homedir(), "MR", "mrai", ".venv-skills", "bin", "python")
     : "python3");
 
 export interface SkillMeta {
@@ -31,7 +32,7 @@ export interface SkillMeta {
   description: string;
   dir: string;
   skillMd: string;
-  /** Kategoriya papkasi nomi (bo'sh = ildizdagi kategoriyasiz skill). */
+  /** Category folder name (empty = uncategorised skill at the root). */
   category: string;
 }
 
@@ -80,8 +81,8 @@ const hidden = (n: string) => n.startsWith("_") || n.startsWith(".");
 let _cache: { at: number; list: SkillMeta[] } | null = null;
 
 /**
- * Diskdagi skills ildizini o'qiydi. Tuzilma: <ildiz>/<kategoriya>/<skill>/SKILL.md
- * (eski yassi <ildiz>/<skill>/SKILL.md ham ishlaydi). 15 soniya keshlanadi.
+ * Reads the skills root on disk. Layout: <root>/<category>/<skill>/SKILL.md
+ * (the old flat <root>/<skill>/SKILL.md layout also works). Cached for 15 seconds.
  */
 export function listSkills(): SkillMeta[] {
   if (_cache && Date.now() - _cache.at < 15000) return _cache.list;
@@ -110,41 +111,40 @@ export function listSkills(): SkillMeta[] {
   }
 }
 
-/** System promptga qo'shiladigan ixcham katalog: kategoriya -> skill nomlari (tavsiflar INDEX.md da). */
+/** Where the agent keeps its work and deliverables (the owner's computer: ~/MR/mrai/work). */
+export const WORK_DIR = process.env.MRAI_WORK_DIR || path.join(os.homedir(), "MR", "mrai", "work");
+
+const SKILLS_MARKER = "SKILLS (expert playbooks)";
+
+/** Compact catalog for the system prompt: category -> skill names (descriptions live in INDEX.md / search_skills). */
 export function buildSkillsPromptSection(skills?: SkillMeta[]): string {
   const list = skills ?? listSkills();
   if (list.length === 0) return "";
   const cats = new Map<string, string[]>();
   for (const s of list) {
-    const c = s.category || "(kategoriyasiz)";
+    const c = s.category || "(uncategorised)";
     if (!cats.has(c)) cats.set(c, []);
     cats.get(c)!.push(s.name);
   }
   const lines = [
-    "SKILLS (ixtiyoriy qobiliyatlar)",
-    "Maxsus ish (Word, Excel, PDF, PowerPoint, UI dizayn, MCP, test, debug, SEO, tadqiqot va h.k.) uchun avval mos skillni toping, uning SKILL.md faylini Read bilan o'qing va ko'rsatmalarga amal qiling. Skriptlar skill papkasiga nisbatan — ishga tushirishdan oldin cd qiling yoki absolyut yo'l bering.",
-    `Skills ildiz: ${SKILLS_DIR}`,
-    `SKILL.md yo'li: ${SKILLS_DIR}/<kategoriya>/<skill>/SKILL.md`,
-    `Tavsiflar: ${SKILLS_DIR}/INDEX.md — kalit so'z bilan Grep qiling (masalan: grep -i pdf INDEX.md), so'ng tegishli SKILL.md ni Read qiling.`,
-    `Hujjat skriptlari uchun Python: ${SKILLS_PYTHON}`,
-    `Chiqish papkasi: /home/muhamad/MR/mrai/workspace/outputs`,
+    SKILLS_MARKER,
+    "Skills are expert playbooks stored on this computer. Before any specialised task (Word/Excel/PDF/PowerPoint files, UI design, MCP/plugins, testing, debugging, security, SEO, research, and similar) load the matching skill with the `Skill` tool and follow its instructions exactly. If you are unsure which skill fits, call `search_skills` first. When the user types /skill-name or names a skill, load that skill. Do not load skills for casual conversation.",
+    "A skill's relative paths are relative to its base directory (the Skill tool prints it): run bundled scripts by absolute path.",
+    `Python with document libraries (openpyxl, pdfplumber, python-docx, ...): ${SKILLS_PYTHON}`,
+    `Save deliverables under ${WORK_DIR}`,
     "",
-    `Kategoriyalar va skill nomlari (${list.length} ta):`,
+    `Available skills (${list.length}) by category:`,
   ];
   for (const [c, names] of [...cats.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
     lines.push(`- ${c}: ${names.join(", ")}`);
   }
-  lines.push("");
-  lines.push(
-    "Foydalanuvchi ‘/skill-name’ yoki ‘X skillini o\'qi’ desa, shu skillning SKILL.md ini Read qiling. Oddiy suhbatda skill chaqirmang."
-  );
   return lines.join("\n");
 }
 
-/** System prompt oxiriga skills bo'limini qo'shadi (agar bo'sh bo'lmasa). */
+/** Appends the skills section to the end of the system prompt (when there are skills). */
 export function withSkillsCatalog(system: string): string {
   const section = buildSkillsPromptSection();
   if (!section) return system;
-  if (system.includes("SKILLS (ixtiyoriy qobiliyatlar)")) return system;
+  if (system.includes(SKILLS_MARKER)) return system;
   return system.trimEnd() + "\n\n" + section;
 }

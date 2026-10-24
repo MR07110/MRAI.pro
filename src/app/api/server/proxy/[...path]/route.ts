@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cleanServerUrl, MRAI_AUTH_TOKEN } from "@/lib/serverAuth";
 import { sessionUserFromRequest } from "@/lib/session";
 
-// Brauzer -> (shu route, token serverda qo'shiladi) -> local MR AI server.
+// Browser -> (this route, the token is added on the server) -> local MR AI server.
 // Faqat ma'lumotlar bazasi va jobs endpointlari; /exec alohida route orqali.
 export const dynamic = "force-dynamic";
 
@@ -10,15 +10,15 @@ const ALLOWED = ["api/db", "api/jobs"];
 
 async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   if (!MRAI_AUTH_TOKEN) {
-    return NextResponse.json({ error: "MRAI_AUTH_TOKEN sozlanmagan" }, { status: 503 });
+    return NextResponse.json({ error: "MRAI_AUTH_TOKEN is not configured" }, { status: 503 });
   }
   const user = await sessionUserFromRequest(req);
-  if (!user) return NextResponse.json({ error: "Kirish talab qilinadi" }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 });
   const { path } = await ctx.params;
   const joined = (path || []).join("/");
   const ok = ALLOWED.some((p) => joined === p || joined.startsWith(p + "/"));
   if (!ok || joined.includes("..")) {
-    return NextResponse.json({ error: "Bu yo'l ruxsat etilmagan" }, { status: 403 });
+    return NextResponse.json({ error: "This path is not allowed" }, { status: 403 });
   }
 
   const base = cleanServerUrl(req.headers.get("x-server-url"));
@@ -44,7 +44,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ path: string[] 
       headers: { "content-type": res.headers.get("content-type") || "application/json" },
     });
   } catch (e: any) {
-    return NextResponse.json({ error: `Serverga ulanib bo'lmadi: ${e?.message || "xato"}` }, { status: 502 });
+    return NextResponse.json({ error: `Could not connect to the server: ${e?.message || "error"}` }, { status: 502 });
   }
 }
 

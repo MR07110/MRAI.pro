@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   if (username) {
     const r = await callAuth("/api/auth/me", { username });
     if (r.user) user = r.user;
-    else if (r.status === 502) user = { username, name: username }; // server vaqtincha yo'q — sessiya amal qiladi
+    else if (r.status === 502) user = { username, name: username }; // server briefly down — the session stays valid
   }
   return NextResponse.json({ access, user }, { headers: { "Cache-Control": "no-store" } });
 }

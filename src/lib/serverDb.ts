@@ -52,12 +52,12 @@ function getRealServerUrl(): string | null {
       return (settings as any).serverUrl.trim().replace(/\/+$/, '');
     }
   } catch {}
-  // Standart manzil yo'q: bo'sh bo'lsa Next server MRAI_SERVER_URL (env) dan oladi.
+  // No default URL: when empty the Next server uses MRAI_SERVER_URL (env).
   return null;
 }
 
-// Brauzer serverga to'g'ridan-to'g'ri emas, Next proxy (/api/server/proxy) orqali boradi:
-// token faqat Next serverida qo'shiladi, brauzerda hech qanday sir yo'q.
+// The browser reaches the server not directly but through the Next proxy (/api/server/proxy):
+// the token is added only on the Next server; no secret ever reaches the browser.
 const PROXY_BASE = '/api/server/proxy';
 function getServerUrl(): string | null {
   return PROXY_BASE;
@@ -125,7 +125,7 @@ export async function createChat(title: string): Promise<Chat> {
   const newChat: Chat = {
     id: crypto.randomUUID(),
     user_id: dbUser,
-    title: title.slice(0, 50).trim() || 'Yangi suhbat',
+    title: title.slice(0, 50).trim() || 'New chat',
     created_at: now,
     updated_at: now,
   };
@@ -395,7 +395,7 @@ export async function saveKey(
     }
   } catch {}
 
-  // Serverga yozilishini kutamiz: aks holda darhol keyingi getKeys() eski qiymatni qaytarib qo'yadi.
+  // Wait for the write to reach the server: otherwise the next getKeys() returns the old value.
   const serverUrl = getServerUrl();
   if (serverUrl) {
     await fetch(`${serverUrl}/api/db/keys`, {
@@ -415,7 +415,7 @@ export async function updateKey(
   patch: Partial<Pick<UserApiKey, 'provider' | 'name' | 'api_key' | 'model' | 'base_url'>>
 ): Promise<UserApiKey> {
   const cur = (await getKeys()).find((k) => k.id === id);
-  if (!cur) throw new Error('Kalit topilmadi');
+  if (!cur) throw new Error('Key not found');
   return saveKey({ ...cur, ...patch });
 }
 
@@ -526,7 +526,7 @@ async function srv<T>(path: string, init?: { method?: string; body?: unknown; ti
   try {
     data = await res.json();
   } catch {}
-  if (!res.ok) throw new Error((data && data.error) || `Server xatosi (HTTP ${res.status})`);
+  if (!res.ok) throw new Error((data && data.error) || `Server error (HTTP ${res.status})`);
   return data as T;
 }
 
@@ -561,7 +561,7 @@ export async function testConnector(
     });
     return await res.json();
   } catch (e: any) {
-    return { ok: false, error: e?.message || 'Tekshirib bo‘lmadi' };
+    return { ok: false, error: e?.message || 'Could not verify' };
   }
 }
 

@@ -1,10 +1,11 @@
 // Server tomonidagi "ish sessiyalari": agent generatsiyasi brauzerga BOG'LIQ EMAS.
-// Brauzer faqat ko'ruvchi (screen sharing kabi): sahifa yangilansa yoki yopilsa ham ish davom etadi,
+// The browser is only a viewer (like screen sharing): the job continues even if the page is refreshed or closed,
 // qayta ochilganda esa /api/agent/attach orqali shu ishga qayta ulanadi.
-// Holat (matn + provayder limit kutish belgisi [[wait:...]]) shu Next serverda, har ~2s da va oxirida
-// lokal Python serverdagi bazaga (xabar sifatida) saqlanadi.
+// State (text + the provider-limit wait marker [[wait:...]]) lives on this Next server, every ~2s and at the end
+// and is saved (as a message) to the database on the local Python server.
 import { runAgent, AgentInput } from "@/lib/agent";
 import { serverFetch } from "@/lib/serverAuth";
+import { withState, type QueueItem } from "@/lib/stateStore";
 
 export type RunStatus = "running" | "done" | "stopped" | "error";
 
@@ -41,8 +42,8 @@ export function stopRun(user: string, chatId: string): boolean {
 
 async function persist(run: Run) {
   if (!run.text.trim()) return;
-  // Faqat xatodan iborat bo'lsa saqlamaymiz (avvalgi xatti-harakat: xato faqat ekranda ko'rinadi)
-  if (run.status === "error" && run.text.trimStart().startsWith("Xatolik:")) return;
+  // Do not persist a message that is only an error (previous behaviour: errors show on screen only)
+  if (run.status === "error" && run.text.trimStart().startsWith("Error:")) return;
   try {
     await serverFetch(run.serverUrl, "/api/db/messages", {
       user: run.user,
@@ -50,7 +51,7 @@ async function persist(run: Run) {
       body: { id: run.msgId, chat_id: run.chatId, role: "assistant", content: run.text, created_at: run.createdAt },
     });
   } catch (e) {
-    console.error("[runs] saqlashda xato:", (e as Error)?.message);
+    console.error("[runs] save failed:", (e as Error)?.message);
   }
 }
 
@@ -105,14 +106,24 @@ export function startRun(p: {
       if (e?.name === "AbortError" || run.controller.signal.aborted) {
         run.status = "stopped";
       } else {
-        emit(`\n\nXatolik: ${e?.message || "noma'lum xato"}`);
+        emit(`\n\nError: ${e?.message || "unknown error"}`);
         run.status = "error";
       }
     } finally {
       clearInterval(timer);
-      while (saving) await sleep(30); // eski yozuv yangisini ustidan yozib yubormasin
+      while (saving) await sleep(30); // so an older write does not overwrite the newer one
       await persist(run);
       run.finishedAt = Date.now();
+      // If there is a queued message, the SERVER starts the next one itself (even if the browser is closed).
+      // BEFORE notifying listeners: when the browser reconnects, the new job is already ready.
+      // If the user "stopped" it or there was an error, the queue pauses.
+      if (run.status === "done") {
+        try {
+          await dequeueAndStart(run.user, run.chatId);
+        } catch (e) {
+          console.error("[runs] navbat:", (e as Error)?.message);
+        }
+      }
       for (const l of run.endListeners) {
         try {
           l();
@@ -128,7 +139,7 @@ export function startRun(p: {
   return run;
 }
 
-// Ishga ulangan SSE oqim: avval hozirgacha yig'ilgan matn (snapshot), keyin yangi qismlar.
+// SSE stream attached to a job: first the text gathered so far (snapshot), then new chunks.
 // Brauzer uzilsa FAQAT tinglovchi olib tashlanadi; ish to'xtamaydi.
 export function sseForRun(run: Run, reqSignal: AbortSignal): Response {
   const enc = new TextEncoder();
@@ -190,4 +201,58 @@ export function sseForRun(run: Run, reqSignal: AbortSignal): Response {
       "x-run-msg-id": run.msgId,
     },
   });
+}
+
+// ---- Navbat (queued messages) ----
+// Takes the first queued message, saves it as a user message and starts a new job.
+export async function dequeueAndStart(user: string, chatId: string): Promise<boolean> {
+  const item = await withState(user, (st) => {
+    const q = st.queues[chatId];
+    if (!q || !q.length) return null;
+    const it = q.shift()!;
+    if (!q.length) delete st.queues[chatId];
+    return it;
+  });
+  if (!item) return false;
+  return startQueued(user, chatId, item);
+}
+
+export async function startQueued(user: string, chatId: string, item: QueueItem): Promise<boolean> {
+  const t = item.run;
+  try {
+    await serverFetch(t.serverUrl, "/api/db/messages", {
+      user,
+      timeoutMs: 10000,
+      body: { id: item.id, chat_id: chatId, role: "user", content: item.text, created_at: new Date().toISOString() },
+    });
+    const rows = await serverFetch(t.serverUrl, `/api/db/messages?chat_id=${encodeURIComponent(chatId)}`, { user, timeoutMs: 10000 });
+    const messages = (Array.isArray(rows) ? rows : [])
+      .filter((m: any) => m && (m.role === "user" || m.role === "assistant"))
+      .map((m: any) => ({ role: m.role as "user" | "assistant", content: String(m.content ?? "") }));
+    if (!messages.length) return false;
+    startRun({
+      chatId,
+      user,
+      msgId: crypto.randomUUID(),
+      input: {
+        provider: t.provider as any,
+        apiKey: t.apiKey,
+        model: t.model,
+        baseUrl: t.baseUrl,
+        system: t.systemPrompt,
+        messages,
+        temperature: t.temperature,
+        maxTokens: t.maxTokens,
+        connectors: (t.connectors as any[]) || [],
+        serverUrl: t.serverUrl,
+        appUrl: t.appUrl,
+        keyId: t.keyId,
+        maxSteps: t.maxSteps,
+      },
+    });
+    return true;
+  } catch (e) {
+    console.error("[runs] could not start the queued message:", (e as Error)?.message);
+    return false;
+  }
 }

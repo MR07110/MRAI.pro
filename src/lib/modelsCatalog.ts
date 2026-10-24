@@ -1,4 +1,4 @@
-// Provayderlar katalogi, kalit turini aniqlash va model ro'yxatini olish yordamchilari.
+// Provider catalog, key-type detection and model-list helpers.
 // Settings (KeysPanel) va chat input (ModelSwitcher) bir xil mantiqdan foydalanadi.
 import type { Provider } from "@/types";
 
@@ -22,7 +22,7 @@ export interface ProviderOption {
 export const PROVIDERS: ProviderOption[] = [
   {
     value: "groq",
-    label: "Groq (Ultra tez, bepul limitlar)",
+    label: "Groq (ultra fast, free limits)",
     placeholder: "gsk_...",
     defaultModel: "openai/gpt-oss-120b",
     defaultBaseUrl: "https://api.groq.com/openai/v1",
@@ -30,7 +30,7 @@ export const PROVIDERS: ProviderOption[] = [
     hasPaid: false,
     models: [
       { id: "openai/gpt-oss-120b", name: "GPT OSS 120B (OpenAI Open-Weights)", isFree: true },
-      { id: "openai/gpt-oss-20b", name: "GPT OSS 20B (Ultra tezkor)", isFree: true },
+      { id: "openai/gpt-oss-20b", name: "GPT OSS 20B (ultra fast)", isFree: true },
       { id: "qwen/qwen3.8-27b", name: "Qwen 3.8 27B (Mantiq va kod)", isFree: true },
     ],
   },
@@ -43,19 +43,19 @@ export const PROVIDERS: ProviderOption[] = [
     hasFree: true,
     hasPaid: false,
     models: [
-      { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash (Tezkor va bepul)", isFree: true },
+      { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash (fast and free)", isFree: true },
     ],
   },
   {
     value: "openrouter",
-    label: "OpenRouter (faqat bepul modellar)",
+    label: "OpenRouter (free models only)",
     placeholder: "sk-or-v1-...",
     defaultModel: "openrouter/free",
     defaultBaseUrl: "https://openrouter.ai/api/v1",
     hasFree: true,
     hasPaid: false,
     models: [
-      { id: "openrouter/free", name: "Avto-tanlov (bepul modellardan eng mosi)", isFree: true },
+      { id: "openrouter/free", name: "Auto-pick (best of the free models)", isFree: true },
       { id: "google/gemma-4-31b-it:free", name: "Gemma 4 31B (Google)", isFree: true },
       { id: "google/gemma-4-26b-a4b-it:free", name: "Gemma 4 26B A4B (Google)", isFree: true },
       { id: "nvidia/nemotron-3-ultra-550b-a55b:free", name: "Nemotron 3 Ultra 550B (NVIDIA)", isFree: true },
@@ -84,7 +84,7 @@ export const PROVIDERS: ProviderOption[] = [
     hasPaid: true,
     models: [
       { id: "gpt-4o", name: "GPT-4o (Eng aqlli flagman)", isFree: false },
-      { id: "gpt-4o-mini", name: "GPT-4o Mini (Tezkor va arzon)", isFree: false },
+      { id: "gpt-4o-mini", name: "GPT-4o Mini (fast and cheap)", isFree: false },
       { id: "o3-mini", name: "o3-mini (Reasoning & Fikrlash)", isFree: false },
       { id: "o1", name: "o1 (Chuqur tahlil)", isFree: false },
       { id: "gpt-4-turbo", name: "GPT-4 Turbo", isFree: false },
@@ -140,7 +140,7 @@ export const PROVIDERS: ProviderOption[] = [
     models: [
       { id: "mistral-large-latest", name: "Mistral Large", isFree: false },
       { id: "mistral-small-latest", name: "Mistral Small", isFree: false },
-      { id: "codestral-latest", name: "Codestral (Dasturchilar uchun)", isFree: false },
+      { id: "codestral-latest", name: "Codestral (for developers)", isFree: false },
       { id: "open-mistral-nemo", name: "Mistral Nemo", isFree: false },
     ],
   },
@@ -169,13 +169,13 @@ export const PROVIDERS: ProviderOption[] = [
     hasPaid: true,
     models: [
       { id: "sonar-pro", name: "Sonar Pro (Qidiruvli chuqur)", isFree: false },
-      { id: "sonar", name: "Sonar (Tezkor qidiruv)", isFree: false },
+      { id: "sonar", name: "Sonar (Fast search)", isFree: false },
       { id: "sonar-reasoning", name: "Sonar Reasoning", isFree: false },
     ],
   },
   {
     value: "ollama",
-    label: "Ollama Cloud (bepul modellar)",
+    label: "Ollama Cloud (free models)",
     placeholder: "kalit.xxxxxxxx (ollama.com/settings/keys)",
     defaultModel: "gpt-oss:120b",
     defaultBaseUrl: "https://ollama.com/v1",
@@ -183,9 +183,9 @@ export const PROVIDERS: ProviderOption[] = [
     hasPaid: false,
     models: [
       { id: "gpt-oss:120b", name: "GPT-OSS 120B (OpenAI ochiq model, kuchli)", isFree: true },
-      { id: "gpt-oss:20b", name: "GPT-OSS 20B (tezkor)", isFree: true },
-      { id: "gemma4:31b", name: "Gemma 4 31B (Google, tezkor va aniq)", isFree: true },
-      { id: "nemotron-3-ultra", name: "Nemotron 3 Ultra (NVIDIA, eng kuchli)", isFree: true },
+      { id: "gpt-oss:20b", name: "GPT-OSS 20B (fast)", isFree: true },
+      { id: "gemma4:31b", name: "Gemma 4 31B (Google, fast and accurate)", isFree: true },
+      { id: "nemotron-3-ultra", name: "Nemotron 3 Ultra (NVIDIA, most powerful)", isFree: true },
       { id: "nemotron-3-super", name: "Nemotron 3 Super (NVIDIA)", isFree: true },
       { id: "nemotron-3-nano:30b", name: "Nemotron 3 Nano 30B (NVIDIA, sekin: uzoq o‘ylaydi)", isFree: true },
       { id: "beam", name: "Beam", isFree: true },
@@ -194,16 +194,16 @@ export const PROVIDERS: ProviderOption[] = [
   {
     value: "custom",
     label: "Custom / Local (Ollama, vLLM)",
-    placeholder: "sk-... yoki ollama",
+    placeholder: "sk-... or ollama",
     defaultModel: "llama3",
     defaultBaseUrl: "http://localhost:11434/v1",
     hasFree: true,
     hasPaid: true,
     models: [
-      { id: "llama3", name: "Ollama Llama 3 (Mahalliy bepul)", isFree: true },
-      { id: "mistral", name: "Ollama Mistral (Mahalliy bepul)", isFree: true },
-      { id: "qwen2.5", name: "Ollama Qwen 2.5 (Mahalliy bepul)", isFree: true },
-      { id: "deepseek-r1", name: "Ollama DeepSeek R1 (Mahalliy bepul)", isFree: true },
+      { id: "llama3", name: "Ollama Llama 3 (local, free)", isFree: true },
+      { id: "mistral", name: "Ollama Mistral (local, free)", isFree: true },
+      { id: "qwen2.5", name: "Ollama Qwen 2.5 (local, free)", isFree: true },
+      { id: "deepseek-r1", name: "Ollama DeepSeek R1 (local, free)", isFree: true },
       { id: "custom-paid", name: "Custom Pullik Proxy / Model", isFree: false },
     ],
   },
@@ -241,13 +241,13 @@ export function isModelFree(modelId: string): boolean {
   return false;
 }
 
-/** Ilovada FAQAT bepul modellar ko‘rsatiladi. Provayderga qarab aniq qoida. */
+/** The app shows ONLY free models. The exact rule depends on the provider. */
 export function isFreeFor(provider: string | null, id: string): boolean {
   switch (provider) {
     case "ollama":
       return !!PROVIDERS.find((p) => p.value === "ollama")?.models.some((m) => m.id === id);
     case "groq":
-      return true; // Groq: barcha chat modellar bepul limit bilan ishlaydi
+      return true; // Groq: all chat models work within the free limit
     case "openrouter":
       return id.endsWith(":free") || id === "openrouter/free";
     case "gemini":
@@ -259,7 +259,7 @@ export function isFreeFor(provider: string | null, id: string): boolean {
   }
 }
 
-/** Bu xizmatda umuman bepul model bormi (OpenAI, Claude va h.k. — yo‘q). */
+/** Whether this service has any free model at all (OpenAI, Claude, etc. — none). */
 export function providerHasFree(provider: string | null): boolean {
   if (!provider) return true;
   return PROVIDERS.find((p) => p.value === provider)?.hasFree ?? false;
@@ -280,7 +280,7 @@ const SHORT_NAMES: Record<string, string> = {
   together: "Together",
   perplexity: "Perplexity",
   ollama: "Ollama",
-  custom: "Mahalliy",
+  custom: "Local",
 };
 
 export function shortProviderName(provider: string): string {
@@ -295,10 +295,10 @@ export function maskKey(key: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Kalit turini aniqlash. Tarmoqqa chiqmaydi: kalit faqat o'zining provayderiga yuboriladi.
-// provider      — aniq bitta provayder topilsa
-// candidates    — bir nechta mumkin bo'lsa (masalan "sk-..." OpenAI yoki DeepSeek)
-// ikkalasi ham bo'sh — format tanish emas, foydalanuvchi o'zi tanlaydi
+// Detect the key type. No network call: a key is only ever sent to its own provider.
+// provider      — when exactly one provider is detected
+// candidates    — when several are possible (e.g. "sk-..." could be OpenAI or DeepSeek)
+// both empty — the format is unknown, the user picks it themselves
 // ---------------------------------------------------------------------------
 export interface Detection {
   provider: Provider | null;
@@ -321,7 +321,7 @@ export function detectProvider(rawKey: string): Detection {
 }
 
 // ---------------------------------------------------------------------------
-// Model ro'yxati
+// Model list
 // ---------------------------------------------------------------------------
 export interface ModelItem {
   id: string;
@@ -347,7 +347,7 @@ export function buildModelItems(provider: string | null, discovered: string[]): 
   const names = new Map(catalog.map((m) => [m.id, m.name]));
   const order = new Map(catalog.map((m, i) => [m.id, i]));
 
-  // Ollama Cloud: faqat bepul (tekshirilgan) modellar ko‘rsatiladi, pullik modellar yashiriladi.
+  // Ollama Cloud: only free (verified) models are shown, paid models are hidden.
   const ids = provider === "ollama"
     ? catalog.map((m) => m.id)
     : discovered.length
@@ -376,7 +376,7 @@ export interface ValidateResult {
   valid: boolean;
   models: string[];
   error?: string;
-  /** true — kalitning o'zi rad etildi (401/403); false bo'lsa tarmoq/boshqa xato */
+  /** true — the key itself was rejected (401/403); false means a network/other error */
   auth?: boolean;
 }
 
@@ -405,11 +405,11 @@ export async function validateKey(
     return { valid: false, models: [], error, auth: AUTH_ERR.test(error) };
   } catch (e: any) {
     if (e?.name === "AbortError") throw e;
-    return { valid: false, models: [], error: `Ulanib bo‘lmadi: ${e?.message || "noma’lum xato"}`, auth: false };
+    return { valid: false, models: [], error: `Could not connect: ${e?.message || "unknown error"}`, auth: false };
   }
 }
 
-// Chat inputdagi tez almashtirgich uchun: bir xil kalit uchun modellarni qayta-qayta so'ramaslik.
+// For the quick switcher in the chat input: do not re-request models for the same key.
 const modelsCache = new Map<string, { at: number; models: string[] }>();
 const CACHE_MS = 10 * 60 * 1000;
 
@@ -433,7 +433,7 @@ export async function fetchModelsCached(
   return r.valid ? r.models : [];
 }
 
-// Sinxron: xotira yoki localStorage keshidagi ro'yxat (eskirgan bo'lsa ham) — menyu darhol chiqishi uchun.
+// Synchronous: the list from memory or the localStorage cache (even if stale) — so the menu opens instantly.
 export function peekModels(id: string, apiKey: string): string[] | null {
   const ck = `${id}:${apiKey.slice(-6)}`;
   const hit = modelsCache.get(ck);

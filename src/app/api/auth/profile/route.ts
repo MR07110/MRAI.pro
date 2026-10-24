@@ -4,10 +4,10 @@ import { callAuth } from "@/lib/authApi";
 
 export const dynamic = "force-dynamic";
 
-// Ism yoki parolni yangilash (parol uchun joriy parol shart).
+// Update the name or password (changing the password requires the current one).
 export async function POST(req: NextRequest) {
   const username = (await hasAccess(req)) ? await sessionUserFromRequest(req) : null;
-  if (!username) return NextResponse.json({ error: "Kirish talab qilinadi" }, { status: 401 });
+  if (!username) return NextResponse.json({ error: "Sign-in required" }, { status: 401 });
 
   const b = await req.json().catch(() => ({}));
   const payload: Record<string, unknown> = { username };

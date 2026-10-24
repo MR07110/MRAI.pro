@@ -4,13 +4,13 @@ import Image from "next/image";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import ChatApp from "@/components/ChatApp";
 
-// Har bir suhbatning o'z manzili bor: /c/<id>. Manzil faqat shu hisobning suhbatini ochadi.
+// Each chat has its own URL: /c/<id>. The URL only opens a chat belonging to this account.
 const CHAT_ID_RE = /^[A-Za-z0-9_-]{8,64}$/;
 
 function AppContent({ chatId }: { chatId: string | null }) {
  const { user, loading } = useAuth();
 
- // Kirmagan foydalanuvchini proxy /login ga yo'naltiradi; bu yerda faqat yuklanish holati.
+ // The proxy redirects a signed-out user to /login; here it is only the loading state.
  if (loading || !user) {
  return (
  <div className="min-h-screen flex items-center justify-center bg-black">

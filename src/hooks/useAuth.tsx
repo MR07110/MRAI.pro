@@ -39,7 +39,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Haqiqiy hisob: sessiya serverda (imzolangan cookie). Ilovaga faqat kirish kaliti + hisob orqali kiriladi.
+// The real account: the session lives on the server (a signed cookie). Access needs the access key + an account.
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,11 +88,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { error: data?.error || "Xatolik yuz berdi" };
+      if (!res.ok) return { error: data?.error || "Something went wrong" };
       if (data?.user) setUser(toUser(data.user));
       return { error: null };
     } catch {
-      return { error: "Serverga ulanib bo'lmadi" };
+      return { error: "Could not connect to the server" };
     }
   };
 

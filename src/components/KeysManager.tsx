@@ -10,7 +10,7 @@ import { maskKey, shortProviderName } from "@/lib/modelsCatalog";
 
 interface Props {
  compact?: boolean;
- /** kalit tanlanganda yoki saqlanganda chaqiriladi (tezkor oynani yopish uchun) */
+ /** called when a key is selected or saved (to close the quick dialog) */
  onSelected?: () => void;
 }
 
@@ -20,7 +20,7 @@ function notify() {
  if (typeof window !== "undefined") window.dispatchEvent(new Event("mr_ai_keys_updated"));
 }
 
-// Kalitlar ro'yxati + qo'shish/o'zgartirish. Settingsda ham, chat kiritish joyidan ochiladigan oynada ham shu ishlatiladi.
+// Key list + add/edit. Used both in Settings and in the dialog opened from the chat input.
 export default function KeysManager({ compact = false, onSelected }: Props) {
  const [keys, setKeys] = useState<UserApiKey[]>([]);
  const [loading, setLoading] = useState(true);
@@ -71,7 +71,7 @@ export default function KeysManager({ compact = false, onSelected }: Props) {
  );
  }
 
- // Kalit yo'q bo'lsa — to'g'ridan-to'g'ri kiritish maydoni.
+ // No keys yet — show the direct input field.
  const view: Mode = keys.length === 0 ? { type: "edit", key: null } : mode;
 
  if (view.type === "edit") {
@@ -108,8 +108,8 @@ export default function KeysManager({ compact = false, onSelected }: Props) {
  key={k.id}
  className={` border transition ${
  k.is_default
- ? "border-neutral-600 bg-neutral-950"
- : "border-neutral-800 bg-neutral-950/50 hover:border-neutral-700"
+ ? "border-white/35 bg-black"
+ : "border-white/15 bg-black/50 hover:border-white/30"
  }`}
  >
  <div className="group flex items-center gap-1">
@@ -121,13 +121,13 @@ export default function KeysManager({ compact = false, onSelected }: Props) {
  >
  <span
  className={`w-4 h-4 border shrink-0 flex items-center justify-center ${
- k.is_default ? "border-emerald-400 bg-emerald-400" : "border-neutral-600"
+ k.is_default ? "border-emerald-400 bg-emerald-400" : "border-white/35"
  }`}
  >
  {busyId === k.id ? (
  <Loader2 className="w-3 h-3 animate-spin text-neutral-300" />
  ) : (
- k.is_default && <Check className="w-3 h-3 text-neutral-950" strokeWidth={3} />
+ k.is_default && <Check className="w-3 h-3 text-black" strokeWidth={3} />
  )}
  </span>
  <span className="min-w-0">
@@ -142,8 +142,8 @@ export default function KeysManager({ compact = false, onSelected }: Props) {
  type="button"
  onClick={() => setMode({ type: "edit", key: k })}
  title="Edit key"
- aria-label="O‘zgartirish"
- className="p-2 text-neutral-500 hover:text-white hover:bg-neutral-800 transition cursor-pointer"
+ aria-label="Edit"
+ className="p-2 text-neutral-500 hover:text-white hover:bg-white/[0.07] transition cursor-pointer"
  >
  <Pencil className="w-4 h-4" />
  </button>
@@ -166,7 +166,7 @@ export default function KeysManager({ compact = false, onSelected }: Props) {
  <button
  type="button"
  onClick={() => setMode({ type: "edit", key: null })}
- className="w-full h-11 border border-dashed border-neutral-800 text-sm text-neutral-400 hover:text-white hover:border-neutral-600 transition cursor-pointer flex items-center justify-center gap-1.5"
+ className="w-full h-11 border border-dashed border-white/15 text-sm text-neutral-400 hover:text-white hover:border-white/40 transition cursor-pointer flex items-center justify-center gap-1.5"
  >
  <Plus className="w-4 h-4" />
  New key

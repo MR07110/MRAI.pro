@@ -5,9 +5,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-// Connectorni tekshiradi va tool ro'yxatini qaytaradi.
+// Tests a connector and returns its tool list.
 export async function POST(req: NextRequest) {
-  // Kirish: src/proxy.ts (login cookie) shu routeni himoya qiladi; Bearer faqat /api/agent/run uchun.
+  // Access: src/proxy.ts (login cookie) protects this route; Bearer is only for /api/agent/run.
   const t0 = Date.now();
   let client: McpClient | null = null;
   try {
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     client = new McpClient({ name: name || "test", url, headers: headers || {} }, 25000);
     await Promise.race([
       client.connect(),
-      new Promise((_, rej) => setTimeout(() => rej(new Error("ulanish vaqti tugadi (20s)")), 20000)),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("connection timed out (20s)")), 20000)),
     ]);
     const tools = await client.listTools();
     return NextResponse.json({
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       tools: tools.map((t) => ({ name: t.name, description: (t.description || "").slice(0, 200) })),
     });
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "ulanib bo'lmadi" });
+    return NextResponse.json({ ok: false, error: e?.message || "could not connect" });
   } finally {
     await client?.close();
   }

@@ -1,4 +1,4 @@
-// Faqat bitta asbob: Bash. Fayl o'qish/yozish/qidirish ham bash orqali (cat, ls, find, sed...).
+// A single tool: Bash. Reading, writing and searching files also go through bash (cat, ls, find, sed...).
 import type { ToolDef } from "@/lib/agentTools";
 
 export interface CodingCtx {
@@ -25,28 +25,28 @@ export function buildCodingTools(ctx: CodingCtx): ToolDef[] {
       name: "Bash",
       label: "Bash",
       description:
-        "Foydalanuvchining HAQIQIY Linux kompyuterida bash buyruq bajaradi (sandbox yo'q). Standart papka ~/MR/mrai; cwd chaqiruvlar orasida saqlanadi. Fayl o'qish: cat/sed/head; ro'yxat: ls; qidirish: find/rg/grep; yozish: cat > / tee / sed -i. Timeout default 120s (max 600). Uzoq jarayon (dev server) uchun run_in_background=true.",
+        "Runs a bash command on the user's REAL Linux computer (no sandbox). Default folder ~/MR/mrai/work; the working directory is kept between calls. Read files: cat/sed/head; list: ls; search: find/rg/grep; write: cat > / tee / sed -i. Default timeout 120s (max 600). Use run_in_background=true for long processes (dev server).",
       parameters: {
         type: "object",
         properties: {
-          command: { type: "string", description: "Bajariladigan bash buyruq" },
+          command: { type: "string", description: "The bash command to run" },
           timeout: { type: "number", description: "Timeout ms (default 120000, max 600000)" },
-          run_in_background: { type: "boolean", description: "Fon rejimida ishga tushirish" },
+          run_in_background: { type: "boolean", description: "Run in the background" },
         },
         required: ["command"],
       },
       async run(args) {
         const command = String(args.command ?? "").trim();
-        if (!command) return fail("command bo'sh");
+        if (!command) return fail("command is empty");
         const timeoutMs = Math.min(Math.max(Number(args.timeout) || 120000, 1000), 600000);
         const timeoutSec = Math.ceil(timeoutMs / 1000);
         const background = !!args.run_in_background;
         try {
           const r = await ctx.exec(command, timeoutSec, cwd, background);
-          // cwd yangilash: cd buyruqlari
+          // update cwd from cd commands
           if (typeof r?.cwd === "string" && r.cwd) cwd = r.cwd;
           if (background || r.job_id) {
-            return ok(`Background shell started. bash_id=${r.job_id || r.id || "?"}. Output keyin Bash orqali kuzating yoki job_id ni saqlang.`);
+            return ok(`Background shell started. bash_id=${r.job_id || r.id || "?"}. Follow its output later through Bash, or keep the job_id.`);
           }
           const out = [r.stdout, r.stderr].filter(Boolean).join("\n");
           const code = r.exit_code ?? r.code ?? 0;

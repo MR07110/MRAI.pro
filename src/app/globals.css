@@ -59,10 +59,29 @@ kbd {
   font-weight: 400;
 }
 
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: #000; border-left: 1px solid rgba(255,255,255,0.08); }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.32); }
+/* Juda ingichka scrollbar: ko‘rinadigan chiziq ~2px, hover da ~4px.
+   Gutter doim 8px — shuning uchun qalinlashganda layout sakramaydi. */
+::-webkit-scrollbar { width: 8px; height: 8px; background: transparent; }
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+  background-clip: padding-box;
+  border: solid transparent;
+  border-width: 0 3px;
+  min-height: 32px;
+  transition: background-color 0.15s;
+}
+::-webkit-scrollbar-thumb:horizontal { border-width: 3px 0; min-height: 0; min-width: 32px; }
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active { background-color: rgba(255, 255, 255, 0.45); border-width: 0 2px; }
+::-webkit-scrollbar-thumb:horizontal:hover,
+::-webkit-scrollbar-thumb:horizontal:active { border-width: 2px 0; }
+/* Firefox (hover qalinlashtirishni qo‘llamaydi, eng ingichkasi — thin) */
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.25) transparent; }
+}
 
 button:focus-visible,
 a:focus-visible { outline: 1px solid #fff; outline-offset: 1px; }
@@ -96,10 +115,47 @@ textarea:focus-visible { outline: none; }
   word-break: break-word;
 }
 
-.term-grid {
-  background-color: #000;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 24px 24px;
+/* Artifact / fayl paneli ochilish animatsiyasi */
+@keyframes panel-in-right { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes panel-in-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.panel-in-right { animation: panel-in-right 0.18s ease-out both; }
+.panel-in-up { animation: panel-in-up 0.18s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .panel-in-right, .panel-in-up { animation: none; }
 }
+
+/* ---- Syntax highlighting (highlight.js tokens) — GitHub-dark palette on true black ---- */
+.hljs { color: #e6edf3; background: transparent; }
+.hljs-comment,
+.hljs-quote { color: #8b949e; font-style: italic; }
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-doctag,
+.hljs-section { color: #ff7b72; }
+.hljs-string,
+.hljs-meta .hljs-string,
+.hljs-regexp,
+.hljs-addition { color: #a5d6ff; }
+.hljs-number,
+.hljs-literal,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-attr,
+.hljs-attribute { color: #79c0ff; }
+.hljs-title,
+.hljs-title.function_,
+.hljs-title.class_,
+.hljs-name { color: #d2a8ff; }
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-type,
+.hljs-class .hljs-title,
+.hljs-params { color: #ffa657; }
+.hljs-tag { color: #7ee787; }
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link { color: #79c0ff; }
+.hljs-meta { color: #8b949e; }
+.hljs-deletion { color: #ffa198; }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 600; }

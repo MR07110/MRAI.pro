@@ -1,4 +1,4 @@
-// Provayder yordamchilari (chat route bilan bir xil qiymatlar).
+// Provider helpers (the same values as the chat route).
 export function getDefaultUrl(provider: string): string {
   switch (provider) {
     case "groq": return "https://api.groq.com/openai/v1";

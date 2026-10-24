@@ -1,14 +1,16 @@
 [Unit]
-Description=MR AI edge proxy (ngrok -> /mcp=cmc, qolgani=mrai-web)
+Description=MR AI edge proxy (ngrok -> /mcp=cmc, rest=mrai-web)
 After=network.target mrai-web.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/node /home/muhamad/MR/mrai/edge-proxy.js
+WorkingDirectory=/home/muhamad/Claude/work/MRAI
+ExecStartPre=/bin/bash -c 'for i in $(seq 1 30); do curl -sf -m 1 -o /dev/null http://127.0.0.1:3000/login && exit 0; sleep 1; done; echo "web ready timeout" >&2; exit 1'
+ExecStart=/usr/bin/node /home/muhamad/Claude/work/MRAI/scripts/edge-proxy.js
 Restart=always
 RestartSec=3
-StandardOutput=append:/home/muhamad/MR/mrai/edge.log
-StandardError=append:/home/muhamad/MR/mrai/edge.log
+StandardOutput=append:/home/muhamad/.mrai/logs/edge.log
+StandardError=append:/home/muhamad/.mrai/logs/edge.log
 
 [Install]
 WantedBy=default.target

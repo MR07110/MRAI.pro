@@ -7,12 +7,12 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   if (!MRAI_AUTH_TOKEN) {
     return NextResponse.json(
-      { stdout: "", stderr: "MRAI_AUTH_TOKEN sozlanmagan (.env.local yoki Vercel env)", exit_code: 1 },
+      { stdout: "", stderr: "MRAI_AUTH_TOKEN is not configured (.env.local or Vercel env)", exit_code: 1 },
       { status: 200 }
     );
   }
   const user = await sessionUserFromRequest(req);
-  if (!user) return NextResponse.json({ stdout: "", stderr: "Kirish talab qilinadi", exit_code: 1 }, { status: 401 });
+  if (!user) return NextResponse.json({ stdout: "", stderr: "Sign-in required", exit_code: 1 }, { status: 401 });
   try {
     const body = await req.json();
     const base = cleanServerUrl(req.headers.get("x-server-url"));
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(data);
   } catch (err: any) {
     return NextResponse.json(
-      { stdout: "", stderr: `Serverga ulanish xatosi: ${err.message || "Ulanib bo‘lmadi"}`, exit_code: 1 },
+      { stdout: "", stderr: `Server connection error: ${err.message || "Could not connect"}`, exit_code: 1 },
       { status: 200 }
     );
   }

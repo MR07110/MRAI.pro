@@ -12,7 +12,7 @@ interface Props {
  onOpenSettings?: () => void;
 }
 
-// Kiritish joyidagi model chip ustida ochiladi (modal emas).
+// Opens over the model chip in the input area (not a modal).
 export default function ModelMenu({ keyItem, onClose, onPick, onOpenSettings }: Props) {
  const [discovered, setDiscovered] = useState<string[]>(() => peekModels(keyItem.id, keyItem.api_key) || []);
  const panelRef = useRef<HTMLDivElement>(null);
@@ -36,8 +36,8 @@ export default function ModelMenu({ keyItem, onClose, onPick, onOpenSettings }: 
  return () => window.removeEventListener("keydown", onKey);
  }, [onClose]);
 
- // Pastga ochish afzal (bo'sh ekranda greetingni yopmasin).
- // Faqat pastki chetga yaqin bo'lsa — yuqoriga.
+ // Prefer opening downward (so it does not cover the greeting on an empty screen).
+ // Only flip upward when near the bottom edge.
  useLayoutEffect(() => {
  const el = panelRef.current;
  if (!el) return;

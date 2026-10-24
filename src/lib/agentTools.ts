@@ -1,12 +1,12 @@
-// Agent asboblari: kompyuter (local Python server), fayllar, fon jarayonlar, scheduler.
+// Agent tools: computer (local Python server), files, background jobs, scheduler.
 import { serverFetch } from "@/lib/serverAuth";
 
 export interface ToolDef {
-  name: string; // provayderga ketadigan nom
-  label: string; // UI uchun
+  name: string; // name sent to the provider
+  label: string; // shown in the UI
   description: string;
   parameters: Record<string, any>;
-  readOnly?: boolean; // true: holatni o'zgartirmaydi (Read/Glob/Grep/LS/BashOutput)
+  readOnly?: boolean; // true: does not change state (Read/Glob/Grep/LS/BashOutput)
   run: (args: any) => Promise<{ output: string; isError?: boolean }>;
 }
 
@@ -39,7 +39,7 @@ function fmtExec(r: any): { output: string; isError: boolean } {
   return { output: clip(out.join("\n")), isError: r.exit_code !== 0 };
 }
 
-// Local Python serverga so'rov yuboruvchi umumiy yordamchilar (builtin va coding asboblari bir xil kanaldan foydalanadi)
+// Shared helpers that call the local Python server (builtin and coding tools use the same channel)
 export function makeServerCtx(env: ToolEnv) {
   const sf = (path: string, body?: any, method?: string, timeoutMs?: number) =>
     serverFetch(env.serverUrl, path, { body, method, timeoutMs, signal: env.signal, user: env.user });
@@ -54,16 +54,16 @@ export function buildBuiltinTools(env: ToolEnv): ToolDef[] {
   const tools: ToolDef[] = [
     {
       name: "computer_exec",
-      label: "Kompyuter",
+      label: "Computer",
       description:
-        "Egasining HAQIQIY Linux kompyuterida bash buyrug'ini bajaradi (sandbox yo'q; standart papka ~/MR/mrai, fayllar saqlanib qoladi). Ko'p qatorli skriptlar mumkin. Uzoq ishlaydigan jarayonlar (dev server, build, kuzatuvchi) uchun background=true bering va computer_job_logs bilan kuzating.",
+        "Runs a bash command on the owner's REAL Linux computer (no sandbox; default folder ~/MR/mrai/work, files persist). Multi-line scripts are fine. For long-running processes (dev server, build, watcher) pass background=true and follow them with computer_job_logs.",
       parameters: {
         type: "object",
         properties: {
-          command: { type: "string", description: "bash buyrug'i/skripti" },
-          cwd: { type: "string", description: "ish papkasi (istalgan mavjud papka, standart ~/MR/mrai), ixtiyoriy" },
-          timeout: { type: "number", description: "soniyalarda, standart 60, maksimum 600" },
-          background: { type: "boolean", description: "fon jarayon sifatida ishga tushirish (job_id qaytaradi)" },
+          command: { type: "string", description: "bash command/script" },
+          cwd: { type: "string", description: "working folder (any existing folder, default ~/MR/mrai/work), optional" },
+          timeout: { type: "number", description: "in seconds, default 60, maximum 600" },
+          background: { type: "boolean", description: "run as a background job (returns job_id)" },
         },
         required: ["command"],
       },
@@ -74,8 +74,8 @@ export function buildBuiltinTools(env: ToolEnv): ToolDef[] {
     },
     {
       name: "computer_read_file",
-      label: "Fayl o'qish",
-      description: "Kompyuterdagi fayl matnini o'qiydi (standart 20000 bayt, maksimum 100000).",
+      label: "Read file",
+      description: "Reads the text of a file on the computer (default 20000 bytes, maximum 100000).",
       parameters: {
         type: "object",
         properties: { path: { type: "string" }, max_bytes: { type: "number" } },
@@ -88,8 +88,8 @@ export function buildBuiltinTools(env: ToolEnv): ToolDef[] {
     },
     {
       name: "computer_write_file",
-      label: "Fayl yozish",
-      description: "Kompyuterda fayl yaratadi/ustidan yozadi (papkalar avtomatik yaratiladi). append=true bo'lsa oxiriga qo'shadi.",
+      label: "Write file",
+      description: "Creates or overwrites a file on the computer (folders are created automatically). With append=true it appends to the end.",
       parameters: {
         type: "object",
         properties: { path: { type: "string" }, content: { type: "string" }, append: { type: "boolean" } },
@@ -111,10 +111,10 @@ export function buildBuiltinTools(env: ToolEnv): ToolDef[] {
     {
       name: "computer_job_logs",
       label: "Fon jarayon logi",
-      description: "Fon jarayon (job_id) holati va oxirgi log qatorlarini qaytaradi.",
+      description: "Returns the status and the last log lines of a background job (job_id).",
       parameters: {
         type: "object",
-        properties: { job_id: { type: "string" }, tail: { type: "number", description: "oxirgi qatorlar soni, standart 80" } },
+        properties: { job_id: { type: "string" }, tail: { type: "number", description: "number of last lines, default 80" } },
         required: ["job_id"],
       },
       run: async (a) => {
@@ -125,38 +125,38 @@ export function buildBuiltinTools(env: ToolEnv): ToolDef[] {
     },
     {
       name: "computer_job_kill",
-      label: "Fon jarayonni to'xtatish",
-      description: "Fon jarayonni (job_id) to'xtatadi.",
+      label: "Stop background job",
+      description: "Stops a background job (job_id).",
       parameters: { type: "object", properties: { job_id: { type: "string" } }, required: ["job_id"] },
       run: async (a) => {
         const r = await sf("/api/jobs/kill", { id: a.job_id });
-        return r.error ? { output: r.error, isError: true } : { output: "to'xtatildi" };
+        return r.error ? { output: r.error, isError: true } : { output: "stopped" };
       },
     },
     {
       name: "list_tasks",
-      label: "Vazifalar ro'yxati",
-      description: "Rejalashtirilgan vazifalarni (scheduled tasks) ko'rsatadi.",
+      label: "List tasks",
+      description: "Lists the scheduled tasks.",
       parameters: { type: "object", properties: {} },
       run: async () => {
         const rows = await sf("/api/db/tasks");
         if (!Array.isArray(rows)) return { output: JSON.stringify(rows), isError: true };
-        if (!rows.length) return { output: "Vazifalar yo'q" };
+        if (!rows.length) return { output: "No tasks" };
         return {
           output: rows
-            .map((t: any) => `${t.id} | ${t.name} | ${t.kind} | ${t.schedule} | ${t.enabled ? "yoqilgan" : "o'chiq"} | keyingi: ${t.next_run ? new Date(t.next_run * 1000).toISOString() : "-"} | oxirgi: ${t.last_status || "-"}`)
+            .map((t: any) => `${t.id} | ${t.name} | ${t.kind} | ${t.schedule} | ${t.enabled ? "enabled" : "disabled"} | next: ${t.next_run ? new Date(t.next_run * 1000).toISOString() : "-"} | oxirgi: ${t.last_status || "-"}`)
             .join("\n"),
         };
       },
     },
     {
       name: "delete_task",
-      label: "Vazifani o'chirish",
-      description: "Rejalashtirilgan vazifani id bo'yicha o'chiradi.",
+      label: "Delete task",
+      description: "Deletes a scheduled task by id.",
       parameters: { type: "object", properties: { id: { type: "string" } }, required: ["id"] },
       run: async (a) => {
         const r = await sf(`/api/db/tasks?id=${encodeURIComponent(a.id)}`, undefined, "DELETE");
-        return r.error ? { output: r.error, isError: true } : { output: "o'chirildi" };
+        return r.error ? { output: r.error, isError: true } : { output: "deleted" };
       },
     },
   ];
@@ -164,17 +164,17 @@ export function buildBuiltinTools(env: ToolEnv): ToolDef[] {
   if (env.allowScheduling) {
     tools.push({
       name: "schedule_task",
-      label: "Vazifa rejalash",
+      label: "Schedule task",
       description:
-        "Vazifani jadval bo'yicha avtomatik bajarishga qo'yadi (local server 24/7 ishlaydi). schedule formatlari: 'every 15m' | 'every 2h' | 'daily 09:00' | 'weekdays 18:30' | 'once 2026-10-25 09:00' | 'cron: */5 * * * *' (server mahalliy vaqti). kind='ai': har safar agent prompt'ni asboblar bilan bajaradi; kind='shell': oddiy buyruq.",
+        "Schedules a task to run automatically (the local server runs 24/7). Schedule formats: 'every 15m' | 'every 2h' | 'daily 09:00' | 'weekdays 18:30' | 'once 2026-10-25 09:00' | 'cron: */5 * * * *' (server local time). kind='ai': each time the agent runs the prompt with tools; kind='shell': a plain command.",
       parameters: {
         type: "object",
         properties: {
           name: { type: "string" },
           kind: { type: "string", enum: ["ai", "shell"] },
           schedule: { type: "string" },
-          prompt: { type: "string", description: "kind=ai uchun: to'liq, o'zi-o'zini tushuntiradigan ko'rsatma" },
-          command: { type: "string", description: "kind=shell uchun bash buyrug'i" },
+          prompt: { type: "string", description: "for kind=ai: a complete, self-explanatory instruction" },
+          command: { type: "string", description: "bash command for kind=shell" },
         },
         required: ["name", "kind", "schedule"],
       },
@@ -184,30 +184,30 @@ export function buildBuiltinTools(env: ToolEnv): ToolDef[] {
           app_url: env.appUrl || "", server_url: env.serverUrl || "", key_id: env.keyId || "",
         });
         if (r.error) return { output: r.error, isError: true };
-        return { output: `vazifa yaratildi (id=${r.id}). Keyingi ishga tushish: ${r.next_run ? new Date(r.next_run * 1000).toString() : "-"}` };
+        return { output: `task created (id=${r.id}). Next run: ${r.next_run ? new Date(r.next_run * 1000).toString() : "-"}` };
       },
     });
   }
-  // Foydalanuvchiga fayl kartochkasi sifatida berish (chatda: bosilsa preview, yuklab olish tugmasi bor).
+  // Present to the user as a file card (in chat: click to preview, with a download button).
   // Chiqish formati ("@file\t<hajm>\t<yo'l>") chat UI (components/chat/parse.ts) tomonidan kartochkaga aylantiriladi.
   tools.push({
     name: "present_files",
     label: "Share file",
     readOnly: true,
     description:
-      "Tayyor faylni(larni) foydalanuvchiga chatda KATOCHKA sifatida beradi (markdown emas). zip/html/rasm/pdf/kod/matn. Kartochkada preview + Yuklab olish bor. Fayl tayyor bo'lgach MAJBURIY shu asbobni chaqiring — yo'lni matnda yozmang, <|present_files|...> yozmang, faqat tool call. paths: to'liq absolyut yo'llar (masalan /home/user/a.txt).",
+      "Gives finished file(s) to the user in the chat as a CARD (not markdown): zip/html/image/pdf/code/text. The card has a live preview and a Download button. Once a file is ready you MUST call this tool: do not write the path in text, do not write <|present_files|...>, only make the tool call. paths: full absolute paths (for example /home/user/a.txt).",
 
     parameters: {
       type: "object",
       properties: {
-        paths: { type: "array", items: { type: "string" }, description: "fayllarning to'liq yo'llari (eng ko'pi 20 ta)" },
+        paths: { type: "array", items: { type: "string" }, description: "full paths of the files (at most 20)" },
       },
       required: ["paths"],
     },
     run: async (a) => {
       const raw = Array.isArray(a.paths) ? a.paths : [a.paths ?? a.path];
       const paths: string[] = raw.map((p: any) => String(p ?? "").trim()).filter(Boolean).slice(0, 20);
-      if (!paths.length) return { output: "paths bo'sh: fayl yo'lini bering", isError: true };
+      if (!paths.length) return { output: "paths is empty: give a file path", isError: true };
       const script = paths
         .map(
           (p) =>
@@ -219,8 +219,8 @@ export function buildBuiltinTools(env: ToolEnv): ToolDef[] {
       const lines = String(r.stdout || "").split("\n");
       const files = lines.filter((l) => l.startsWith("@file\t"));
       const bad = lines.filter((l) => l.startsWith("@err\t")).map((l) => l.slice(5));
-      if (!files.length) return { output: `Fayl topilmadi: ${(bad.length ? bad : paths).join(", ")}`, isError: true };
-      return { output: files.join("\n") + (bad.length ? `\n(topilmadi: ${bad.join(", ")})` : "") };
+      if (!files.length) return { output: `File not found: ${(bad.length ? bad : paths).join(", ")}`, isError: true };
+      return { output: files.join("\n") + (bad.length ? `\n(not found: ${bad.join(", ")})` : "") };
     },
   });
   return tools;

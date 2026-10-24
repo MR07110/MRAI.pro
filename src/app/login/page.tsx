@@ -6,7 +6,7 @@ import { ArrowRight, KeyRound, Loader2 } from "lucide-react";
 
 type Step = "loading" | "key" | "account";
 
-// Faqat o'z suhbat manzillariga qaytariladi (open-redirect yo'q).
+// Only redirects back to the user's own chat URLs (no open-redirect).
 function nextUrl(): string {
   try {
     const n = new URLSearchParams(window.location.search).get("next") || "";
@@ -61,9 +61,9 @@ export default function LoginPage() {
       if (ok) {
         setKey("");
         setStep("account");
-      } else setError(data?.error || "Kirib bo'lmadi");
+      } else setError(data?.error || "Could not sign in");
     } catch {
-      setError("Serverga ulanib bo'lmadi");
+      setError("Could not connect to the server");
     }
     setBusy(false);
   }
@@ -74,12 +74,12 @@ export default function LoginPage() {
     setError("");
     const reg = mode === "register";
     if (reg) {
-      if (!name.trim()) return setError("Ismingizni kiriting");
-      if (username.trim().length < 3) return setError("Username kamida 3 ta belgi bo'lishi kerak");
-      if (password.length < 6) return setError("Parol kamida 6 ta belgi bo'lishi kerak");
-      if (password !== confirm) return setError("Parollar mos kelmadi");
+      if (!name.trim()) return setError("Enter your name");
+      if (username.trim().length < 3) return setError("Username must be at least 3 characters");
+      if (password.length < 6) return setError("Password must be at least 6 characters");
+      if (password !== confirm) return setError("Passwords do not match");
     } else if (!username.trim() || !password) {
-      return setError("Username va parolni kiriting");
+      return setError("Enter your username and password");
     }
     setBusy(true);
     try {
@@ -93,9 +93,9 @@ export default function LoginPage() {
         return;
       }
       if (data?.error === "Enter your access key first") setStep("key");
-      setError(data?.error || "Errorlik yuz berdi");
+      setError(data?.error || "An error occurred");
     } catch {
-      setError("Serverga ulanib bo'lmadi");
+      setError("Could not connect to the server");
     }
     setBusy(false);
   }
@@ -150,7 +150,7 @@ export default function LoginPage() {
               </div>
               {error && <p className="text-[13px] text-red-400 bg-red-500/[0.07] border border-red-500/20 px-3.5 py-2.5 rounded-xl">{error}</p>}
               <button type="submit" disabled={busy || !key.trim()} className={primaryBtn}>
-                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Davom etish <ArrowRight className="w-4 h-4" /></>}
+                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Continue <ArrowRight className="w-4 h-4" /></>}
               </button>
             </form>
           )}
@@ -167,7 +167,7 @@ export default function LoginPage() {
                       mode === m ? "bg-white text-black" : "text-neutral-400 hover:text-white"
                     }`}
                   >
-                    {m === "signin" ? "Kirish" : "Ro'yxatdan o'tish"}
+                    {m === "signin" ? "Sign in" : "Sign up"}
                   </button>
                 ))}
               </div>
@@ -184,7 +184,7 @@ export default function LoginPage() {
                 <input
                   value={username}
                   onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s+/g, ""))}
-                  placeholder="foydalanuvchi_nomi"
+                  placeholder="username"
                   autoCapitalize="none"
                   autoCorrect="off"
                   autoComplete="username"
@@ -194,7 +194,7 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label className={labelCls}>Parol</label>
+                <label className={labelCls}>Password</label>
                 <input
                   type="password"
                   value={password}
@@ -207,7 +207,7 @@ export default function LoginPage() {
 
               {mode === "register" && (
                 <div>
-                  <label className={labelCls}>Parolni takrorlang</label>
+                  <label className={labelCls}>Repeat password</label>
                   <input
                     type="password"
                     value={confirm}
@@ -222,11 +222,11 @@ export default function LoginPage() {
               {error && <p className="text-[13px] text-red-400 bg-red-500/[0.07] border border-red-500/20 px-3.5 py-2.5 rounded-xl">{error}</p>}
 
               <button type="submit" disabled={busy} className={primaryBtn}>
-                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : mode === "signin" ? "Kirish" : "Hisob yaratish"}
+                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : mode === "signin" ? "Sign in" : "Create account"}
               </button>
 
               <button type="button" onClick={changeKey} className="w-full pt-3 text-xs text-neutral-600 hover:text-neutral-300 transition cursor-pointer">
-                Access keyni qayta kiritish
+                Re-enter access key
               </button>
             </form>
           )}

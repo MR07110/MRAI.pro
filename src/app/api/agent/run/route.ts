@@ -8,16 +8,16 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-// Scheduler (local server) shu yerni chaqiradi: bir martalik agent ishga tushirish.
+// The scheduler (local server) calls this: a one-off agent run.
 export async function POST(req: NextRequest) {
   if (!isAuthorized(req)) {
-    return NextResponse.json({ ok: false, error: "Ruxsat yo'q (token)" }, { status: 401 });
+    return NextResponse.json({ ok: false, error: "Not allowed (token)" }, { status: 401 });
   }
   try {
     const b = await req.json();
-    if (!b.prompt || !b.apiKey) return NextResponse.json({ ok: false, error: "prompt va apiKey kerak" }, { status: 400 });
+    if (!b.prompt || !b.apiKey) return NextResponse.json({ ok: false, error: "prompt and apiKey are required" }, { status: 400 });
     const user = typeof b.user === "string" && USERNAME_RE.test(b.user) ? b.user : "";
-    if (!user) return NextResponse.json({ ok: false, error: "user kerak" }, { status: 400 });
+    if (!user) return NextResponse.json({ ok: false, error: "user is required" }, { status: 400 });
     const r = await runAgent({
       provider: b.provider,
       apiKey: b.apiKey,
@@ -41,6 +41,6 @@ export async function POST(req: NextRequest) {
       log: r.transcript.slice(-12000),
     });
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || "agent xatosi" }, { status: 200 });
+    return NextResponse.json({ ok: false, error: e?.message || "agent error" }, { status: 200 });
   }
 }

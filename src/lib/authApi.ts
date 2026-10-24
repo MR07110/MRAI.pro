@@ -1,4 +1,4 @@
-// Next route'lar uchun: Python server /api/auth/* ga murojaat va xatoni HTTP statusga aylantirish.
+// For the Next routes: call the Python server /api/auth/* and turn errors into HTTP statuses.
 import { NextResponse } from "next/server";
 import { serverFetch } from "@/lib/serverAuth";
 import { signSession, USER_COOKIE, sessionCookieOpts } from "@/lib/session";
@@ -10,12 +10,12 @@ export async function callAuth(path: string, body: Record<string, unknown>): Pro
     const data = await serverFetch(undefined, path, { body, timeoutMs: 15000 });
     return { user: data?.user, status: 200 };
   } catch (e: any) {
-    const msg = String(e?.message || "Xatolik");
-    if (/Serverga|fetch failed|timeout|aborted|JSON emas|sozlanmagan/i.test(msg)) {
-      return { error: "Server bilan aloqa yo'q. Birozdan keyin qayta urinib ko'ring.", status: 502 };
+    const msg = String(e?.message || "Error");
+    if (/connect to the server|Serverga|fetch failed|timeout|aborted|not JSON|not configured/i.test(msg)) {
+      return { error: "Cannot reach the server. Try again in a moment.", status: 502 };
     }
-    if (/band/i.test(msg)) return { error: msg, status: 409 };
-    if (/noto'g'ri|noto‘g‘ri/i.test(msg)) return { error: msg, status: 401 };
+    if (/taken|already/i.test(msg)) return { error: msg, status: 409 };
+    if (/wrong|incorrect|invalid|not found/i.test(msg)) return { error: msg, status: 401 };
     return { error: msg, status: 400 };
   }
 }
@@ -26,7 +26,7 @@ export async function withSession(user: AuthUser, req: Request): Promise<NextRes
   return res;
 }
 
-// Oddiy xotiradagi urinish cheklovchi
+// Simple in-memory attempt limiter
 export function makeLimiter(max: number, windowMs: number) {
   const m = new Map<string, { n: number; t: number }>();
   return {

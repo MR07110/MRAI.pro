@@ -6,30 +6,30 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-// Agent ishi SERVERDA boshlanadi va brauzerga bog'liq emas (src/lib/runs.ts).
-// Bu yerdagi oqim faqat "ko'rinish": brauzer uzilsa ish davom etadi, /api/agent/attach orqali qayta ulanish mumkin.
+// The agent job starts on the SERVER and is independent of the browser (src/lib/runs.ts).
+// The stream here is only a "view": if the browser drops, the job continues and can be reattached via /api/agent/attach.
 export async function POST(req: NextRequest) {
-  // Kirish: src/proxy.ts (login cookie) shu routeni himoya qiladi; Bearer faqat /api/agent/run uchun.
+  // Access: src/proxy.ts (login cookie) protects this route; Bearer is only for /api/agent/run.
   let body: any;
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "JSON noto'g'ri" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
   if (!body.apiKey || typeof body.apiKey !== "string" || !body.apiKey.trim()) {
-    return NextResponse.json({ error: "API kalit kiritilmagan. Sozlamalardan kalit qo'shing." }, { status: 400 });
+    return NextResponse.json({ error: "No API key entered. Add one in Settings." }, { status: 400 });
   }
   if (!Array.isArray(body.messages) || body.messages.length === 0) {
-    return NextResponse.json({ error: "Xabarlar ro'yxati bo'sh" }, { status: 400 });
+    return NextResponse.json({ error: "The message list is empty" }, { status: 400 });
   }
   const chatId = typeof body.chatId === "string" ? body.chatId.trim() : "";
   const msgId = typeof body.messageId === "string" ? body.messageId.trim() : "";
   if (!chatId || !msgId) {
-    return NextResponse.json({ error: "chatId va messageId kerak" }, { status: 400 });
+    return NextResponse.json({ error: "chatId and messageId are required" }, { status: 400 });
   }
 
   const user = await sessionUserFromRequest(req);
-  if (!user) return NextResponse.json({ error: "Kirish talab qilinadi" }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "Sign-in required" }, { status: 401 });
 
   const run = startRun({
     chatId,

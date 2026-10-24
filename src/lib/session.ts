@@ -1,5 +1,5 @@
-// Foydalanuvchi sessiyasi: imzolangan (HMAC-SHA256) cookie. Edge (proxy) va Node ikkalasida ishlaydi.
-// Maxfiy kalit MRAI_AUTH_TOKEN dan olinadi (alohida sir kiritish shart emas).
+// User session: a signed (HMAC-SHA256) cookie. Works in both Edge (proxy) and Node.
+// The secret key comes from MRAI_AUTH_TOKEN (no separate secret needs to be entered).
 import { ACCESS_COOKIE, verifyAccess } from "@/lib/access";
 
 export const USER_COOKIE = "mrai_user";
@@ -61,7 +61,7 @@ export function readCookie(header: string | null, name: string): string {
   return "";
 }
 
-// Kirish kaliti to'g'ri kiritilganmi (imzolangan muddatli cookie). Token yo'q bo'lsa: developmentda ochiq, productionda yopiq.
+// Whether the access key was entered correctly (a signed, expiring cookie). No token: open in development, closed in production.
 export async function hasAccess(req: Request): Promise<boolean> {
   if (!(process.env.MRAI_AUTH_TOKEN || "").trim()) return process.env.NODE_ENV !== "production";
   return verifyAccess(readCookie(req.headers.get("cookie"), ACCESS_COOKIE));
@@ -75,8 +75,8 @@ export function clientIp(req: Request): string {
   return (req.headers.get("x-forwarded-for") || "local").split(",")[0].trim();
 }
 
-// Session cookie: brauzer yopilganda o'chadi -> sayt har safar kirish kalitini qayta so'raydi.
-// Secure bayrog'i so'rov haqiqatan HTTPS bo'lsagina qo'yiladi (http://IP:3000 da Secure cookie brauzer tomonidan tashlab yuboriladi).
+// Session cookie: cleared when the browser closes -> the site asks for the access key again each time.
+// The Secure flag is set only when the request is truly HTTPS (on http://IP:3000 the browser drops a Secure cookie).
 export function sessionCookieOpts(req: Request) {
   const proto = (req.headers.get("x-forwarded-proto") || "").split(",")[0].trim() || new URL(req.url).protocol.replace(":", "");
   return {

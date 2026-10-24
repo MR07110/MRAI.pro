@@ -1,5 +1,5 @@
-// Token sarfi: har bir model chaqiruvi lokal Python serverdagi `usage` jadvaliga yoziladi
-// (Sozlamalar -> Usage shu yerdan o'qiydi). Yozish "yoq-yo'qolgan"dan afzal: xato bo'lsa suhbatni to'xtatmaydi.
+// Token spend: every model call is written to the `usage` table on the local Python server
+// (Settings -> Usage reads from here). Best-effort: a write error never interrupts the chat.
 import { serverFetch } from "@/lib/serverAuth";
 
 export interface UsageRecord {
@@ -10,11 +10,11 @@ export interface UsageRecord {
   chatId?: string;
   input: number;
   output: number;
-  /** Provayder usage qaytarmagan: belgilar/4 bo'yicha taxminiy hisob */
+  /** The provider returned no usage: rough estimate from characters/4 */
   estimated?: boolean;
 }
 
-/** ~4 belgi = 1 token (provayder usage bermaganda taxminiy hisob uchun) */
+/** ~4 characters = 1 token (rough estimate when the provider gives no usage) */
 export function estTok(chars: number): number {
   return Math.max(0, Math.ceil((chars || 0) / 4));
 }

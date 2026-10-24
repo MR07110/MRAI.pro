@@ -7,7 +7,7 @@ import WaitCountdown, { stripWait } from "../WaitCountdown";
 import type { Message } from "@/types";
 import Md from "./Markdown";
 import { ToolGroup } from "./ToolStep";
-import { parseThinkingAndContent, splitAgent, type Seg, type ToolSeg } from "./parse";
+import { fileLines, parseThinkingAndContent, pullInlineFiles, splitAgent, type Seg, type ToolSeg } from "./parse";
 import FileCard from "./FileCard";
 import type { FileRef } from "./fileKind";
 
@@ -47,7 +47,7 @@ function Thinking({ text, live }: { text: string; live: boolean }) {
  onClick={() => setOpen((v) => !v)}
  className="flex items-center gap-1.5 text-[13px] text-neutral-500 hover:text-neutral-300 transition cursor-pointer"
  >
- <span className={live ? "shimmer" : ""}>{live ? "O‘ylanmoqda…" : "Fikrlash jarayoni"}</span>
+ <span className={live ? "shimmer" : ""}>{live ? "Thinking…" : "Fikrlash jarayoni"}</span>
  <ChevronRight className={`w-3.5 h-3.5 transition-transform ${open ? "rotate-90" : ""}`} />
  </button>
  {open && (
@@ -80,11 +80,11 @@ export default function MessageView({
  isStreaming: boolean;
  copied: boolean;
  fontSizeClass: string;
- /** Faqat eng oxirgi foydalanuvchi xabari uchun true */
+ /** true only for the most recent user message */
  canEdit?: boolean;
  onCopy: (id: string, text: string) => void;
  onRegenerate: () => void;
- /** Tahrirlangan matn bilan qayta yuborish (faqat canEdit bo'lganda) */
+ /** Resend with edited text (only when canEdit) */
  onEditSubmit: (messageId: string, text: string) => void;
  onOpenSettings: () => void;
  onOpenFile: (f: FileRef) => void;
@@ -94,6 +94,11 @@ export default function MessageView({
  const { thinking, content } = isAssistant
  ? parseThinkingAndContent(msg.content)
  : { thinking: null as string | null, content: msg.content };
+
+ // User messages carry any uploaded attachments as @file lines in the content.
+ const userParsed = useMemo(() => (isAssistant ? null : pullInlineFiles(msg.content)), [isAssistant, msg.content]);
+ const userText = userParsed ? userParsed.text : "";
+ const userFiles = userParsed ? userParsed.files : [];
 
  const [editing, setEditing] = useState(false);
  const [draft, setDraft] = useState(msg.content);
@@ -117,7 +122,7 @@ export default function MessageView({
  let body = content;
  let errorText: string | null = null;
  if (isAssistant) {
- const em = content.match(/(?:^|\n\n)Errorlik:\s*([\s\S]*)$/);
+ const em = content.match(/(?:^|\n\n)Error:\s*([\s\S]*)$/);
  if (em) {
  body = content.slice(0, em.index ?? 0);
  errorText = em[1].trim();
@@ -132,18 +137,21 @@ export default function MessageView({
  if (!isAssistant) {
  const submitEdit = () => {
  const t0 = draft.trim();
- if (!t0) return;
- if (t0 === msg.content.trim()) {
+ if (!t0 && userFiles.length === 0) return;
+ if (t0 === userText.trim()) {
  setEditing(false);
- setDraft(msg.content);
+ setDraft(userText);
  return;
  }
  setEditing(false);
- onEditSubmit(msg.id, t0);
+ // Keep the attachments on the message when the typed text is edited.
+ const lines = userFiles.length ? fileLines(userFiles) : "";
+ onEditSubmit(msg.id, lines ? (t0 ? `${t0}\n\n${lines}` : lines) : t0);
  };
 
  return (
  <div className="group flex flex-col items-end fade-up w-full">
+ {(editing || userText) && (
  <div
  className={`relative max-w-[88%] min-w-[4rem] border border-white/15 bg-[#0c0c0c] ${fontSizeClass} leading-[1.7] text-neutral-100 ${
  editing ? "w-full border border-white/20 ring-1 ring-white/10" : ""
@@ -164,7 +172,7 @@ export default function MessageView({
  if (e.key === "Escape") {
  e.preventDefault();
  setEditing(false);
- setDraft(msg.content);
+ setDraft(userText);
  }
  if (e.key === "Enter" && !e.shiftKey) {
  e.preventDefault();
@@ -179,11 +187,11 @@ export default function MessageView({
  type="button"
  onClick={() => {
  setEditing(false);
- setDraft(msg.content);
+ setDraft(userText);
  }}
  className="h-7 px-2.5 text-[12px] text-neutral-400 hover:text-white hover:bg-white/[0.08] transition cursor-pointer"
  >
- Bekor
+ Cancel
  </button>
  <button
  type="button"
@@ -191,7 +199,7 @@ export default function MessageView({
  disabled={!draft.trim()}
  className="h-7 px-2.5 text-[12px] font-medium bg-white text-black hover:bg-neutral-200 transition disabled:opacity-30 cursor-pointer"
  >
- Yuborish
+ Send
  </button>
  </div>
  </>
@@ -200,27 +208,36 @@ export default function MessageView({
  className="px-4 py-2.5 whitespace-pre-wrap break-words"
  onDoubleClick={() => {
  if (!canEdit) return;
- setDraft(msg.content);
+ setDraft(userText);
  setEditing(true);
  }}
  >
- {msg.content}
+ {userText}
  </div>
  )}
  </div>
+ )}
+
+ {userFiles.length > 0 && (
+ <div className="mt-1 w-72 max-w-[88%] self-end flex flex-col items-stretch">
+ {userFiles.map((f) => (
+ <FileCard key={f.path} file={f} onOpen={onOpenFile} />
+ ))}
+ </div>
+ )}
 
  {!editing && (
  <div className="flex items-center gap-0.5 mt-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
- <button type="button" className={iconBtn} title="Copy" onClick={() => onCopy(msg.id, msg.content)}>
+ <button type="button" className={iconBtn} title="Copy" onClick={() => onCopy(msg.id, userText)}>
  {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
  </button>
  {canEdit && (
  <button
  type="button"
  className={iconBtn}
- title="Tahrirlash (bubble ichida)"
+ title="Edit"
  onClick={() => {
- setDraft(msg.content);
+ setDraft(userText);
  setEditing(true);
  }}
  >
@@ -235,7 +252,7 @@ export default function MessageView({
 
  const hasBody = blocks.length > 0;
  const lastBlock = blocks[blocks.length - 1];
- const needsKey = errorText ? /kalit|api key|401|403|unauthor|invalid/i.test(errorText) : false;
+ const needsKey = errorText ? /api key|api-key|kalit|401|403|unauthor|invalid/i.test(errorText) : false;
 
  return (
  <div className="group min-w-0 fade-up">
@@ -248,7 +265,7 @@ export default function MessageView({
  ) : b.k === "tools" ? (
  <ToolGroup key={`tools-${i}-${b.items[0]?.name ?? "t"}`} items={b.items} />
  ) : b.k === "files" ? (
- <div key={i}>
+ <div key={i} className="w-full">
  {b.items.map((f) => (
  <FileCard key={f.path} file={f} onOpen={onOpenFile} />
  ))}
@@ -270,7 +287,7 @@ export default function MessageView({
  )}
  {live && !hasBody && thinking !== null && thinking === "" && (
  <div className="flex items-center gap-2.5 py-1 text-[14px]">
- <span className="shimmer">O‘ylanmoqda…</span>
+ <span className="shimmer">Thinking…</span>
  </div>
  )}
  </div>

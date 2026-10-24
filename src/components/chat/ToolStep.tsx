@@ -67,8 +67,8 @@ const ToolRow = memo(function ToolRow({ t }: { t: ToolSeg }) {
 
 export function ToolGroup({ items }: { items: ToolSeg[] }) {
  const { text, live } = groupLabel(items);
- // Stream (live) paytida avtomatik ochiq — yangi Bash/LS boshlansa ham list yo'qolmasin.
- // Foydalanuvchi yopsa, keyingi live gacha shu holat saqlanadi.
+ // Auto-open while streaming (live) — the list stays even when a new Bash/LS starts.
+ // If the user closes it, that state is kept until the next live run.
  const [open, setOpen] = useState(true);
  const [userClosed, setUserClosed] = useState(false);
  const show = live ? !userClosed : open;

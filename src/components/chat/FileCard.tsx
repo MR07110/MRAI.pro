@@ -1,7 +1,7 @@
 "use client";
 
-import { Download, File as FileIcon, FileArchive, FileAudio, FileCode, FileImage, FileText, FileVideo, Globe } from "lucide-react";
-import { extOf, fileUrl, fmtSize, kindOf, type FileKind, type FileRef } from "./fileKind";
+import { Download, File as FileIcon, Folder, FileArchive, FileAudio, FileCode, FileImage, FileText, FileVideo, Globe } from "lucide-react";
+import { extOf, fileUrl, fmtSize, kindOf, prefetchFile, type FileKind, type FileRef } from "./fileKind";
 
 const ICONS: Record<FileKind, React.ComponentType<{ className?: string }>> = {
  html: Globe,
@@ -12,25 +12,29 @@ const ICONS: Record<FileKind, React.ComponentType<{ className?: string }>> = {
  video: FileVideo,
  audio: FileAudio,
  archive: FileArchive,
+ dir: Folder,
  other: FileIcon,
 };
 
 export default function FileCard({ file, onOpen }: { file: FileRef; onOpen: (f: FileRef) => void }) {
  const Icon = ICONS[kindOf(file.name)];
- const label = (extOf(file.name) || "fayl").toUpperCase();
+ const label = (extOf(file.name) || "file").toUpperCase();
  return (
  <div
  role="button"
  tabIndex={0}
  onClick={() => onOpen(file)}
+ onMouseEnter={() => void prefetchFile(file.path, file.name)}
+ onFocus={() => void prefetchFile(file.path, file.name)}
+ onTouchStart={() => void prefetchFile(file.path, file.name)}
  onKeyDown={(e) => {
  if (e.key === "Enter" || e.key === " ") {
  e.preventDefault();
  onOpen(file);
  }
  }}
- className="my-3 flex items-center gap-3.5 max-w-[34rem] border border-white/20 bg-black hover:bg-white/[0.04] px-3 py-3 transition cursor-pointer"
- title="Ko‘rish"
+ className="my-3 flex items-center gap-3.5 w-full min-w-0 max-w-none box-border border border-white/20 bg-black hover:bg-white/[0.04] px-3 py-3 transition cursor-pointer"
+ title="Open"
  >
  <div className="h-12 w-12 shrink-0 border border-white/15 bg-[#0a0a0a] flex items-center justify-center text-neutral-400">
  <Icon className="w-5 h-5" />

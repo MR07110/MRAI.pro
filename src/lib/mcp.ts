@@ -1,4 +1,4 @@
-// Minimal MCP client (server-side): Streamable HTTP + eski SSE transport fallback.
+// Minimal MCP client (server-side): Streamable HTTP + legacy SSE transport fallback.
 export interface McpConnector {
   id?: string;
   name: string;
@@ -23,10 +23,10 @@ export function assertSafeUrl(raw: string): URL {
   try {
     u = new URL(raw);
   } catch {
-    throw new Error("URL noto'g'ri");
+    throw new Error("Invalid URL");
   }
   if (u.protocol !== "https:" && u.protocol !== "http:") throw new Error("Faqat http(s) URL");
-  if (/^(169\.254\.|metadata\.google\.internal)/.test(u.hostname)) throw new Error("Bu manzilga ruxsat yo'q");
+  if (/^(169\.254\.|metadata\.google\.internal)/.test(u.hostname)) throw new Error("This address is not allowed");
   return u;
 }
 
@@ -110,8 +110,8 @@ export class McpClient {
       const j = await res.json();
       msg = Array.isArray(j) ? j.find((m: Rpc) => m.id === id) : j;
     }
-    if (!msg) throw new Error("MCP javobi topilmadi");
-    if (msg.error) throw new Error(msg.error.message || "MCP xatosi");
+    if (!msg) throw new Error("No MCP response found");
+    if (msg.error) throw new Error(msg.error.message || "MCP error");
     return msg.result;
   }
 
@@ -155,7 +155,7 @@ export class McpClient {
     let wait: Promise<Rpc> | undefined;
     if (id !== undefined) {
       wait = new Promise<Rpc>((resolve, reject) => {
-        const t = setTimeout(() => reject(new Error("MCP javob vaqti tugadi")), this.timeoutMs);
+        const t = setTimeout(() => reject(new Error("MCP response timed out")), this.timeoutMs);
         this.pending.set(id, {
           resolve: (m) => {
             clearTimeout(t);
@@ -175,7 +175,7 @@ export class McpClient {
     await res.arrayBuffer().catch(() => {});
     if (!wait) return null;
     const msg = await wait;
-    if (msg.error) throw new Error(msg.error.message || "MCP xatosi");
+    if (msg.error) throw new Error(msg.error.message || "MCP error");
     return msg.result;
   }
 
@@ -221,7 +221,7 @@ export class McpClient {
     if (!parts.length && r?.structuredContent) parts.push(JSON.stringify(r.structuredContent));
     let text = parts.join("\n");
     if (text.length > RESULT_CAP) text = text.slice(0, RESULT_CAP) + `\n...[${text.length - RESULT_CAP} belgi qisqartirildi]`;
-    return { text: text || "(bo'sh natija)", isError: !!r?.isError };
+    return { text: text || "(empty result)", isError: !!r?.isError };
   }
 
   async close(): Promise<void> {

@@ -6,14 +6,14 @@ import * as serverDb from "@/lib/serverDb";
 import type { UsageSummary } from "@/types";
 
 const RANGES = [
- { days: 7, label: "7 kun" },
- { days: 30, label: "30 kun" },
- { days: 90, label: "90 kun" },
+ { days: 7, label: "7 days" },
+ { days: 30, label: "30 days" },
+ { days: 90, label: "90 days" },
 ];
 
 const SOURCE_META: Record<string, { label: string; bar: string }> = {
- chat: { label: "Oddiy chat", bar: "bg-neutral-300" },
- agent: { label: "Agent", bar: "bg-violet-400" },
+ chat: { label: "Chat", bar: "bg-neutral-300" },
+ agent: { label: "Agent", bar: "bg-neutral-500" },
  task: { label: "Tasks", bar: "bg-amber-400" },
 };
 
@@ -52,9 +52,9 @@ function SplitBar({ input, output, scale = 100, h = "h-2" }: { input: number; ou
  const t = input + output;
  const width = t > 0 ? Math.max(2, Math.min(100, scale)) : 0;
  return (
- <div className={`${h} w-full bg-neutral-800 overflow-hidden`}>
+ <div className={`${h} w-full bg-white/[0.08] overflow-hidden`}>
  <div className="h-full flex transition-all duration-500" style={{ width: `${width}%` }}>
- <div className="h-full bg-sky-400" style={{ width: `${pct(input, t)}%` }} />
+ <div className="h-full bg-white" style={{ width: `${pct(input, t)}%` }} />
  <div className="h-full bg-emerald-400" style={{ width: `${pct(output, t)}%` }} />
  </div>
  </div>
@@ -63,7 +63,7 @@ function SplitBar({ input, output, scale = 100, h = "h-2" }: { input: number; ou
 
 function Card({ title, right, children }: { title?: string; right?: React.ReactNode; children: React.ReactNode }) {
  return (
- <div className=" border border-neutral-800 bg-neutral-950 p-4">
+ <div className=" border border-white/15 bg-black p-4">
  {(title || right) && (
  <div className="flex items-center justify-between mb-3">
  <p className="text-xs font-medium text-neutral-300">{title}</p>
@@ -92,7 +92,7 @@ export default function UsagePanel() {
  setError("");
  })
  .catch((e) => {
- if (alive) setError(e?.message || "Serverga ulanib bo‘lmadi");
+ if (alive) setError(e?.message || "Could not connect to the server");
  });
  run();
  const t = setInterval(run, 15000);
@@ -108,7 +108,7 @@ export default function UsagePanel() {
  setData(await serverDb.getUsage(days));
  setError("");
  } catch (e) {
- setError((e as Error)?.message || "Serverga ulanib bo‘lmadi");
+ setError((e as Error)?.message || "Could not connect to the server");
  } finally {
  setBusy(false);
  }
@@ -116,13 +116,13 @@ export default function UsagePanel() {
 
  const header = (
  <div className="flex items-center justify-between gap-3">
- <div className="flex border border-neutral-800 bg-neutral-950 p-0.5">
+ <div className="flex border border-white/15 bg-black p-0.5">
  {RANGES.map((r) => (
  <button
  key={r.days}
  onClick={() => setDays(r.days)}
  className={`px-3 py-1.5 text-[11px] font-medium transition cursor-pointer ${
- days === r.days ? "bg-white text-neutral-950" : "text-neutral-400 hover:text-white"
+ days === r.days ? "bg-white text-black" : "text-neutral-400 hover:text-white"
  }`}
  >
  {r.label}
@@ -131,8 +131,8 @@ export default function UsagePanel() {
  </div>
  <button
  onClick={refresh}
- title="Newlash"
- className="p-2 border border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-800 transition cursor-pointer"
+ title="Refresh"
+ className="p-2 border border-white/15 text-neutral-400 hover:text-white hover:bg-white/[0.07] transition cursor-pointer"
  >
  <RefreshCw className={`w-3.5 h-3.5 ${busy ? "animate-spin" : ""}`} />
  </button>
@@ -164,19 +164,19 @@ export default function UsagePanel() {
 
  const tiles = [
  { label: "Today", b: data.totals.today },
- { label: "7 kun", b: data.totals.d7 },
- { label: "30 kun", b: data.totals.d30 },
- { label: "Jami", b: data.totals.all },
+ { label: "7 days", b: data.totals.d7 },
+ { label: "30 days", b: data.totals.d30 },
+ { label: "Total", b: data.totals.all },
  ];
 
  if (allTotal === 0) {
  return (
  <div className="space-y-4">
  {header}
- <div className=" border border-dashed border-neutral-800 py-12 px-6 text-center">
- <p className="text-sm font-medium text-neutral-200">Hali token sarfi yozilmagan</p>
+ <div className=" border border-dashed border-white/15 py-12 px-6 text-center">
+ <p className="text-sm font-medium text-neutral-200">No token usage recorded yet</p>
  <p className="text-xs text-neutral-500 mt-1.5 leading-relaxed">
- Suhbat boshlang yoki agent ishlating: har bir model so‘rovida ketgan tokenlar shu yerda paydo bo‘ladi.
+ Start a chat or run the agent: the tokens used by every model request will appear here.
  </p>
  </div>
  </div>
@@ -191,15 +191,15 @@ export default function UsagePanel() {
  <Card>
  <div className="flex items-end justify-between gap-3">
  <div>
- <p className="text-[11px] text-neutral-500">So‘nggi {data.days} kunda ketgan tokenlar</p>
+ <p className="text-[11px] text-neutral-500">Tokens used in the last {data.days} days</p>
  <p className="text-3xl font-semibold tracking-tight text-white mt-1 tabular-nums">{compact(total)}</p>
  <p className="text-[11px] text-neutral-500 mt-0.5 tabular-nums">{nf.format(total)} token</p>
  </div>
  <div className="text-right">
  <p className="text-lg font-semibold text-neutral-100 tabular-nums">{nf.format(range.calls)}</p>
- <p className="text-[11px] text-neutral-500">so‘rov</p>
+ <p className="text-[11px] text-neutral-500">requests</p>
  <p className="text-[11px] text-neutral-500 mt-1 tabular-nums">
- o‘rtacha {compact(range.calls ? total / range.calls : 0)} / so‘rov
+ avg {compact(range.calls ? total / range.calls : 0)} / request
  </p>
  </div>
  </div>
@@ -208,11 +208,11 @@ export default function UsagePanel() {
  <SplitBar input={range.input} output={range.output} h="h-3" />
  <div className="flex items-center justify-between mt-2 text-[11px]">
  <span className="flex items-center gap-1.5 text-neutral-300">
- <Dot className="bg-sky-400" /> Kirish <b className="tabular-nums">{compact(range.input)}</b>
+ <Dot className="bg-white" /> Input <b className="tabular-nums">{compact(range.input)}</b>
  <span className="text-neutral-500 tabular-nums">{pct(range.input, total).toFixed(0)}%</span>
  </span>
  <span className="flex items-center gap-1.5 text-neutral-300">
- <Dot className="bg-emerald-400" /> Sign out <b className="tabular-nums">{compact(range.output)}</b>
+ <Dot className="bg-emerald-400" /> Output <b className="tabular-nums">{compact(range.output)}</b>
  <span className="text-neutral-500 tabular-nums">{pct(range.output, total).toFixed(0)}%</span>
  </span>
  </div>
@@ -224,13 +224,13 @@ export default function UsagePanel() {
  {tiles.map((t) => {
  const v = t.b.input + t.b.output;
  return (
- <div key={t.label} className=" border border-neutral-800 bg-neutral-950 p-3">
+ <div key={t.label} className=" border border-white/15 bg-black p-3">
  <p className="text-[11px] text-neutral-500">{t.label}</p>
  <p className="text-lg font-semibold text-neutral-100 mt-0.5 tabular-nums">{compact(v)}</p>
- <div className="h-1 bg-neutral-800 overflow-hidden mt-2">
+ <div className="h-1 bg-white/[0.08] overflow-hidden mt-2">
  <div className="h-full bg-white/80 transition-all duration-500" style={{ width: `${v > 0 ? Math.max(3, pct(v, allTotal)) : 0}%` }} />
  </div>
- <p className="text-[10px] text-neutral-600 mt-1.5 tabular-nums">{nf.format(t.b.calls)} so‘rov</p>
+ <p className="text-[10px] text-neutral-600 mt-1.5 tabular-nums">{nf.format(t.b.calls)} requests</p>
  </div>
  );
  })}
@@ -238,8 +238,8 @@ export default function UsagePanel() {
 
  {/* Kunlar bo'yicha */}
  <Card
- title="Kunlar bo‘yicha"
- right={<span className="text-[10px] text-neutral-500 tabular-nums">eng ko‘p: {compact(maxDay === 1 && total === 0 ? 0 : maxDay)}</span>}
+ title="By day"
+ right={<span className="text-[10px] text-neutral-500 tabular-nums">peak: {compact(maxDay === 1 && total === 0 ? 0 : maxDay)}</span>}
  >
  <div className={`h-28 flex items-end ${data.by_day.length <= 14 ? "gap-1.5" : "gap-px"}`}>
  {data.by_day.map((d) => {
@@ -249,15 +249,15 @@ export default function UsagePanel() {
  <div
  key={d.day}
  className="flex-1 h-full flex flex-col justify-end min-w-0"
- title={`${dayLabel(d.day)} — ${nf.format(t)} token (kirish ${nf.format(d.input)}, chiqish ${nf.format(d.output)}), ${d.calls} so‘rov`}
+ title={`${dayLabel(d.day)} — ${nf.format(t)} token (input ${nf.format(d.input)}, output ${nf.format(d.output)}), ${d.calls} requests`}
  >
  {t > 0 ? (
  <div className="flex flex-col justify-end rounded-t-sm overflow-hidden transition-all duration-500" style={{ height: `${Math.max(3, h)}%` }}>
  <div className="bg-emerald-400" style={{ height: `${pct(d.output, t)}%` }} />
- <div className="bg-sky-400" style={{ height: `${pct(d.input, t)}%` }} />
+ <div className="bg-white" style={{ height: `${pct(d.input, t)}%` }} />
  </div>
  ) : (
- <div className="h-[2px] bg-neutral-800" />
+ <div className="h-[2px] bg-white/[0.08]" />
  )}
  </div>
  );
@@ -271,9 +271,9 @@ export default function UsagePanel() {
  </Card>
 
  {/* Modellar */}
- <Card title="Modellar bo‘yicha" right={<span className="text-[10px] text-neutral-500">{data.by_model.length} ta</span>}>
+ <Card title="By model" right={<span className="text-[10px] text-neutral-500">{data.by_model.length}</span>}>
  {data.by_model.length === 0 ? (
- <p className="text-xs text-neutral-500">Bu davrda so‘rov yo‘q</p>
+ <p className="text-xs text-neutral-500">No requests in this period</p>
  ) : (
  <div className="space-y-3.5">
  {data.by_model.map((m) => {
@@ -282,18 +282,18 @@ export default function UsagePanel() {
  <div key={m.provider + "/" + m.model}>
  <div className="flex items-center justify-between gap-3 mb-1.5">
  <div className="flex items-center gap-2 min-w-0">
- <span className="text-xs text-neutral-100 truncate" title={m.model}>{m.model || "noma’lum model"}</span>
- <span className="text-[10px] text-neutral-400 bg-neutral-800 px-1.5 py-0.5 shrink-0">{m.provider || "custom"}</span>
+ <span className="text-xs text-neutral-100 truncate" title={m.model}>{m.model || "unknown model"}</span>
+ <span className="text-[10px] text-neutral-400 bg-white/[0.08] px-1.5 py-0.5 shrink-0">{m.provider || "custom"}</span>
  </div>
  <span className="text-xs font-medium text-neutral-100 tabular-nums shrink-0">
- {m.estimated > 0 && <span title="Qisman taxminiy hisob" className="text-neutral-500 mr-0.5">≈</span>}
+ {m.estimated > 0 && <span title="Partly estimated" className="text-neutral-500 mr-0.5">≈</span>}
  {compact(t)}
  <span className="text-neutral-500 font-normal ml-1.5">{pct(t, total).toFixed(0)}%</span>
  </span>
  </div>
  <SplitBar input={m.input} output={m.output} scale={pct(t, maxModel)} />
  <p className="text-[10px] text-neutral-600 mt-1 tabular-nums">
- kirish {compact(m.input)} · chiqish {compact(m.output)} · {nf.format(m.calls)} so‘rov
+ input {compact(m.input)} · output {compact(m.output)} · {nf.format(m.calls)} requests
  </p>
  </div>
  );
@@ -304,7 +304,7 @@ export default function UsagePanel() {
 
  {/* Manbalar */}
  {data.by_source.length > 0 && (
- <Card title="Qayerdan ketgan">
+ <Card title="By source">
  <div className="space-y-3">
  {data.by_source.map((s) => {
  const t = s.input + s.output;
@@ -319,7 +319,7 @@ export default function UsagePanel() {
  {compact(t)} <span className="text-neutral-500 font-normal ml-1">{pct(t, sourceTotal).toFixed(0)}%</span>
  </span>
  </div>
- <div className="h-2 bg-neutral-800 overflow-hidden">
+ <div className="h-2 bg-white/[0.08] overflow-hidden">
  <div className={`h-full ${meta.bar} transition-all duration-500`} style={{ width: `${t > 0 ? Math.max(2, pct(t, sourceTotal)) : 0}%` }} />
  </div>
  </div>
@@ -332,18 +332,18 @@ export default function UsagePanel() {
  {/* Recent requests */}
  {data.recent.length > 0 && (
  <Card title="Recent requests">
- <div className="divide-y divide-neutral-900">
+ <div className="divide-y divide-white/[0.06]">
  {data.recent.map((r, i) => (
  <div key={r.ts + ":" + i} className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0">
  <div className="min-w-0">
- <p className="text-xs text-neutral-200 truncate" title={r.model}>{r.model || "noma’lum model"}</p>
+ <p className="text-xs text-neutral-200 truncate" title={r.model}>{r.model || "unknown model"}</p>
  <p className="text-[10px] text-neutral-600">
  {timeLabel(r.ts)} · {SOURCE_META[r.source]?.label || r.source}
  </p>
  </div>
  <p className="text-[11px] text-neutral-300 tabular-nums shrink-0">
  {r.estimated && <span className="text-neutral-500">≈ </span>}
- <span className="text-sky-400">{nf.format(r.input)}</span>
+ <span className="text-white">{nf.format(r.input)}</span>
  <span className="text-neutral-600"> → </span>
  <span className="text-emerald-400">{nf.format(r.output)}</span>
  </p>
@@ -355,7 +355,7 @@ export default function UsagePanel() {
 
  {data.estimated_calls > 0 && (
  <p className="text-[10px] text-neutral-600 leading-relaxed">
- ≈ — provayder token sonini qaytarmagan so‘rovlar: taxminan 4 belgi = 1 token deb hisoblangan ({nf.format(data.estimated_calls)} ta so‘rov).
+ ≈ — requests for which the provider did not return a token count: estimated at about 4 characters = 1 token ({nf.format(data.estimated_calls)} requests).
  </p>
  )}
  </div>

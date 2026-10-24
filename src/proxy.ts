@@ -3,9 +3,9 @@ import { ACCESS_COOKIE, verifyAccess } from "@/lib/access";
 import { USER_COOKIE, verifySession } from "@/lib/session";
 
 // Kirish tartibi (ikki bosqich):
-//   1) kirish kaliti (lokal serverda, access.key) — sayt har safar so'raydi (session cookie);
-//   2) kalit to'g'ri bo'lsagina ro'yxatdan o'tish yoki kirish (hisob), shundan keyin ilova.
-// Istisno (ochiq): /login, /api/auth/* (har biri ichida o'zi tekshiradi) va /api/agent/run (Bearer token bilan).
+//   1) the access key (on the local server, access.key) — the site asks for it each time (session cookie);
+//   2) only with a valid key: register or sign in (account), and then the app.
+// Exceptions (open): /login, /api/auth/* (each checks itself) and /api/agent/run (with a Bearer token).
 const PUBLIC_PATHS = [
   "/login",
   "/api/auth/access",
@@ -24,16 +24,16 @@ export async function proxy(req: NextRequest) {
   const token = (process.env.MRAI_AUTH_TOKEN || "").trim();
 
   if (!token) {
-    // Token sozlanmagan: lokal developmentda ochiq, productionda yopiq (fail-closed).
+    // Token not configured: open in local development, closed in production (fail-closed).
     if (process.env.NODE_ENV !== "production") return NextResponse.next();
-    const msg = "MRAI_AUTH_TOKEN sozlanmagan. Env ga qo'shing (.env.local yoki Vercel).";
+    const msg = "MRAI_AUTH_TOKEN is not configured. Add it to the environment (.env.local or Vercel).";
     return isApi
       ? NextResponse.json({ error: msg }, { status: 503 })
       : new NextResponse(msg, { status: 503 });
   }
 
   const goLogin = () => {
-    if (isApi) return NextResponse.json({ error: "Kirish talab qilinadi" }, { status: 401 });
+    if (isApi) return NextResponse.json({ error: "Sign-in required" }, { status: 401 });
     const url = req.nextUrl.clone();
     url.pathname = "/login";
     url.search = "";
@@ -41,7 +41,7 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(url);
   };
 
-  // 1-bosqich: kirish kaliti
+  // Step 1: access key
   if (!(await verifyAccess(req.cookies.get(ACCESS_COOKIE)?.value))) return goLogin();
 
   // 2-bosqich: hisob (imzolangan sessiya)

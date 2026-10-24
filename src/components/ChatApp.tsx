@@ -14,8 +14,10 @@ import { loadSettings, AppSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import Sidebar from "./chat/Sidebar";
 import FilePanel from "./FilePanel";
 import type { FileRef } from "./chat/fileKind";
+import { fileLines } from "./chat/parse";
 import MessageView from "./chat/Message";
 import Composer from "./chat/Composer";
+import QueuedMessages, { type QueuedItem } from "./chat/QueuedMessages";
 import { parseThinkingAndContent } from "./chat/parse";
 
 export default function ChatApp({ initialChatId = null }: { initialChatId?: string | null }) {
@@ -28,6 +30,8 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  const [currentChatId, setCurrentChatId] = useState<string | null>(initialChatId);
  const [messages, setMessages] = useState<Message[]>([]);
  const [input, setInput] = useState("");
+ const [pending, setPending] = useState<FileRef[]>([]);
+ const [uploading, setUploading] = useState(false);
  const [isStreaming, setIsStreaming] = useState(false);
  const [sidebarOpen, setSidebarOpen] = useState(true);
  const [settingsOpen, setSettingsOpen] = useState(false);
@@ -38,20 +42,180 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
  const [isScrolledUp, setIsScrolledUp] = useState(false);
  const [openFile, setOpenFile] = useState<FileRef | null>(null);
-  const [filePanelWidth, setFilePanelWidth] = useState(420);
-  useEffect(() => {
-    try {
-      const w = Number(localStorage.getItem("mrai_filepanel_w"));
-      if (w >= 280 && w <= 1200) setFilePanelWidth(w);
-    } catch {}
-  }, []);
-  function setFilePanelWidthPersist(w: number) {
-    setFilePanelWidth(w);
-    try { localStorage.setItem("mrai_filepanel_w", String(w)); } catch {}
+  const [filePanelWidth, setFilePanelWidth] = useState<number | null>(null);
+
+  // ===== SERVER STATE: the browser is only a "viewer" (like an iframe) =====
+  // The open file (artifact), panel width, sidebar, draft text and queued messages are stored on the server:
+  // so everything comes back exactly the same even after a page refresh.
+  const uiRef = useRef<{ openFiles: Record<string, FileRef>; drafts: Record<string, string> }>({ openFiles: {}, drafts: {} });
+  const [uiReady, setUiReady] = useState(false);
+  const [queue, setQueue] = useState<QueuedItem[]>([]);
+  const queueLenRef = useRef(0);
+  queueLenRef.current = queue.length;
+
+  function putUi(body: Record<string, unknown>) {
+    fetch("/api/ui-state", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      keepalive: true,
+    }).catch(() => {});
   }
- useEffect(() => {
- setOpenFile(null);
- }, [currentChatId]);
+
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    fetch("/api/ui-state", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!alive || !j?.ui) return;
+        const files: Record<string, FileRef> = {};
+        for (const [k, f] of Object.entries<any>(j.ui.openFiles || {})) {
+          if (f && f.path && f.name) files[k] = { path: f.path, name: f.name, size: f.size ?? 0 };
+        }
+        uiRef.current = { openFiles: files, drafts: j.ui.drafts || {} };
+        if (typeof j.ui.sidebarOpen === "boolean") setSidebarOpen(j.ui.sidebarOpen);
+        if (typeof j.ui.panelWidth === "number") setFilePanelWidth(j.ui.panelWidth);
+      })
+      .catch(() => {})
+      .finally(() => alive && setUiReady(true));
+    return () => {
+      alive = false;
+    };
+  }, [user]);
+
+  function setFilePanelWidthPersist(w: number | null) {
+    setFilePanelWidth(w);
+    putUi({ panelWidth: w });
+  }
+
+  function changeOpenFile(f: FileRef | null) {
+    setOpenFile(f);
+    const cid = currentChatIdRef.current;
+    if (!cid) return;
+    if (f) uiRef.current.openFiles[cid] = f;
+    else delete uiRef.current.openFiles[cid];
+    putUi({ openFile: { chatId: cid, file: f ? { name: f.name, path: f.path, size: f.size } : null } });
+  }
+
+  // On switching chats: that chat's open file and draft text are restored from the server
+  useEffect(() => {
+    if (!uiReady) return;
+    setOpenFile(currentChatId ? uiRef.current.openFiles[currentChatId] || null : null);
+    setInput(uiRef.current.drafts[currentChatId || "new"] || "");
+  }, [currentChatId, uiReady]);
+
+  useEffect(() => {
+    if (uiReady) putUi({ sidebarOpen });
+  }, [sidebarOpen, uiReady]);
+
+  // The draft text (message being typed) is saved to the server
+  useEffect(() => {
+    if (!uiReady) return;
+    const key = currentChatId || "new";
+    const t = window.setTimeout(() => {
+      if ((uiRef.current.drafts[key] || "") === input) return;
+      if (input) uiRef.current.drafts[key] = input;
+      else delete uiRef.current.drafts[key];
+      putUi({ draft: { key, text: input } });
+    }, 600);
+    return () => window.clearTimeout(t);
+  }, [input, currentChatId, uiReady]);
+
+  // Queue + server job state: read from the server. When the server starts a queued message itself
+  // (when the browser is open) it appears here and reattaches to the stream.
+  useEffect(() => {
+    if (!user || !currentChatId) {
+      setQueue([]);
+      return;
+    }
+    const cid = currentChatId;
+    let stop = false;
+    let timer: number | undefined;
+    const tick = async () => {
+      try {
+        const r = await fetch(`/api/queue?chatId=${encodeURIComponent(cid)}`, { cache: "no-store" });
+        if (!r.ok || stop || currentChatIdRef.current !== cid) return;
+        const j = await r.json();
+        const q: QueuedItem[] = Array.isArray(j.queue) ? j.queue : [];
+        setQueue((prev) => (JSON.stringify(prev) === JSON.stringify(q) ? prev : q));
+        if (j.running && !isStreamingActiveRef.current) {
+          // The server started a new job (e.g. a queued message): refresh quietly and attach to the stream
+          try {
+            const data = await serverDb.getMessages(cid);
+            if (!stop && currentChatIdRef.current === cid && !isStreamingActiveRef.current) setMessages(data || []);
+          } catch {}
+          if (!stop && currentChatIdRef.current === cid) await tryAttach(cid);
+        }
+      } catch {}
+    };
+    const loop = async () => {
+      await tick();
+      if (!stop) timer = window.setTimeout(loop, queueLenRef.current > 0 || isStreamingActiveRef.current ? 1500 : 5000);
+    };
+    loop();
+    const onVis = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      stop = true;
+      if (timer) window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [currentChatId, user]);
+
+  async function queueApi(body: Record<string, unknown>) {
+    const cid = currentChatIdRef.current;
+    if (!cid) return null;
+    try {
+      const r = await fetch("/api/queue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chatId: cid, ...body }),
+      });
+      if (!r.ok) return null;
+      const j = await r.json();
+      if (currentChatIdRef.current === cid) setQueue(j.queue || []);
+      return j;
+    } catch {
+      return null;
+    }
+  }
+
+  // A message typed while a reply is streaming: goes into the server-side queue
+  async function enqueueMessage(text: string, clearInput: boolean) {
+    const key = defaultKey;
+    if (!currentChatIdRef.current || !key || !key.model) return;
+    if (clearInput) {
+      setInput("");
+      if (textareaRef.current) textareaRef.current.style.height = "auto";
+    }
+    const id = crypto.randomUUID();
+    setQueue((prev) => [...prev, { id, text, createdAt: new Date().toISOString() }]);
+    const conns = (await serverDb.getConnectors()).filter((c) => c.enabled);
+    const j = await queueApi({
+      action: "add",
+      id,
+      text,
+      apiKey: key.api_key,
+      provider: key.provider,
+      model: key.model,
+      baseUrl: key.base_url || undefined,
+      systemPrompt: appSettings.systemPrompt || undefined,
+      temperature: appSettings.temperature ?? 0.7,
+      maxTokens: appSettings.maxTokens ?? 4096,
+      connectors: conns.map((c) => ({ id: c.id, name: c.name, url: c.url, headers: c.headers })),
+      serverUrl: serverDb.getServerBaseUrl(),
+      appUrl: window.location.origin,
+      keyId: key.id,
+      maxSteps: appSettings.agentMaxSteps ?? 200,
+    });
+    if (!j) {
+      setQueue((prev) => prev.filter((i) => i.id !== id));
+      if (clearInput) setInput(text);
+    }
+  }
 
  // Chat renaming state
  const [editingChatId, setEditingChatId] = useState<string | null>(null);
@@ -66,15 +230,15 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  const displayedTextRef = useRef("");
  const smoothTickerRef = useRef<number | null>(null);
  const isStreamingActiveRef = useRef(false);
- const streamSeqRef = useRef(0); // eski (to'xtatilgan) oqim yangisini buzmasligi uchun
+ const streamSeqRef = useRef(0); // so an old (stopped) stream does not disturb the new one
  const currentChatIdRef = useRef<string | null>(initialChatId);
  currentChatIdRef.current = currentChatId;
  const authed = !!user;
- // Avto-scroll holati: true = pastga "yopishgan". Faqat foydalanuvchi tepaga chiqsa o'chadi (kontent o'sishi buzmaydi).
+ // Auto-scroll state: true = "stuck" to the bottom. Only the user scrolling up disables it (growing content does not).
  const stickRef = useRef(true);
  const lastScrollTopRef = useRef(0);
 
- // Har bir suhbatning o'z manzili: /c/<id> (yangi suhbat: /)
+ // Each chat has its own URL: /c/<id> (new chat: /)
  function pushUrl(id: string | null, replace = false) {
  if (typeof window === "undefined") return;
  const url = id ? `/c/${id}` : "/";
@@ -83,7 +247,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  else window.history.pushState(null, "", url);
  }
 
- // Brauzerning orqaga/oldinga tugmalari yoki to'g'ridan-to'g'ri manzil o'zgarsa -- suhbat ham almashadi
+ // Browser back/forward buttons or a direct URL change -- switch the chat too
  useEffect(() => {
  const m = pathname.match(/^\/c\/([^/]+)/);
  const id = m ? decodeURIComponent(m[1]) : null;
@@ -122,7 +286,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  }
  if (currentChatId) {
  const cid = currentChatId;
- // Xabarlar bazadan yuklanadi, so'ng serverda hali ishlayotgan agent bo'lsa unga qayta ulanadi (sahifa yangilansa ham davom etadi)
+ // Messages load from the DB, then if an agent is still running on the server we reattach (it continues across refreshes)
  loadMessages(cid).then(() => {
  if (currentChatIdRef.current === cid) tryAttach(cid);
  });
@@ -132,8 +296,8 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  }
  }, [currentChatId, authed]);
 
- // Foydalanuvchi tepaga ko'targanini aniqlash: faqat YUQORIGA harakat stickni o'chiradi.
- // (Dastur o'zi faqat pastga suradi, shuning uchun kontent o'sishi "tepaga chiqdi" deb adashmaydi.)
+ // Detect the user scrolling up: only UPWARD movement disables auto-stick.
+ // (The app only scrolls down itself, so growing content is not mistaken for "scrolled up".)
  const handleScroll = () => {
  const el = chatScrollContainerRef.current;
  if (!el) return;
@@ -145,8 +309,8 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  setIsScrolledUp(!stickRef.current && dist > 120);
  };
 
- // useLayoutEffect: scroll brauzer chizishidan OLDIN, matn o'sgan kadrning o'zida bajariladi.
- // (Avval useEffect edi: matn o'sib chizilar, scroll esa keyingi kadrda sakrardi -> "dirr" titrash.)
+ // useLayoutEffect: scroll runs BEFORE the browser paints, in the same frame the text grew.
+ // (It was useEffect before: text painted first, scroll jumped on the next frame -> a flicker.)
  useLayoutEffect(() => {
  const el = chatScrollContainerRef.current;
  if (!el || !stickRef.current) return;
@@ -165,7 +329,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  try {
  const data = await serverDb.getChats();
  setChats(data || []);
- // Manzildagi suhbat shu hisobniki emas (yoki yo'q) bo'lsa -- hech narsa ko'rsatilmaydi, bosh sahifaga qaytiladi
+ // If the chat in the URL is not this account's (or missing) -- show nothing and go back to the home page
  if (!urlCheckedRef.current) {
  urlCheckedRef.current = true;
  if (initialChatId && !(data || []).some((c) => c.id === initialChatId)) {
@@ -258,7 +422,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  } catch {}
  };
 
- // Faqat eng oxirgi user xabarini bubble ichida tahrirlash → keyingi javoblar kesiladi, qayta yuboriladi
+ // Edit only the most recent user message in its bubble → later replies are cut and resent
  async function editUserMessage(messageId: string, text: string) {
  if (isStreaming || !currentChatId || !text.trim()) return;
 
@@ -275,7 +439,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
 
  const idx = messages.findIndex((m) => m.id === messageId && m.role === "user");
  if (idx === -1) return;
- // faqat eng oxirgi user xabari
+ // only the most recent user message
  let lastUserIdx = -1;
  for (let i = messages.length - 1; i >= 0; i--) {
  if (messages[i].role === "user") {
@@ -289,7 +453,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  const trimmed = [...messages.slice(0, idx), updated];
  setMessages(trimmed);
 
- // DB: yangi matn bilan qayta yozish (id saqlanadi)
+ // DB: rewrite with the new text (id kept)
  await serverDb.saveMessage(currentChatId, "user", text.trim(), messageId);
 
  const history = trimmed.map((m) => ({
@@ -320,7 +484,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  return;
  }
  }
- const key = key0 as UserApiKey; // attach rejimida ishlatilmaydi
+ const key = key0 as UserApiKey; // not used in attach mode
 
  stickRef.current = true;
  setIsScrolledUp(false);
@@ -525,7 +689,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  await serverDb.saveMessage(chatId, "assistant", fullFinalContent, tempAiId);
  }
  } catch (err: any) {
- if (streamSeqRef.current !== mySeq) return; // yangi oqim boshlangan: eskisi hech narsaga tegmasin
+ if (streamSeqRef.current !== mySeq) return; // a new stream started: the old one must touch nothing
  isStreamingActiveRef.current = false;
  if (smoothTickerRef.current) {
  cancelAnimationFrame(smoothTickerRef.current);
@@ -543,7 +707,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  // Aloqa uzildi, lekin ish serverda davom etmoqda: jimgina qayta ulanamiz
  setTimeout(() => tryAttach(chatId), 1500);
  } else {
- const errorContent = `Errorlik: ${err.message || "Unknown error"}`;
+ const errorContent = `Error: ${err.message || "Unknown error"}`;
  setMessages((prev) => {
  const exists = prev.some((m) => m.id === tempAiId);
  if (exists) {
@@ -576,14 +740,14 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  }
  }
 
- // Sahifa yangilanganda/suhbat ochilganda: serverda hali ishlayotgan agentga qayta ulanish (screen sharing kabi).
+ // On page refresh / opening a chat: reattach to an agent still running on the server (like screen sharing).
  async function tryAttach(chatId: string) {
  if (isStreamingActiveRef.current) return;
  try {
  const res = await fetch(`/api/agent/attach?chatId=${encodeURIComponent(chatId)}`, { cache: "no-store" });
  if (res.status === 204 || !res.ok) return;
  if ((res.headers.get("content-type") || "").includes("application/json")) {
- await loadMessages(chatId); // yaqinda tugagan: yakuniy matnni bazadan olamiz
+ await loadMessages(chatId); // recently finished: take the final text from the DB
  return;
  }
  if (currentChatIdRef.current !== chatId || isStreamingActiveRef.current) {
@@ -598,9 +762,42 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  }
 
  // Send new user prompt
+ // Upload attached files to the computer (streamed). Each becomes a file path the chat shows as a card
+ // and the agent can read — the same /api/files mechanism used for every other file.
+ async function uploadFiles(files: File[]) {
+ if (!files.length) return;
+ setUploading(true);
+ try {
+ for (const file of files) {
+ const fd = new FormData();
+ fd.append("file", file);
+ try {
+ const res = await fetch("/api/upload", { method: "POST", body: fd });
+ const j = await res.json().catch(() => ({}));
+ if (res.ok && j?.path) {
+ setPending((prev) => (prev.some((f) => f.path === j.path) ? prev : [...prev, { path: j.path, name: j.name || file.name, size: j.size || file.size }]));
+ }
+ } catch {
+ /* skip a file that failed to upload */
+ }
+ }
+ } finally {
+ setUploading(false);
+ }
+ }
+
  async function sendMessage(promptOverride?: string) {
- const textToSend = (promptOverride || input).trim();
- if (!textToSend || isStreaming || !user) return;
+ const typed = (promptOverride || input).trim();
+ // Attachments ride along as @file lines so they render as cards and the agent sees the paths.
+ const attachLines = !promptOverride && pending.length ? fileLines(pending) : "";
+ const textToSend = attachLines ? (typed ? `${typed}\n\n${attachLines}` : attachLines) : typed;
+ if (!textToSend || !user) return;
+ if (isStreaming) {
+ // While a reply is streaming: queue it (agent mode only — it runs on the server)
+ if (appSettings.agentMode !== false) await enqueueMessage(textToSend, !promptOverride);
+ if (!promptOverride) setPending([]);
+ return;
+ }
 
  let activeKey = defaultKey;
  if (!activeKey) {
@@ -619,7 +816,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
 
  // Create chat if not exists
  if (!chatId) {
- const newChat = await serverDb.createChat(textToSend.slice(0, 45));
+ const newChat = await serverDb.createChat((typed || pending[0]?.name || "New chat").slice(0, 45));
  chatId = newChat.id;
  skipNextLoadRef.current = chatId;
  setCurrentChatId(chatId);
@@ -632,6 +829,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
 
  if (!promptOverride) {
  setInput("");
+ setPending([]);
  if (textareaRef.current) textareaRef.current.style.height = "auto";
  }
 
@@ -702,7 +900,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  }
 
  function stopStreaming(detachOnly = false) {
- // detachOnly: faqat ko'rinishni uzish (ish serverda davom etadi); aks holda serverdagi ishni ham to'xtatadi
+ // detachOnly: just detach the view (the job keeps running on the server); otherwise stop the server job too
  if (!detachOnly && currentChatIdRef.current) {
  fetch("/api/agent/stop", {
  method: "POST",
@@ -769,7 +967,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  user?.user_metadata?.full_name ||
  user?.user_metadata?.username ||
  user?.email?.split("@")[0] ||
- "Foydalanuvchi";
+ "User";
  const displayUsername =
  user?.user_metadata?.username ||
  user?.email?.split("@")[0] ||
@@ -784,24 +982,24 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
 
  const suggestions = [
  {
- title: "Code yozish",
+ title: "Write code",
  icon: Code2,
- prompt: "React va TypeScript da toza arxitekturali zamonaviy komponent yozib ber.",
+ prompt: "Write a modern, cleanly architected component in React and TypeScript.",
  },
  {
  title: "Explain",
  icon: Sparkles,
- prompt: "Kvant kompyuterlari qanday ishlashini oddiy va tushunarli tilda tushuntirib ber.",
+ prompt: "Explain how quantum computers work in simple, clear terms.",
  },
  {
- title: "Yozish",
+ title: "Write",
  icon: PenTool,
- prompt: "IT kompaniyaga ishga kirish uchun ta’sirchan va professional cover letter yozib ber.",
+ prompt: "Write a compelling, professional cover letter for a job at an IT company.",
  },
  {
  title: "Make a plan",
  icon: Compass,
- prompt: "New AI startapni ishga tushirish uchun 30 kunlik amaliy reja tuzib ber.",
+ prompt: "Draft a practical 30-day plan to launch a new AI startup.",
  },
  ];
 
@@ -812,7 +1010,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  const empty = messages.length === 0;
  const modelLabel = defaultKey ? defaultKey.model || "Select a model" : null;
 
- // Yuborilgach kiritish maydoni balandligini qaytaradi
+ // Reset the input field height after sending
  useEffect(() => {
  if (input === "") autoResize();
  }, [input]);
@@ -837,7 +1035,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  displayUsername: String(displayUsername),
  };
 
- // Model tanlash: UI darhol yangilanadi (optimistik), saqlash fonda; xato bo'lsa eski holatga qaytadi.
+ // Model selection: the UI updates immediately (optimistic), saving in the background; reverts on error.
  function pickModel(id: string) {
  const k = defaultKey;
  setModelOpen(false);
@@ -850,7 +1048,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  .catch(() => setDefaultKey((cur) => (cur && cur.id === k.id ? { ...cur, model: prev } : cur)));
  }
 
- // Ro'yxatni oldindan (fonda) yuklab qo'yamiz: menyu ochilganda kutish bo'lmasin.
+ // Preload the list (in the background): no wait when the menu opens.
  useEffect(() => {
  if (!defaultKey) return;
  fetchModelsCached(defaultKey.id, defaultKey.provider, defaultKey.api_key, defaultKey.base_url, defaultKey.model || undefined).catch(() => {});
@@ -885,16 +1083,23 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  ) : null
  }
  autoFocus={autoFocus}
- placeholder={empty ? "Today nima qilamiz?" : "Type a message…"}
+ placeholder={empty ? "What shall we do today?" : "Type a message…"}
+ attachments={pending}
+ onAttach={uploadFiles}
+ onRemoveAttachment={(p) => setPending((prev) => prev.filter((f) => f.path !== p))}
+ uploading={uploading}
  />
  );
 
  const iconBtn =
  "h-9 w-9 inline-flex items-center justify-center text-neutral-400 hover:text-white hover:bg-white/[0.07] transition cursor-pointer";
 
+  // File/artifact panel ochiq bo‘lsa chat biroz ingichka
+  const chatMax = openFile ? "max-w-[46rem] lg:max-w-[36rem]" : "max-w-[46rem]";
+
  return (
- <div className="h-[100dvh] flex bg-black text-neutral-100 overflow-hidden relative term-grid">
-{/* Desktop sidebar — fixed glass overlay (orqa fon blur uchun) */}
+ <div className="h-[100dvh] flex bg-black text-neutral-100 overflow-hidden relative">
+{/* Desktop sidebar — fixed glass overlay (for the background blur) */}
  {sidebarOpen && (
  <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-[272px]">
  <Sidebar {...sidebarProps} onSelect={selectChat} onOpenSettings={openSettings} onClose={() => setSidebarOpen(false)} />
@@ -951,7 +1156,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  </div>
 
  {notFound && (
- <div className="mx-auto mt-1 mb-1 w-full max-w-[46rem] px-4">
+ <div className={`mx-auto mt-1 mb-1 w-full ${chatMax} px-4`}>
  <div className="flex items-center justify-between gap-3 border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-[13px] text-neutral-300">
  <span>This chat was not found or does not belong to your account.</span>
  <button onClick={() => setNotFound(false)} className="text-neutral-500 hover:text-white cursor-pointer">
@@ -968,7 +1173,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
             ) : empty ? (
  <div className="flex-1 overflow-y-auto">
  <div className="min-h-full flex flex-col items-center justify-center px-4 pb-28">
- <div className="w-full max-w-[46rem] fade-up">
+ <div className={`w-full ${chatMax} fade-up`}>
  <div className="flex items-center justify-center gap-3.5 mb-8">
  <Image src="/logo-white.svg" alt="MR AI" width={34} height={34} className="shrink-0" />
  <h1 className="brand-font text-[22px] sm:text-[26px] leading-tight text-neutral-100">
@@ -998,7 +1203,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  ) : (
  <>
  <div ref={chatScrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto [overflow-anchor:none]">
- <div className="max-w-[46rem] mx-auto px-4 pt-4 pb-10 space-y-8">
+ <div className={`${chatMax} mx-auto px-4 pt-4 pb-10 space-y-8`}>
  {messages.map((msg, index) => (
  <MessageView
  key={msg.id}
@@ -1016,11 +1221,16 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  }
  onEditSubmit={editUserMessage}
  onOpenSettings={openSettings}
- onOpenFile={(f) =>
-                  setOpenFile((cur) => (cur && cur.path === f.path ? null : f))
-                }
+ onOpenFile={(f) => changeOpenFile(openFile && openFile.path === f.path ? null : f)}
  />
  ))}
+ <QueuedMessages
+ items={queue}
+ paused={!isStreaming}
+ fontSizeClass={fontSizeClass}
+ onSendNow={(id) => queueApi({ action: "send-now", id })}
+ onRemove={(id) => queueApi({ action: "remove", id })}
+ />
  <div ref={messagesEndRef} />
  </div>
  </div>
@@ -1036,7 +1246,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  )}
 
  <div className="shrink-0 px-4 pb-3 pt-1 bg-gradient-to-t from-black via-black to-transparent">
- <div className="max-w-[46rem] mx-auto">
+ <div className={`${chatMax} mx-auto`}>
  {composer(false)}
  <p className="text-center text-[11.5px] text-neutral-600 mt-2">
  MR AI can make mistakes. Verify important information.
@@ -1047,7 +1257,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  )}
  </main>
 
-         <FilePanel file={openFile} onClose={() => setOpenFile(null)} width={filePanelWidth} onWidthChange={setFilePanelWidthPersist} />
+         <FilePanel file={openFile} onClose={() => changeOpenFile(null)} width={filePanelWidth} onWidthChange={setFilePanelWidthPersist} />
       </div>
 
       <SettingsModal

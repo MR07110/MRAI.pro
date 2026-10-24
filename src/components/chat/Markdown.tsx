@@ -90,7 +90,7 @@ const components: any = {
  },
 };
 
-// Eski xabarlar har token tikida qayta parse qilinmasligi uchun memo
+// memo so old messages are not re-parsed on every streamed token
 const Md = memo(function Md({ text }: { text: string }) {
  return (
  <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>

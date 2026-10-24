@@ -15,7 +15,7 @@ _running = set()
 _jobs = {}
 _lock = threading.Lock()
 OUT_CAP = 20000
-# AI vazifalar avval shu kompyuterdagi Next ilovasi orqali ishlaydi (Vercel'ning vaqt chegarasi va tunnel'ga bog'liq emas).
+# AI tasks run first through the Next app on this computer (not bound by Vercel's time limit or the tunnel).
 LOCAL_APP = os.environ.get("MRAI_LOCAL_APP", "http://127.0.0.1:3000").rstrip("/")
 LOCAL_SERVER = os.environ.get("MRAI_LOCAL_SERVER", "http://127.0.0.1:8080").rstrip("/")
 _slots = threading.BoundedSemaphore(max(1, int(os.environ.get("MRAI_TASK_SLOTS", "4"))))
@@ -48,7 +48,7 @@ def init(get_db, run_command, popen_kwargs, auth_token, workspace, home=None):
         if "user_id" not in cols:
             cur.execute("ALTER TABLE %s ADD COLUMN user_id TEXT NOT NULL DEFAULT 'mrqosimov2011'" % tbl)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_%s_user ON %s (user_id)" % (tbl, tbl))
-    cur.execute("UPDATE task_runs SET status='error', output='server qayta ishga tushdi', finished_at=? WHERE status='running'", (time.time(),))
+    cur.execute("UPDATE task_runs SET status='error', output='server restarted', finished_at=? WHERE status='running'", (time.time(),))
     conn.commit()
     conn.close()
     threading.Thread(target=_loop, daemon=True).start()
@@ -64,7 +64,7 @@ def _parse_field(f, lo, hi):
             part, s = part.split("/", 1)
             step = int(s)
             if step < 1:
-                raise ValueError("cron step noto'g'ri")
+                raise ValueError("cron step is invalid")
         if part in ("*", ""):
             a, b = lo, hi
         elif "-" in part:
@@ -81,7 +81,7 @@ def _parse_field(f, lo, hi):
 def _parse_cron(expr):
     parts = expr.split()
     if len(parts) != 5:
-        raise ValueError("cron 5 ta maydon bo'lishi kerak: m h dom mon dow")
+        raise ValueError("cron needs 5 fields: m h dom mon dow")
     mi = _parse_field(parts[0], 0, 59)
     ho = _parse_field(parts[1], 0, 23)
     dm = _parse_field(parts[2], 1, 31)
@@ -117,7 +117,7 @@ def _next_cron(spec, after):
 
 
 def compute_next(schedule, after_ts):
-    """Keyingi ishga tushish vaqti (epoch). Noto'g'ri format -> ValueError. Qayta ishlamaydigan (once, o'tgan) -> None."""
+    """Next run time (epoch). Invalid format -> ValueError. Non-recurring (once, already past) -> None."""
     s = (schedule or "").strip()
     low = s.lower()
     after = datetime.fromtimestamp(after_ts)
@@ -125,13 +125,13 @@ def compute_next(schedule, after_ts):
     if m:
         secs = int(m.group(1)) * {"s": 1, "m": 60, "h": 3600, "d": 86400}[m.group(2)]
         if secs < 30:
-            raise ValueError("interval kamida 30 soniya bo'lishi kerak")
+            raise ValueError("interval must be at least 30 seconds")
         return after_ts + secs
     m = re.fullmatch(r"(daily|weekdays)\s+(\d{1,2}):(\d{2})", low)
     if m:
         h, mi = int(m.group(2)), int(m.group(3))
         if h > 23 or mi > 59:
-            raise ValueError("vaqt noto'g'ri")
+            raise ValueError("invalid time")
         dow = "1-5" if m.group(1) == "weekdays" else "*"
         n = _next_cron(_parse_cron(f"{mi} {h} * * {dow}"), after)
         return n.timestamp() if n else None
@@ -142,10 +142,10 @@ def compute_next(schedule, after_ts):
             try:
                 ts = datetime.strptime(txt, fmt).timestamp()
                 if ts <= after_ts:
-                    raise ValueError("bu vaqt o'tib ketgan")
+                    raise ValueError("that time has already passed")
                 return ts
             except ValueError as e:
-                if "o'tib" in str(e):
+                if "already passed" in str(e):
                     raise
         raise ValueError("once formati: once 2026-10-25 09:00")
     m = re.fullmatch(r"cron:?\s*(.+)", s, re.I)
@@ -211,14 +211,14 @@ def _run_ai(task):
     uid = task.get("user_id") or "mrqosimov2011"
     key, conns = _pick_key(task)
     if not key:
-        raise RuntimeError("API kalit topilmadi (Sozlamalar -> API kalitlar)")
+        raise RuntimeError("API key not found (Settings -> API keys)")
     payload = {
         "prompt": task["prompt"], "system": task.get("system") or "",
         "provider": key["provider"], "apiKey": key["api_key"], "model": key["model"],
         "baseUrl": key.get("base_url") or "", "connectors": conns,
         "keyId": key["id"], "scheduled": True, "user": uid,
     }
-    # Tartib: 1) shu kompyuterdagi Next (server ham lokal), 2) vazifa yaratilgan app_url (zaxira).
+    # Order: 1) the local Next on this computer (server is local too), 2) the app_url the task was created with (fallback).
     targets = [(LOCAL_APP, LOCAL_SERVER)]
     app = (task.get("app_url") or "").strip().rstrip("/")
     if app and app != LOCAL_APP:
@@ -230,15 +230,15 @@ def _run_ai(task):
         except urllib.error.HTTPError as e:
             raise RuntimeError(f"agent HTTP {e.code}: {e.read().decode('utf-8', 'replace')[:300]}")
         except urllib.error.URLError as e:
-            # faqat ulanish bo'lmasa (ilova o'chiq) keyingi manzilga o'tamiz; agent allaqachon ishlagan bo'lsa qayta ishga tushirmaymiz
+            # move to the next address only if the connection fails (app down); if the agent already ran, do not restart it
             if isinstance(e.reason, (ConnectionRefusedError, ConnectionResetError)) or "refused" in str(e.reason).lower():
-                last_err = f"{base}: ulanib bo'lmadi"
+                last_err = f"{base}: could not connect"
                 continue
-            raise RuntimeError(f"agent ulanish xatosi ({base}): {e.reason}")
+            raise RuntimeError(f"agent connection error ({base}): {e.reason}")
         if not data.get("ok"):
-            raise RuntimeError(data.get("error") or "agent xatosi")
+            raise RuntimeError(data.get("error") or "agent error")
         return data.get("text", "")
-    raise RuntimeError("Web ilova (Next) ishlamayapti: " + (last_err or "manzil yo'q"))
+    raise RuntimeError("The web app (Next) is not running: " + (last_err or "no address"))
 
 
 def _run_shell(task):
@@ -256,7 +256,7 @@ def _execute(task, trigger):
     _slots.acquire()
     try:
         text = _run_ai(task) if task["kind"] == "ai" else _run_shell(task)
-        _record(task["id"], run_id, "ok", text or "(bo'sh natija)", started, trigger)
+        _record(task["id"], run_id, "ok", text or "(empty result)", started, trigger)
     except Exception as e:
         _record(task["id"], run_id, "error", str(e), started, trigger)
     finally:
@@ -302,7 +302,7 @@ def start_job(cmd, cwd, user="mrqosimov2011"):
     with _lock:
         alive = [j for j in _jobs.values() if j["proc"].poll() is None]
         if len(alive) >= 10:
-            return {"stdout": "", "stderr": "Xatolik: bir vaqtda 10 tadan ortiq fon jarayon mumkin emas\n", "exit_code": 1, "cwd": cwd}
+            return {"stdout": "", "stderr": "Error: more than 10 background jobs at once is not allowed\n", "exit_code": 1, "cwd": cwd}
         import subprocess
         jid = uuid.uuid4().hex[:8]
         logdir = os.path.join(_ctx["ws"], ".jobs")
@@ -311,7 +311,7 @@ def start_job(cmd, cwd, user="mrqosimov2011"):
         lf = open(logpath, "wb")
         proc = subprocess.Popen(**_ctx["popen"](cmd, cwd, user), stdout=lf, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, start_new_session=True)
         _jobs[jid] = {"proc": proc, "cmd": cmd, "log": logpath, "started": time.time(), "cwd": cwd, "user": user}
-    return {"stdout": f"fon jarayon ishga tushdi: job_id={jid}\n", "stderr": "", "exit_code": 0, "cwd": cwd, "job_id": jid}
+    return {"stdout": f"background job started: job_id={jid}\n", "stderr": "", "exit_code": 0, "cwd": cwd, "job_id": jid}
 
 
 def _job_info(jid, j):
@@ -336,7 +336,7 @@ def _row(r):
 
 
 def handle(method, path, query, body, user="mrqosimov2011"):
-    """(status, obj) yoki None (bu modul yo'li emas)."""
+    """(status, obj) or None (not a path of this module)."""
     q = lambda k, d="": (query.get(k) or [d])[0]
     if path == "/api/jobs" and method == "GET":
         return 200, [_job_info(i, j) for i, j in _jobs.items() if j.get("user") == user]
@@ -345,7 +345,7 @@ def handle(method, path, query, body, user="mrqosimov2011"):
         if j and j.get("user") != user:
             j = None
         if not j:
-            return 404, {"error": "job topilmadi"}
+            return 404, {"error": "job not found"}
         info = _job_info(q("id"), j)
         info["output"] = _tail(j["log"], int(q("tail", "80") or 80))
         return 200, info
@@ -354,7 +354,7 @@ def handle(method, path, query, body, user="mrqosimov2011"):
         if j and j.get("user") != user:
             j = None
         if not j:
-            return 404, {"error": "job topilmadi"}
+            return 404, {"error": "job not found"}
         try:
             import signal
             os.killpg(os.getpgid(j["proc"].pid), signal.SIGTERM)
@@ -383,7 +383,7 @@ def handle(method, path, query, body, user="mrqosimov2011"):
                 cid = body.get("id") or uuid.uuid4().hex
                 url = (body.get("url") or "").strip()
                 if not re.match(r"^https?://", url):
-                    return 400, {"error": "URL http(s):// bilan boshlanishi kerak"}
+                    return 400, {"error": "URL must start with http(s)://"}
                 headers = body.get("headers") if isinstance(body.get("headers"), dict) else {}
                 cur.execute(
                     "INSERT INTO connectors (id,name,url,headers,enabled,created_at,user_id) VALUES (?,?,?,?,?,?,?) "
@@ -408,9 +408,9 @@ def handle(method, path, query, body, user="mrqosimov2011"):
             if method == "POST":
                 kind = body.get("kind") if body.get("kind") in ("ai", "shell") else "ai"
                 if kind == "ai" and not (body.get("prompt") or "").strip():
-                    return 400, {"error": "AI vazifa uchun prompt kerak"}
+                    return 400, {"error": "A prompt is required for an AI task"}
                 if kind == "shell" and not (body.get("command") or "").strip():
-                    return 400, {"error": "shell vazifa uchun command kerak"}
+                    return 400, {"error": "A command is required for a shell task"}
                 schedule = (body.get("schedule") or "").strip()
                 try:
                     nxt = compute_next(schedule, time.time())
@@ -423,7 +423,7 @@ def handle(method, path, query, body, user="mrqosimov2011"):
                     "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,kind=excluded.kind,"
                     "prompt=excluded.prompt,command=excluded.command,schedule=excluded.schedule,enabled=excluded.enabled,"
                     "next_run=excluded.next_run,app_url=excluded.app_url,server_url=excluded.server_url,key_id=excluded.key_id,system=excluded.system WHERE tasks.user_id=excluded.user_id",
-                    (tid, (body.get("name") or "Vazifa").strip()[:80], kind, body.get("prompt") or "", body.get("command") or "",
+                    (tid, (body.get("name") or "Task").strip()[:80], kind, body.get("prompt") or "", body.get("command") or "",
                      schedule, enabled, nxt, body.get("app_url") or "", body.get("server_url") or "", body.get("key_id") or "",
                      body.get("system") or "", datetime.now().isoformat(), user),
                 )
@@ -440,7 +440,7 @@ def handle(method, path, query, body, user="mrqosimov2011"):
             cur.execute("SELECT * FROM tasks WHERE id=? AND user_id=?", (body.get("id", ""), user))
             r = cur.fetchone()
             if not r:
-                return 404, {"error": "vazifa topilmadi"}
+                return 404, {"error": "task not found"}
             en = bool(body.get("enabled"))
             nxt = None
             if en:
@@ -456,7 +456,7 @@ def handle(method, path, query, body, user="mrqosimov2011"):
             cur.execute("SELECT * FROM tasks WHERE id=? AND user_id=?", (body.get("id", ""), user))
             r = cur.fetchone()
             if not r:
-                return 404, {"error": "vazifa topilmadi"}
+                return 404, {"error": "task not found"}
             started = _spawn(dict(r), "manual")
             return 200, {"ok": True, "started": started}
 

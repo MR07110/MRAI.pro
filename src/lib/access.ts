@@ -1,5 +1,5 @@
-// Kirish himoyasi: kirish kaliti FAQAT lokal serverda (~/MR/mrai/access.key) saqlanadi.
-// To'g'ri kalit kiritilgach, Next MRAI_AUTH_TOKEN bilan imzolangan muddatli cookie beradi. Edge va Node ikkalasida ishlaydi.
+// Access protection: the access key is stored ONLY on the local server (~/.mrai/access.key).
+// Once the right key is entered, Next issues a cookie signed with MRAI_AUTH_TOKEN. Works in both Edge and Node.
 export const ACCESS_COOKIE = "mrai_access";
 const ACCESS_TTL_MS = 24 * 60 * 60 * 1000;
 

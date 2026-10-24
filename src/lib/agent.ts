@@ -1,6 +1,7 @@
 // Agent loop: model <-> asboblar (kompyuter, fayl, scheduler, MCP connectorlar).
 import { applyPromptVars } from "@/lib/promptVars";
-import { withSkillsCatalog } from "@/lib/skills";
+import { withSkillsCatalog, listSkills } from "@/lib/skills";
+import { buildSkillTools, findSkill, loadSkillText } from "@/lib/skillTools";
 import { McpClient, McpConnector } from "@/lib/mcp";
 import { buildBuiltinTools, makeServerCtx, ToolDef } from "@/lib/agentTools";
 import { buildCodingTools } from "@/lib/codingTools";
@@ -26,7 +27,7 @@ export interface AgentInput {
   scheduled?: boolean;
   signal?: AbortSignal;
   emit?: (text: string) => void;
-  /** 429 sabab kutilganda chaqiriladi (soniyalarda) */
+  /** called when a 429 forces a wait (in seconds) */
   onWait?: (seconds: number) => void;
 }
 
@@ -112,10 +113,10 @@ function openaiAdapter(inp: AgentInput, system: string): Adapter & { disableTool
         headers["X-Title"] = "MR AI Pro";
       }
       let res = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify(body), signal: inp.signal });
-      // 429 (TPM/RPM limit, masalan Groq bepul tarif): "try again in Ns" ko'rsatmasiga amal qilib qisqa kutib qayta uriladi
+      // 429 (TPM/RPM limit, e.g. the Groq free tier): follow the "try again in Ns" hint, wait briefly and retry
       for (let attempt = 0; res.status === 429 && attempt < 4; attempt++) {
         const wait = retryAfterMs(res.headers.get("retry-after"), await res.clone().text().catch(() => ""));
-        if (wait === null || wait > 65000) break; // uzoq kutish (kunlik limit va h.k.) — xatoni o'z holicha qaytaramiz
+        if (wait === null || wait > 65000) break; // long wait (daily limit, etc.) — return the error as-is
         inp.onWait?.(Math.ceil((wait + 500) / 1000));
         await sleepAbortable(wait + 500, inp.signal);
         res = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify(body), signal: inp.signal });
@@ -226,7 +227,7 @@ async function loadMcpTools(
       clients.push(client);
       await Promise.race([
         client.connect(),
-        new Promise((_, rej) => setTimeout(() => rej(new Error("ulanish vaqti tugadi (20s)")), 20000)),
+        new Promise((_, rej) => setTimeout(() => rej(new Error("connection timed out (20s)")), 20000)),
       ]);
       const tools = await client.listTools();
       return { c, i, client, tools };
@@ -235,7 +236,7 @@ async function loadMcpTools(
   const out: ToolDef[] = [];
   settled.forEach((r, idx) => {
     if (r.status === "rejected") {
-      notes.push(`Connector "${list[idx].name}" ulanmadi: ${r.reason?.message || r.reason}`);
+      notes.push(`Connector "${list[idx].name}" could not connect: ${r.reason?.message || r.reason}`);
       return;
     }
     const { c, i, client, tools } = r.value;
@@ -262,10 +263,10 @@ async function loadMcpTools(
 // ---------------------------------------------------------------- display helpers
 function brief(call: Call): string {
   if (call.name === "Bash" || call.name === "computer_exec") return String(call.args?.command ?? "").slice(0, 600);
-  if (call.name === "Write") return `${call.args?.file_path} (${String(call.args?.content ?? "").length} belgi)`;
-  if (call.name === "Edit") return `${call.args?.file_path} (${String(call.args?.old_string ?? "").length} → ${String(call.args?.new_string ?? "").length} belgi)`;
-  if (call.name === "MultiEdit") return `${call.args?.file_path} (${Array.isArray(call.args?.edits) ? call.args.edits.length : 0} ta o'zgarish)`;
-  if (call.name === "computer_write_file") return `${call.args?.path} (${String(call.args?.content ?? "").length} belgi)`;
+  if (call.name === "Write") return `${call.args?.file_path} (${String(call.args?.content ?? "").length} chars)`;
+  if (call.name === "Edit") return `${call.args?.file_path} (${String(call.args?.old_string ?? "").length} → ${String(call.args?.new_string ?? "").length} chars)`;
+  if (call.name === "MultiEdit") return `${call.args?.file_path} (${Array.isArray(call.args?.edits) ? call.args.edits.length : 0} edits)`;
+  if (call.name === "computer_write_file") return `${call.args?.path} (${String(call.args?.content ?? "").length} chars)`;
   const s = JSON.stringify(call.args ?? {});
   return s.length > 300 ? s.slice(0, 300) + "…" : s;
 }
@@ -295,22 +296,31 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
     const mcp = inp.connectors?.length ? await loadMcpTools(inp.connectors, clients, notes) : [];
     let tools: ToolDef[] = [];
     const seen = new Set<string>();
-    for (const t of [...coding, ...builtin, ...mcp]) {
+    for (const t of [...coding, ...buildSkillTools(), ...builtin, ...mcp]) {
       if (seen.has(t.name)) {
-        notes.push(`Asbob nomi takrorlandi, o'tkazib yuborildi: ${t.name}`);
+        notes.push(`Duplicate tool name skipped: ${t.name}`);
         continue;
       }
       seen.add(t.name);
       tools.push(t);
     }
     if (tools.length > MAX_TOOLS) {
-      notes.push(`Asboblar juda ko'p (${tools.length}); birinchi ${MAX_TOOLS} tasi ishlatiladi.`);
+      notes.push(`Too many tools (${tools.length}); using the first ${MAX_TOOLS}.`);
       tools = tools.slice(0, MAX_TOOLS);
     }
     for (const n of notes) out(`> ${n}\n\n`);
     const byName = new Map(tools.map((t) => [t.name, t]));
 
-    const system = withSkillsCatalog(applyPromptVars(inp.system || "")); // skills: nom+path+description
+    let system = withSkillsCatalog(applyPromptVars(inp.system || "")); // skills: categories + names (full text is loaded on demand)
+    // "/skill-name ..." in the last user message loads that skill up-front (like a slash command)
+    const lastUser = [...(inp.messages || [])].reverse().find((m) => m.role === "user");
+    const slash = lastUser && /^\s*\/([A-Za-z0-9][\w./-]*)\s*([\s\S]*)$/.exec(String(lastUser.content || ""));
+    if (slash && listSkills().length) {
+      const { skill } = findSkill(slash[1]);
+      if (skill) {
+        system += `\n\nThe user invoked the skill "${skill.name}" with a slash command. It is already loaded below: follow it, do not load it again.\n\n` + loadSkillText(skill, slash[2]);
+      }
+    }
     const adapter = inp.provider === "anthropic" ? anthropicAdapter(inp, system) : openaiAdapter(inp, system);
     const maxSteps = Math.min(Math.max(1, inp.maxSteps ?? 100), 1000);
     let final = "";
@@ -325,7 +335,7 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
         if (steps === 0 && e?.toolRelated && "disableTools" in adapter) {
           (adapter as any).disableTools();
           tools = [];
-          out("> Bu model tool-calling'ni qo'llamaydi — oddiy chat rejimida javob beraman. Asboblar uchun tool-calling qo'llaydigan modelni tanlang.\n\n");
+          out("> This model does not support tool calling, so I will answer in plain chat mode. Choose a model that supports tool calling to use tools.\n\n");
           res = await adapter.step(tools);
         } else {
           throw e;
@@ -368,7 +378,7 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
       }
       adapter.addResults(results);
     }
-    if (steps >= maxSteps) out(`> Qadamlar chegarasiga yetdi (${maxSteps}). Davom ettirish uchun "davom et" deb yozing.\n\n`);
+    if (steps >= maxSteps) out(`> Step limit reached (${maxSteps}). Type "continue" to go on.\n\n`);
     return { final, transcript, steps };
   } finally {
     await Promise.allSettled(clients.map((c) => c.close()));

@@ -4,7 +4,7 @@ import { USER_COOKIE, sessionCookieOpts } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
-// Chiqishda ikkala cookie ham o'chadi: keyingi kirishda kalit yana so'raladi.
+// On sign-out both cookies are cleared: the next sign-in asks for the key again.
 export async function POST(req: NextRequest) {
   const res = NextResponse.json({ ok: true });
   const opts = sessionCookieOpts(req);

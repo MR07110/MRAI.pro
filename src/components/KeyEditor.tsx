@@ -7,7 +7,7 @@ import type { UserApiKey, Provider } from "@/types";
 import { PROVIDERS, providerHasFree, detectProvider, shortProviderName, validateKey } from "@/lib/modelsCatalog";
 
 interface Props {
- /** berilsa — mavjud kalitni o'zgartirish, aks holda yangi kalit qo'shish */
+ /** if given — edit an existing key, otherwise add a new key */
  existing?: UserApiKey | null;
  compact?: boolean;
  onDone: (saved: UserApiKey) => void;
@@ -18,8 +18,8 @@ type Status = "idle" | "checking" | "ok" | "auth" | "offline";
 
 const LOCAL_URL = "http://localhost:11434/v1";
 
-// Kalit qo'shish: kalitni joylaysiz → provayder aniqlanadi (aniqlanmasa ro'yxatdan tanlanadi) → kalit tekshiriladi →
-// to'g'ri bo'lsagina saqlanadi. Bu yerda MODEL tanlanmaydi va modellar ko'rsatilmaydi: model keyin Settingsda tanlanadi.
+// Add a key: paste the key → the provider is detected (or picked from the list) → the key is verified →
+// and only saved if valid. No MODEL is chosen here and no models are shown: the model is chosen later in Settings.
 export default function KeyEditor({ existing = null, compact = false, onDone, onCancel }: Props) {
  const [keyInput, setKeyInput] = useState(existing?.api_key || "");
  const [reveal, setReveal] = useState(false);
@@ -50,7 +50,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  ? existing.base_url || undefined
  : undefined;
 
- // Kalit/provayder o'zgarsa — debounce bilan tekshiramiz (modellar ishlatilmaydi, faqat kalit to'g'riligi).
+ // When the key/provider changes — validate with a debounce (no models, just whether the key is valid).
  useEffect(() => {
  if (!provider || paidOnly || (!isCustom && trimmed.length < 10)) {
  setStatus("idle");
@@ -81,7 +81,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [provider, paidOnly, trimmed, effectiveBase]);
 
- // Faqat tasdiqlangan kalit saqlanadi. Mahalliy server (Custom) Vercel'dan ko'rinmasligi mumkin, shuning uchun u uchun istisno.
+ // Only a verified key is saved. A local server (Custom) may be invisible from Vercel, so it is an exception.
  const canSave = !!provider && !paidOnly && (status === "ok" || (isCustom && status === "offline"));
  const showProviderSelect = !det.provider && !isCustom && trimmed.length >= 8;
 
@@ -93,7 +93,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  const key = trimmed || "ollama";
  const sameProvider = !!existing && existing.provider === provider;
  const base_url = isCustom ? baseUrl.trim() || null : sameProvider ? existing!.base_url ?? null : null;
- // Model bu yerda tanlanmaydi: yangi kalitda bo'sh, eski kalit o'zgarsa avvalgisi saqlanadi.
+ // No model is chosen here: empty for a new key; editing an existing key keeps its previous model.
  const model = sameProvider ? existing!.model || "" : "";
  let saved: UserApiKey;
  if (existing) {
@@ -123,7 +123,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  }
 
  const inputCls =
- "w-full h-11 px-3.5 border border-neutral-800 bg-neutral-950 text-neutral-100 placeholder:text-neutral-500 text-sm focus:border-neutral-600 focus:outline-none transition";
+ "w-full h-11 px-3.5 border border-white/15 bg-black text-neutral-100 placeholder:text-neutral-600 text-sm focus:border-white/40 focus:outline-none transition";
 
  return (
  <div className={compact ? "space-y-3" : "space-y-4"}>
@@ -139,8 +139,8 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  }}
  autoComplete="off"
  spellCheck={false}
- aria-label="API kalit"
- placeholder={isCustom ? "API kalit (Ollama uchun shart emas)" : "API kalitni shu yerga joylang"}
+ aria-label="API key"
+ placeholder={isCustom ? "API key (not required for Ollama)" : "Paste your API key here"}
  className={`${inputCls} pr-11 font-mono`}
  />
  <button
@@ -158,7 +158,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  {status === "checking" && (
  <span className="inline-flex items-center gap-1.5 text-neutral-400">
  <Loader2 className="w-3.5 h-3.5 animate-spin" />
- Tekshirilmoqda…
+ Checking…
  </span>
  )}
  {status === "ok" && provider && !paidOnly && (
@@ -178,7 +178,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  <TriangleAlert className="w-3.5 h-3.5 mt-0.5 shrink-0" />
  <span>
  Could not verify key{error ? ` (${error})` : ""}.{" "}
- {isCustom ? "Mahalliy server bo‘lgani uchun baribir saqlash mumkin." : "Xizmat to‘g‘ri tanlanganini tekshiring yoki keyinroq urinib ko‘ring."}
+ {isCustom ? "It is a local server, so you can still save it." : "Check that the right service is selected, or try again later."}
  </span>
  </span>
  )}
@@ -186,7 +186,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  <span className="inline-flex items-start gap-1.5 text-amber-400">
  <TriangleAlert className="w-3.5 h-3.5 mt-0.5 shrink-0" />
  <span>
- {shortProviderName(provider)} da bepul model yo‘q. Bu ilovada faqat bepul modellar ishlaydi: Groq, Gemini, OpenRouter yoki Ollama kalitini kiriting.
+ {shortProviderName(provider)} has no free models. Only free models work in this app: enter a Groq, Gemini, OpenRouter or Ollama key.
  </span>
  </span>
  )}
@@ -198,7 +198,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  </div>
  </div>
 
- {/* Provayderni aniqlab bo'lmasa — ro'yxatdan o'zimiz tanlaymiz */}
+ {/* If the provider cannot be detected — pick it from the list */}
  {showProviderSelect && (
  <div>
  <p className="text-xs text-neutral-400 mb-2">Could not detect key type. Choose a provider from the list.</p>
@@ -208,11 +208,11 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  className={`${inputCls} cursor-pointer`}
  aria-label="Xizmat"
  >
- <option value="" className="bg-neutral-900">
- Xizmatni tanlang
+ <option value="" className="bg-[#0a0a0a]">
+ Choose a service
  </option>
  {PROVIDERS.filter((p) => p.hasFree && p.value !== "custom").map((p) => (
- <option key={p.value} value={p.value} className="bg-neutral-900">
+ <option key={p.value} value={p.value} className="bg-[#0a0a0a]">
  {shortProviderName(p.value)}
  </option>
  ))}
@@ -222,12 +222,12 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  onClick={() => setManualProvider("custom")}
  className="mt-2 text-xs text-neutral-500 hover:text-neutral-200 transition cursor-pointer"
  >
- Mahalliy server yoki o‘z manzilim bor
+ I have a local server or my own endpoint
  </button>
  </div>
  )}
 
- {/* Mahalliy / boshqa manzil */}
+ {/* Local / other URL */}
  {isCustom ? (
  <div>
  <label className="block text-xs text-neutral-400 mb-1.5">Manzil (Base URL)</label>
@@ -244,7 +244,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  onClick={() => setManualProvider(null)}
  className="mt-2 text-xs text-neutral-500 hover:text-neutral-200 transition cursor-pointer"
  >
- Oddiy kalitga qaytish
+ Back to a regular key
  </button>
  )}
  </div>
@@ -256,7 +256,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  onClick={() => setManualProvider("custom")}
  className="text-xs text-neutral-500 hover:text-neutral-200 transition cursor-pointer"
  >
- Mahalliy server yoki o‘z manzilim bor
+ I have a local server or my own endpoint
  </button>
  )
  )}
@@ -272,7 +272,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  type="button"
  onClick={onCancel}
  disabled={saving}
- className="flex-1 h-11 border border-neutral-800 text-sm text-neutral-300 hover:bg-neutral-800 transition cursor-pointer disabled:opacity-50"
+ className="flex-1 h-11 border border-white/15 text-sm text-neutral-300 hover:bg-white/[0.07] transition cursor-pointer disabled:opacity-50"
  >
  Cancel
  </button>
@@ -280,10 +280,10 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  type="button"
  onClick={save}
  disabled={!canSave || saving}
- className="flex-1 h-11 bg-white text-neutral-950 text-sm font-semibold hover:bg-neutral-200 transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+ className="flex-1 h-11 bg-white text-black text-sm font-semibold hover:bg-neutral-200 transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
  >
  {saving && <Loader2 className="w-4 h-4 animate-spin" />}
- {existing ? "Save" : "Qo‘shish"}
+ {existing ? "Save" : "Add"}
  </button>
  </div>
  </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, Copy, Loader2, Play } from "lucide-react";
+import Highlight from "./Highlight";
 
 export default function CodeBlock({ language, value }: { language?: string; value: string }) {
  const [copied, setCopied] = useState(false);
@@ -30,9 +31,9 @@ export default function CodeBlock({ language, value }: { language?: string; valu
  const handleExecuteOnServer = async () => {
  setRunning(true);
  setRunResult(null);
- const targetUrl = serverUrl; // bo'sh bo'lsa Next server env dagi manzilni ishlatadi
+ const targetUrl = serverUrl; // empty -> the Next server uses the address from its env
  try {
- // Token brauzerda yo'q: buyruq Next proxy (/api/server/exec) orqali yuboriladi.
+ // The token never reaches the browser: the command goes through the Next proxy (/api/server/exec).
  const res = await fetch("/api/server/exec", {
  method: "POST",
  headers: { "Content-Type": "application/json", ...(targetUrl ? { "x-server-url": targetUrl } : {}) },
@@ -49,7 +50,7 @@ export default function CodeBlock({ language, value }: { language?: string; valu
  return (
  <div className="my-4 border border-white/20 bg-black overflow-hidden font-mono">
  <div className="flex items-center justify-between h-9 pl-3.5 pr-2 bg-white/[0.035] text-[12px] text-neutral-500">
- <span className="font-mono lowercase">{language || "kod"}</span>
+ <span className="font-mono lowercase">{language || "text"}</span>
  <div className="flex items-center gap-1">
  {isBash && (
  <button
@@ -71,7 +72,7 @@ export default function CodeBlock({ language, value }: { language?: string; valu
  </button>
  </div>
  </div>
- <pre className="p-4 overflow-x-auto font-mono text-[13px] leading-6 text-neutral-200 m-0">{value}</pre>
+ <pre className="p-4 overflow-x-auto font-mono text-[13px] leading-6 m-0"><Highlight code={value} language={language} /></pre>
 
  {running && (
  <div className="border-t border-white/10 px-4 py-3 flex items-center gap-2 text-xs font-mono text-neutral-400">

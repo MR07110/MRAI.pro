@@ -1,8 +1,8 @@
-// Server-only helpers: local MR AI server (Python) bilan aloqa.
-// Sirlar KODDA saqlanmaydi: MRAI_AUTH_TOKEN va MRAI_SERVER_URL faqat env (.env.local / Vercel) orqali.
+// Server-only helpers: talking to the local MR AI server (Python).
+// Secrets are never in code: MRAI_AUTH_TOKEN and MRAI_SERVER_URL come only from env (.env.local / Vercel).
 import { timingSafeEqual } from "crypto";
 
-// Standart manzil KODDA YO'Q: faqat env (MRAI_SERVER_URL). Bo'sh bo'lsa, so'rov paytida xato beriladi.
+// No default URL in code: only env (MRAI_SERVER_URL). When empty, requests throw an error.
 export const DEFAULT_SERVER_URL = (process.env.MRAI_SERVER_URL || "").trim().replace(/\/+$/, "");
 export const MRAI_AUTH_TOKEN = (process.env.MRAI_AUTH_TOKEN || "").trim();
 
@@ -14,7 +14,7 @@ function hostOf(u: string): string {
   }
 }
 
-// Token faqat ruxsat etilgan hostlarga yuboriladi (SSRF / token o'g'irlashdan himoya).
+// The token is only sent to allowed hosts (protection against SSRF / token theft).
 const ALLOWED_HOSTS = new Set<string>(
   [
     hostOf(DEFAULT_SERVER_URL),
@@ -28,7 +28,7 @@ export function cleanServerUrl(u?: string | null): string {
   const c = (u || "").trim().replace(/\/+$/, "");
   if (c && /^https?:\/\//i.test(c) && ALLOWED_HOSTS.has(hostOf(c))) return c;
   if (!DEFAULT_SERVER_URL) {
-    throw new Error("MRAI_SERVER_URL sozlanmagan (.env.local yoki Vercel env)");
+    throw new Error("MRAI_SERVER_URL is not configured (.env.local or Vercel env)");
   }
   return DEFAULT_SERVER_URL;
 }
@@ -50,7 +50,7 @@ export async function serverFetch(
   path: string,
   init: { method?: string; body?: unknown; timeoutMs?: number; signal?: AbortSignal; user?: string } = {}
 ): Promise<any> {
-  if (!MRAI_AUTH_TOKEN) throw new Error("MRAI_AUTH_TOKEN sozlanmagan (.env.local yoki Vercel env)");
+  if (!MRAI_AUTH_TOKEN) throw new Error("MRAI_AUTH_TOKEN is not configured (.env.local or Vercel env)");
   const url = cleanServerUrl(serverUrl) + path;
   const signals = [AbortSignal.timeout(init.timeoutMs ?? 30000)];
   if (init.signal) signals.push(init.signal);
@@ -70,7 +70,7 @@ export async function serverFetch(
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error(`Server javobi JSON emas (HTTP ${res.status}): ${text.slice(0, 200)}`);
+    throw new Error(`The server response is not JSON (HTTP ${res.status}): ${text.slice(0, 200)}`);
   }
   if (!res.ok && data && data.error) throw new Error(String(data.error));
   return data;

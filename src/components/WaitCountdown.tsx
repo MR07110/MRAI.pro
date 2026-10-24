@@ -25,7 +25,7 @@ export function stripWait(content: string): string {
  return content.replace(WAIT_RE, "").replace(/\n{3,}/g, "\n\n");
 }
 
-// Jonli sanagich: tugagach o'zi yo'qoladi (eski xabarlarda ham ko'rinmaydi).
+// Live countdown: disappears by itself when it ends (and is not shown on old messages).
 export default function WaitCountdown({ end }: { end: number }) {
  const [now, setNow] = useState(() => Date.now());
 
@@ -46,7 +46,7 @@ export default function WaitCountdown({ end }: { end: number }) {
  <div className="my-2 inline-flex items-center gap-2 px-3 py-1.5 border border-amber-900/50 bg-amber-950/30 text-amber-300 text-xs">
  <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
  <span>
- Provider limit: <span className="tabular-nums font-semibold">{left}</span> soniya kutilyapti…
+ Provider limit: <span className="tabular-nums font-semibold">{left}</span> seconds remaining…
  </span>
  </div>
  );

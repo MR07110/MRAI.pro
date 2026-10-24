@@ -11,16 +11,30 @@ import datetime
 import urllib.parse
 import sys
 import mrai_tasks
+import stat as _stat
+import mimetypes
+import zipfile
+import tarfile
+import email.utils
 from socketserver import ThreadingMixIn
 
-DATA_DIR = os.path.dirname(os.path.abspath(__file__))
+HOME_DIR = os.path.expanduser("~")
+
+# Data (DB, uploads, tokens, job logs) lives in ~/.mrai — independent of where the code is checked out,
+# so the frontend repo stays pure code and the data survives redeploys. Override with MRAI_DATA_DIR.
+DATA_DIR = os.path.abspath(os.environ.get("MRAI_DATA_DIR") or os.path.join(HOME_DIR, ".mrai"))
+os.makedirs(DATA_DIR, exist_ok=True)
 DB_PATH = os.path.join(DATA_DIR, "mrai.db")
 WORKSPACE_DIR = os.path.join(DATA_DIR, "workspace")
+UPLOAD_DIR = os.path.join(WORKSPACE_DIR, "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(WORKSPACE_DIR, exist_ok=True)
-# Sandbox YO'Q: agent egasining haqiqiy kompyuterida ishlaydi (MCP orqali Claude kabi).
-# Agent "yashaydigan" standart papka: ~/MR/mrai (shu papkaning o'zi). workspace/ faqat fon jarayon loglari (.jobs) uchun qoladi.
-AGENT_HOME = os.path.abspath(DATA_DIR)
-HOME_DIR = os.path.expanduser("~")
+# NO sandbox: the agent works on the owner's real computer and can act anywhere when asked.
+# Its default working folder is a "room" at ~/MR/mrai/work (override with MRAI_WORK_DIR), so new files
+# do not scatter through the code or the data dir. workspace/ only keeps background-job logs (.jobs) and uploads.
+WORK_DIR = os.path.abspath(os.environ.get("MRAI_WORK_DIR") or os.path.join(HOME_DIR, "MR", "mrai", "work"))
+AGENT_HOME = WORK_DIR
+os.makedirs(WORK_DIR, exist_ok=True)
 
 TOKEN_PATH = os.path.join(DATA_DIR, "token.key")
 AUTH_TOKEN = ""
@@ -46,22 +60,22 @@ import datetime as _dt
 
 LEGACY_USER = "mrqosimov2011"
 import time as _t
-# Saytga kirish kaliti FAQAT shu yerda (access.key faylida) saqlanadi; Vercel/Next kalitni bilmaydi.
-ACCESS_KEY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "access.key")
-_ACCESS_FAILS = {}  # ip -> [xatolar soni, birinchi xato vaqti]
+# The site access key is stored ONLY here (in access.key); Vercel/Next never sees it.
+ACCESS_KEY_FILE = os.path.join(DATA_DIR, "access.key")
+_ACCESS_FAILS = {}  # ip -> [number of failures, time of first failure]
 USERNAME_RE = _re.compile(r"^[a-z0-9_.-]{3,32}$")
 
 def req_user(headers):
-    """Next proxy yuboradigan x-mrai-user. Bo'lmasa (scheduler) -- egasi."""
+    """x-mrai-user sent by the Next proxy. If missing (scheduler) -- the owner."""
     u = (headers.get("x-mrai-user", "") or "").strip().lower()
     return u if USERNAME_RE.match(u) else LEGACY_USER
 
-# Kompyuterda buyruq bajarish sandbox'siz, shuning uchun FAQAT egasi uchun yoqilgan: boshqa ro'yxatdan o'tgan
-# hisoblar egasining kompyuteriga shell olmasligi kerak. Ruxsat berish uchun nomni shu to'plamga qo'shing.
+# Command execution has no sandbox, so it is enabled ONLY for the owner: other registered
+# accounts must not get a shell on the owner's computer. To allow one, add the name to this set.
 EXEC_ALLOWED = {LEGACY_USER}
-DENIED_MSG = "Bu hisobda kompyuterda buyruq bajarish o'chirilgan (sandbox yo'q, shuning uchun faqat egasi uchun yoqilgan).\n"
+DENIED_MSG = "Command execution is disabled for this account (there is no sandbox, so it is enabled only for the owner).\n"
 
-# MRAI_EXEC_ALL=1 (standart): hamma hisob buyruq bajara oladi. O'chirish uchun MRAI_EXEC_ALL=0 qo'ying -- shunda faqat EXEC_ALLOWED.
+# MRAI_EXEC_ALL=1 (default): every account can run commands. Set MRAI_EXEC_ALL=0 to disable -- then only EXEC_ALLOWED.
 EXEC_ALL = os.environ.get("MRAI_EXEC_ALL", "1").strip() != "0"
 
 def exec_allowed(user):
@@ -96,7 +110,7 @@ def _tok(v):
     return max(0, min(n, 50_000_000))
 
 def usage_summary(cur, user, days):
-    """Foydalanuvchi sarflagan tokenlar: umumiy, kunlar, modellar, manbalar va oxirgi so'rovlar."""
+    """Tokens a user has spent: total, days, models, sources and recent requests."""
     days = max(1, min(int(days or 30), 365))
     today = datetime.date.today()
     t0 = int(time.mktime(today.timetuple()))
@@ -223,7 +237,7 @@ _PURE_CD = _re.compile(r"^cd(?:\s+[^;&|<>()$`\n]+)?$")
 
 
 def _resolve_dir(path, base):
-    """~, ~/x, absolyut yoki base'ga nisbatan yo'lni mavjud papkaga aylantiradi, bo'lmasa None."""
+    """Turns ~, ~/x, an absolute path or one relative to base into an existing folder, otherwise None."""
     if not path:
         return None
     p = path
@@ -236,12 +250,19 @@ def _resolve_dir(path, base):
 
 
 def sanitize_cwd(req_cwd, user=None):
-    """Ishchi papka: so'ralgan (mavjud) papka, bo'lmasa ~/MR/mrai. Cheklov yo'q."""
-    return _resolve_dir(req_cwd, AGENT_HOME) or AGENT_HOME
+    """Working folder: the requested (existing) folder anywhere on the computer, otherwise ~/MR/mrai/work. No restriction."""
+    return _resolve_dir(req_cwd, WORK_DIR) or WORK_DIR
+
+
+def _safe_upload_name(name):
+    """Keep only a safe basename for an uploaded file."""
+    name = os.path.basename(name or "").replace("\x00", "")
+    name = _re.sub(r"[^A-Za-z0-9._ -]", "_", name).strip() or "file"
+    return name[:120]
 
 
 def host_env():
-    """Egasining haqiqiy muhiti (HOME, PATH, D-Bus, Wayland): notify-send, systemctl --user va h.k. ishlashi uchun."""
+    """The owner's real environment (HOME, PATH, D-Bus, Wayland): so notify-send, systemctl --user etc. work."""
     env = os.environ.copy()
     env["HOME"] = HOME_DIR
     rt = env.get("XDG_RUNTIME_DIR") or "/run/user/%d" % os.getuid()
@@ -266,12 +287,12 @@ def host_env():
 
 
 def popen_kwargs(cmd, cwd, user=None):
-    """Haqiqiy kompyuterda bash (sandbox yo'q)."""
-    return {"args": ["bash", "-c", cmd], "cwd": cwd if cwd and os.path.isdir(cwd) else AGENT_HOME, "env": host_env()}
+    """Bash on the real computer (no sandbox)."""
+    return {"args": ["bash", "-c", cmd], "cwd": cwd if cwd and os.path.isdir(cwd) else WORK_DIR, "env": host_env()}
 
 
 def run_command(cmd, cwd, timeout=30, user=None):
-    """Buyruqni egasining haqiqiy kompyuterida bajaradi. Vaqt tugasa butun jarayon guruhi o'ldiriladi."""
+    """Runs the command on the owner's real computer. If the time runs out the whole process group is killed."""
     if not exec_allowed(user):
         return {"stdout": "", "stderr": DENIED_MSG, "exit_code": 126, "cwd": cwd}
     try:
@@ -290,8 +311,75 @@ def run_command(cmd, cwd, timeout=30, user=None):
             p.communicate(timeout=5)
         except Exception:
             pass
-        return {"stdout": "", "stderr": "Xatolik: Buyruq belgilangan vaqt chegarasidan (%ds) oshib ketdi va to'xtatildi. Uzoq ishlar uchun background:true ishlating.\n" % timeout, "exit_code": 124, "cwd": cwd}
+        return {"stdout": "", "stderr": "Error: the command exceeded the time limit (%ds) and was stopped. Use background:true for long jobs.\n" % timeout, "exit_code": 124, "cwd": cwd}
     return {"stdout": out[:500000], "stderr": err[:500000], "exit_code": p.returncode, "cwd": cwd}
+
+
+# ---------------------------------------------------------------------------
+# File artifact ("runner"): the file stays on the computer and is ONLY streamed to the browser.
+# The whole file is never read into memory: a 1 MB file and a 1 TB file open in the same time.
+# Range (partial reads), ETag/304 (cached but never stale), stat, and archive/folder listing.
+# ---------------------------------------------------------------------------
+_MAGIC = [
+    (b"\x89PNG\r\n\x1a\n", "image/png"), (b"\xff\xd8\xff", "image/jpeg"), (b"GIF8", "image/gif"),
+    (b"%PDF-", "application/pdf"), (b"PK\x03\x04", "application/zip"), (b"PK\x05\x06", "application/zip"),
+    (b"\x1f\x8b", "application/gzip"), (b"7z\xbc\xaf\x27\x1c", "application/x-7z-compressed"),
+    (b"Rar!", "application/vnd.rar"), (b"BZh", "application/x-bzip2"), (b"\xfd7zXZ\x00", "application/x-xz"),
+    (b"\x7fELF", "application/x-elf"), (b"SQLite format 3\x00", "application/vnd.sqlite3"),
+    (b"OggS", "audio/ogg"), (b"ID3", "audio/mpeg"), (b"fLaC", "audio/flac"),
+]
+_BINARY_PREFIX = ("image/", "video/", "audio/")
+_BINARY_MIME = {"application/pdf", "application/zip", "application/gzip", "application/x-7z-compressed",
+                "application/vnd.rar", "application/x-bzip2", "application/x-xz", "application/x-elf",
+                "application/vnd.sqlite3", "application/octet-stream"}
+
+def _sniff(path):
+    """(mime, is_text): sniffed from the first 8 KB (works even if the extension is wrong or missing)."""
+    try:
+        with open(path, "rb") as f:
+            head = f.read(8192)
+    except OSError:
+        return None, False
+    mime = None
+    for sig, m in _MAGIC:
+        if head.startswith(sig):
+            mime = m
+            break
+    if mime is None and head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        mime = "image/webp"
+    if mime is None and head[4:8] == b"ftyp":
+        mime = "video/mp4"
+    if mime is None:
+        mime = mimetypes.guess_type(path)[0]
+    if mime and (mime.startswith(_BINARY_PREFIX) and mime != "image/svg+xml" or mime in _BINARY_MIME):
+        return mime, False
+    text = b"\x00" not in head
+    if text:
+        try:
+            head.decode("utf-8")
+        except UnicodeDecodeError as e:
+            text = e.start >= len(head) - 4  # the last character may be cut off
+    return mime, text
+
+def _parse_range(h, size):
+    """'bytes=a-b' | 'bytes=a-' | 'bytes=-n' -> (start, end), or None (invalid) / False (not satisfiable)."""
+    try:
+        unit, _, spec = h.partition("=")
+        if unit.strip().lower() != "bytes" or "," in spec:
+            return None
+        a, _, b = spec.strip().partition("-")
+        if a == "":
+            n = int(b)
+            if n <= 0:
+                return False
+            return max(0, size - n), size - 1
+        start = int(a)
+        end = int(b) if b != "" else size - 1
+        if start >= size or start > end:
+            return False
+        return start, min(end, size - 1)
+    except Exception:
+        return None
 
 
 class ThreadingServer(ThreadingMixIn, http.server.HTTPServer):
@@ -322,6 +410,172 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
         except Exception:
             return {}
 
+    def _json(self, status, obj):
+        self.send_cors(status)
+        self.wfile.write(json.dumps(obj).encode("utf-8"))
+
+    def _handle_upload(self):
+        """Save a raw uploaded file (streamed, never fully buffered) to UPLOAD_DIR; return its absolute path."""
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+        except Exception:
+            length = 0
+        if length <= 0 or length > 50 * 1024 * 1024 * 1024:  # cap 50 GB
+            return self._json(413, {"error": "Invalid or too large upload"})
+        name = _safe_upload_name(urllib.parse.unquote(self.headers.get("x-filename", "") or "file"))
+        import uuid as _uuid
+        udir = os.path.join(UPLOAD_DIR, req_user(self.headers))
+        os.makedirs(udir, exist_ok=True)
+        dest = os.path.join(udir, _uuid.uuid4().hex[:8] + "-" + name)
+        got = 0
+        with open(dest, "wb") as f:
+            remaining = length
+            while remaining > 0:
+                chunk = self.rfile.read(min(1024 * 1024, remaining))
+                if not chunk:
+                    break
+                f.write(chunk)
+                got += len(chunk)
+                remaining -= len(chunk)
+        self._json(200, {"path": dest, "name": name, "size": got})
+
+    def handle_file(self, query):
+        """GET /file?path=/abs&op=stat|list|get — same permission as /exec (exec_allowed)."""
+        user = req_user(self.headers)
+        if not exec_allowed(user):
+            return self._json(403, {"error": "forbidden"})
+        p = query.get("path", [""])[0] or ""
+        op = query.get("op", ["get"])[0] or "get"
+        if not p.startswith("/") or "\x00" in p or len(p) > 4096:
+            return self._json(400, {"error": "bad_path"})
+        try:
+            st = os.stat(p)
+        except FileNotFoundError:
+            return self._json(404, {"error": "not_found"})
+        except PermissionError:
+            return self._json(403, {"error": "permission_denied"})
+        except OSError as e:
+            return self._json(500, {"error": "os_error", "detail": str(e)[:200]})
+        is_dir = _stat.S_ISDIR(st.st_mode)
+        etag = '"%x-%x-%x"' % (st.st_ino, st.st_size, st.st_mtime_ns)
+
+        if op == "stat":
+            info = {"exists": True, "type": "dir" if is_dir else "file",
+                    "name": os.path.basename(p.rstrip("/")) or "/", "size": st.st_size,
+                    "mtime": st.st_mtime, "etag": etag.strip('"')}
+            if not is_dir:
+                mime, text = _sniff(p)
+                info["mime"] = mime
+                info["text"] = text
+            return self._json(200, info)
+
+        if op == "list":
+            LIMIT = 400
+            try:
+                if is_dir:
+                    names = sorted(os.listdir(p), key=lambda n: n.lower())
+                    ents = []
+                    for n in names[:LIMIT]:
+                        try:
+                            ents.append(n + ("/" if os.path.isdir(os.path.join(p, n)) else ""))
+                        except OSError:
+                            ents.append(n)
+                    return self._json(200, {"entries": ents, "total": len(names), "truncated": len(names) > LIMIT})
+                if zipfile.is_zipfile(p):
+                    with zipfile.ZipFile(p) as z:
+                        names = z.namelist()
+                    return self._json(200, {"entries": names[:LIMIT], "total": len(names), "truncated": len(names) > LIMIT})
+                try:
+                    ents = []
+                    with tarfile.open(p, "r:*") as t:
+                        for m in t:
+                            ents.append(m.name + ("/" if m.isdir() else ""))
+                            if len(ents) >= LIMIT:
+                                break
+                    return self._json(200, {"entries": ents, "total": None, "truncated": len(ents) >= LIMIT})
+                except tarfile.TarError:
+                    pass
+                import shutil
+                bsd = shutil.which("bsdtar")
+                if bsd:
+                    proc = subprocess.Popen([bsd, "-tf", p], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+                    ents = []
+                    try:
+                        for line in proc.stdout:
+                            ents.append(line.rstrip("\n"))
+                            if len(ents) >= LIMIT:
+                                break
+                    finally:
+                        proc.kill()
+                    if ents:
+                        return self._json(200, {"entries": ents, "total": None, "truncated": len(ents) >= LIMIT})
+                return self._json(415, {"error": "not_archive"})
+            except PermissionError:
+                return self._json(403, {"error": "permission_denied"})
+            except Exception as e:
+                return self._json(500, {"error": "list_failed", "detail": str(e)[:200]})
+
+        # ---- op=get: oqim (stream) ----
+        if is_dir or not _stat.S_ISREG(st.st_mode):
+            return self._json(400, {"error": "not_a_file"})
+        size = st.st_size
+        last_mod = email.utils.formatdate(st.st_mtime, usegmt=True)
+        inm = (self.headers.get("If-None-Match") or "").strip()
+        if inm and (inm == "*" or etag in [x.strip() for x in inm.split(",")]):
+            self.send_response(304)
+            self.send_header("ETag", etag)
+            self.send_header("Last-Modified", last_mod)
+            self.end_headers()
+            return
+        start, end, status = 0, size - 1, 200
+        rng = self.headers.get("Range")
+        ifr = (self.headers.get("If-Range") or "").strip()
+        if rng and (not ifr or ifr == etag):
+            r = _parse_range(rng, size) if size > 0 else False
+            if r is False:
+                self.send_response(416)
+                self.send_header("Content-Range", "bytes */%d" % size)
+                self.send_header("Content-Length", "0")
+                self.send_header("ETag", etag)
+                self.end_headers()
+                return
+            if r:
+                start, end = r
+                status = 206
+        length = max(0, end - start + 1) if size > 0 else 0
+        mime, text = _sniff(p)
+        try:
+            f = open(p, "rb")
+        except PermissionError:
+            return self._json(403, {"error": "permission_denied"})
+        except OSError as e:
+            return self._json(500, {"error": "os_error", "detail": str(e)[:200]})
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Length", str(length))
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("ETag", etag)
+            self.send_header("Last-Modified", last_mod)
+            self.send_header("X-File-Size", str(size))
+            self.send_header("X-File-Mime", mime or "")
+            self.send_header("X-File-Text", "1" if text else "0")
+            if status == 206:
+                self.send_header("Content-Range", "bytes %d-%d/%d" % (start, end, size))
+            self.end_headers()
+            f.seek(start)
+            remaining = length
+            while remaining > 0:
+                chunk = f.read(min(1 << 20, remaining))
+                if not chunk:
+                    break
+                self.wfile.write(chunk)
+                remaining -= len(chunk)
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # the browser disconnected (e.g. a video was seeked) — normal
+        finally:
+            f.close()
+
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
@@ -333,7 +587,7 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({
                 "status": "ok",
                 "server": "MR AI Local Server",
-                "security": "Host exec (sandbox yo'q; buyruq bajarish faqat egasi uchun)",
+                "security": "Host exec (no sandbox; command execution only for the owner)",
                 "auth_required": bool(AUTH_TOKEN)
             }).encode("utf-8"))
             return
@@ -341,7 +595,11 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
         # Security check for database routes
         if not is_authorized(self.headers):
             self.send_cors(401)
-            self.wfile.write(json.dumps({"error": "Unauthorized: Xavfsizlik tokeni talab qilinadi"}).encode("utf-8"))
+            self.wfile.write(json.dumps({"error": "Unauthorized: security token required"}).encode("utf-8"))
+            return
+
+        if path == "/file":
+            self.handle_file(query)
             return
 
         _h = mrai_tasks.handle("GET", path, query, {}, req_user(self.headers))
@@ -428,15 +686,22 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
+
+        # Binary upload (raw body, not JSON) — handled before the JSON body is read.
+        if path == "/upload":
+            if not is_authorized(self.headers):
+                return self._json(401, {"error": "Unauthorized: invalid or missing security token."})
+            return self._handle_upload()
+
         body = self.read_json_body()
 
         # Token authentication check
         if not is_authorized(self.headers):
             self.send_cors(401)
-            self.wfile.write(json.dumps({"error": "Unauthorized: Noto‘g‘ri yoki mavjud bo‘lmagan xavfsizlik tokeni."}).encode("utf-8"))
+            self.wfile.write(json.dumps({"error": "Unauthorized: invalid or missing security token."}).encode("utf-8"))
             return
 
-        # Buyruq bajarish: egasining HAQIQIY kompyuterida (sandbox yo'q), faqat EXEC_ALLOWED hisoblar uchun.
+        # Command execution: on the owner's REAL computer (no sandbox), only for EXEC_ALLOWED accounts.
         if path == "/exec":
             cmd = body.get("command", "")
             req_cwd = body.get("cwd", "")
@@ -447,19 +712,18 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
             if not exec_allowed(xuser):
                 out = {"stdout": "", "stderr": DENIED_MSG, "exit_code": 126, "cwd": cwd}
             elif _PURE_CD.match(trimmed):
-                # Sof `cd [papka]`: faqat ishchi papkani o'zgartiradi (haqiqiy shell kabi: ~ = uy papkasi, cheklovsiz).
                 arg = trimmed[2:].strip()
                 try:
                     parts = shlex.split(arg)
                 except ValueError:
                     parts = [arg]
                 target = parts[0] if parts else "~"
-                new = _resolve_dir(target, cwd)
-                if new:
-                    cwd = new
+                new_dir = _resolve_dir(target, cwd)
+                if new_dir:
+                    cwd = new_dir
                     out = {"stdout": "", "stderr": "", "exit_code": 0, "cwd": cwd}
                 else:
-                    out = {"stdout": "", "stderr": "bash: cd: %s: Papka topilmadi\n" % target, "exit_code": 1, "cwd": cwd}
+                    out = {"stdout": "", "stderr": "bash: cd: %s: No such directory\n" % target, "exit_code": 1, "cwd": cwd}
             else:
                 try:
                     tmo = max(1, min(int(body.get("timeout", 30)), 900))
@@ -472,6 +736,12 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
 
             self.send_cors()
             self.wfile.write(json.dumps(out).encode("utf-8"))
+            return
+
+        # Rasm yuklash endpoint (cgi olib tashlangan)
+        if path == "/api/upload":
+            self.send_cors(501)
+            self.wfile.write(json.dumps({"error": "Upload is temporarily disabled"}).encode("utf-8"))
             return
 
         _h = mrai_tasks.handle("POST", path, urllib.parse.parse_qs(parsed.query), body, req_user(self.headers))
@@ -488,7 +758,7 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
                 rec = _ACCESS_FAILS.get(ip)
                 if rec and _t.time() - rec[1] < 600 and rec[0] >= 5:
                     self.send_cors(429)
-                    self.wfile.write(json.dumps({"error": "Juda ko'p urinish. Keyinroq qayta urinib ko'ring."}).encode("utf-8"))
+                    self.wfile.write(json.dumps({"error": "Too many attempts. Try again later."}).encode("utf-8"))
                     return
                 try:
                     with open(ACCESS_KEY_FILE, encoding="utf-8") as _kf:
@@ -497,7 +767,7 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
                     real_key = ""
                 if not real_key:
                     self.send_cors(503)
-                    self.wfile.write(json.dumps({"error": "Kirish kaliti sozlanmagan (access.key)"}).encode("utf-8"))
+                    self.wfile.write(json.dumps({"error": "The access key is not configured (access.key)"}).encode("utf-8"))
                     return
                 given = str(body.get("key", "")).strip()
                 if given and _hmac.compare_digest(given.encode("utf-8"), real_key.encode("utf-8")):
@@ -511,7 +781,7 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
                     _ACCESS_FAILS[ip] = [1, _t.time()]
                 _t.sleep(0.6)
                 self.send_cors(401)
-                self.wfile.write(json.dumps({"error": "Kalit noto'g'ri"}).encode("utf-8"))
+                self.wfile.write(json.dumps({"error": "Wrong access key"}).encode("utf-8"))
                 return
 
             if path == "/api/auth/register":
@@ -520,11 +790,11 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
                 password = str(body.get("password", ""))
                 if not USERNAME_RE.match(username):
                     self.send_cors(400)
-                    self.wfile.write(json.dumps({"error": "Username 3-32 belgi: a-z, 0-9, _ . -"}).encode("utf-8"))
+                    self.wfile.write(json.dumps({"error": "Username must be 3-32 characters: a-z, 0-9, _ . -"}).encode("utf-8"))
                     return
                 if len(password) < 6 or len(password) > 200:
                     self.send_cors(400)
-                    self.wfile.write(json.dumps({"error": "Parol kamida 6 ta belgi bo'lishi kerak"}).encode("utf-8"))
+                    self.wfile.write(json.dumps({"error": "Password must be at least 6 characters"}).encode("utf-8"))
                     return
                 if username == LEGACY_USER or cur.execute("SELECT 1 FROM users WHERE username = ?", (username,)).fetchone():
                     self.send_cors(409)
@@ -543,10 +813,10 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
                 row = cur.execute("SELECT username, name, pass_hash FROM users WHERE username = ?", (username,)).fetchone()
                 ok = bool(row) and check_password(password, row["pass_hash"])
                 if not row:
-                    check_password(password, "scrypt$00$00")  # vaqt farqini yashirish
+                    check_password(password, "scrypt$00$00")  # hide the timing difference
                 if not ok:
                     self.send_cors(401)
-                    self.wfile.write(json.dumps({"error": "Username yoki parol noto'g'ri"}).encode("utf-8"))
+                    self.wfile.write(json.dumps({"error": "Wrong username or password"}).encode("utf-8"))
                     return
                 self.send_cors()
                 self.wfile.write(json.dumps({"ok": True, "user": {"username": row["username"], "name": row["name"]}}).encode("utf-8"))
@@ -557,7 +827,7 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
                 row = cur.execute("SELECT username, name, pass_hash FROM users WHERE username = ?", (username,)).fetchone()
                 if not row:
                     self.send_cors(404)
-                    self.wfile.write(json.dumps({"error": "Foydalanuvchi topilmadi"}).encode("utf-8"))
+                    self.wfile.write(json.dumps({"error": "User not found"}).encode("utf-8"))
                     return
                 new_name = body.get("name")
                 new_pass = body.get("new_password")
@@ -565,11 +835,11 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
                     new_pass = str(new_pass)
                     if not check_password(str(body.get("old_password", "")), row["pass_hash"]):
                         self.send_cors(401)
-                        self.wfile.write(json.dumps({"error": "Joriy parol noto'g'ri"}).encode("utf-8"))
+                        self.wfile.write(json.dumps({"error": "Current password is wrong"}).encode("utf-8"))
                         return
                     if len(new_pass) < 6 or len(new_pass) > 200:
                         self.send_cors(400)
-                        self.wfile.write(json.dumps({"error": "Yangi parol kamida 6 ta belgi bo'lishi kerak"}).encode("utf-8"))
+                        self.wfile.write(json.dumps({"error": "New password must be at least 6 characters"}).encode("utf-8"))
                         return
                     cur.execute("UPDATE users SET pass_hash = ? WHERE username = ?", (hash_password(new_pass), username))
                 if new_name is not None:
@@ -587,7 +857,7 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
                 row = cur.execute("SELECT username, name FROM users WHERE username = ?", (username,)).fetchone()
                 if not row:
                     self.send_cors(404)
-                    self.wfile.write(json.dumps({"error": "Foydalanuvchi topilmadi"}).encode("utf-8"))
+                    self.wfile.write(json.dumps({"error": "User not found"}).encode("utf-8"))
                     return
                 self.send_cors()
                 self.wfile.write(json.dumps({"ok": True, "user": {"username": row["username"], "name": row["name"]}}).encode("utf-8"))
@@ -595,8 +865,8 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
 
             if path == "/api/db/chats":
                 cid = body.get("id")
-                title = body.get("title", "Yangi suhbat")
-                created_at = body.get("created_at")
+                title = body.get("title", "New chat")
+                created_at = body.get("created_at") or _dt.datetime.utcnow().isoformat() + "Z"
                 updated_at = body.get("updated_at") or created_at
                 cur.execute("""
                 INSERT INTO chats (id, title, created_at, updated_at, user_id)
@@ -618,7 +888,7 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
                     chat_id = m.get("chat_id")
                     role = m.get("role", "user")
                     content = m.get("content", "")
-                    created_at = m.get("created_at")
+                    created_at = m.get("created_at") or _dt.datetime.utcnow().isoformat() + "Z"
                     cur.execute("""
                     INSERT INTO messages (id, chat_id, role, content, created_at, user_id)
                     VALUES (?, ?, ?, ?, ?, ?)
@@ -751,6 +1021,6 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
-    mrai_tasks.init(get_db, run_command, popen_kwargs, AUTH_TOKEN, WORKSPACE_DIR, AGENT_HOME)
+    mrai_tasks.init(get_db, run_command, popen_kwargs, AUTH_TOKEN, WORKSPACE_DIR, WORK_DIR)
     server = ThreadingServer(("127.0.0.1", port), ServerHandler)
     server.serve_forever()

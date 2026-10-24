@@ -9,14 +9,14 @@ import { buildModelItems, fetchModelsCached } from "@/lib/modelsCatalog";
 
 interface Props {
   keyItem: UserApiKey;
-  /** ro'yxat doim ochiq turadi (tezkor oynada) */
+  /** the list stays open (in the quick dialog) */
   alwaysOpen?: boolean;
-  /** model tanlanib saqlangach chaqiriladi */
+  /** called once a model is chosen and saved */
   onChanged?: (saved: UserApiKey) => void;
   heightClass?: string;
 }
 
-// Model maydoni: bosilsa FAQAT shu kalitning provayderiga tegishli modellar chiqadi, tanlangani saqlanadi.
+// Model field: clicking it shows ONLY the models for this key's provider, and the chosen one is saved.
 export default function ModelField({ keyItem, alwaysOpen = false, onChanged, heightClass = "max-h-56" }: Props) {
   const [open, setOpen] = useState(alwaysOpen);
   const [loading, setLoading] = useState(false);
@@ -29,13 +29,13 @@ export default function ModelField({ keyItem, alwaysOpen = false, onChanged, hei
     setCurrent(keyItem.model || "");
   }, [keyItem.model, keyItem.id]);
 
-  // Katalog darhol; API fonida (Ollama uchun ham — qotib qolmasin).
+  // Catalog immediately; API in the background (also for Ollama — so it does not freeze).
   useEffect(() => {
     if (!open) return;
     let dead = false;
     setLoading(true);
     const t = window.setTimeout(() => {
-      if (!dead) setLoading(false); // 2.5s dan keyin spinner yo'qoladi, katalog ko'rinadi
+      if (!dead) setLoading(false); // the spinner disappears after 2.5s and the catalog shows
     }, 2500);
     fetchModelsCached(keyItem.id, keyItem.provider, keyItem.api_key, keyItem.base_url, keyItem.model || undefined)
       .then((m) => {
@@ -88,8 +88,8 @@ export default function ModelField({ keyItem, alwaysOpen = false, onChanged, hei
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          className={`w-full h-10 px-3 flex items-center justify-between gap-2 border bg-neutral-950 text-sm text-left transition cursor-pointer ${
-            open ? "border-neutral-600" : "border-neutral-800 hover:border-neutral-700"
+          className={`w-full h-10 px-3 flex items-center justify-between gap-2 border bg-black text-sm text-left transition cursor-pointer ${
+            open ? "border-white/35" : "border-white/15 hover:border-white/30"
           }`}
         >
           <span className={`truncate ${current ? "text-neutral-100" : "text-amber-300"}`}>
@@ -105,7 +105,7 @@ export default function ModelField({ keyItem, alwaysOpen = false, onChanged, hei
 
       {alwaysOpen && (
         <p className="text-xs text-neutral-400 mb-1.5">
-          Model: <span className={current ? "text-neutral-100" : "text-amber-300"}>{current || "tanlanmagan"}</span>
+          Model: <span className={current ? "text-neutral-100" : "text-amber-300"}>{current || "not selected"}</span>
         </p>
       )}
 

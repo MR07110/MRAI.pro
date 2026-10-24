@@ -41,15 +41,15 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# zaxira nusxalar va AI qulf fayllari
-*.bak-*
+# backups and AI lock files
+*.bak*
 .ai-lock
 
 # python
 __pycache__/
 
-# server holati (navbat, UI) — sirlar bor
+# server state (queue, UI) — may contain secrets
 .mrai-state/
 
-# skills/ lokal: ~/MR/mrai/skills da turadi, GitHub'ga chiqmaydi
+# skills/ are local: they live in ~/MR/mrai/skills and are not pushed to GitHub
 /skills/
