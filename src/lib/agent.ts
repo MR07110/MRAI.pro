@@ -168,6 +168,18 @@ function sleepAbortable(ms: number, signal?: AbortSignal): Promise<void> {
 }
 
 // ---------------------------------------------------------------- Anthropic
+// Return a copy of the messages with a single cache breakpoint on the last message's last content block.
+// The original list is left untouched (no accumulation, no effect on token estimates).
+function withMsgCache(msgs: any[]): any[] {
+  if (!msgs.length) return msgs;
+  const out = msgs.map((m) => ({ ...m }));
+  const last = out[out.length - 1];
+  let content: any[] = typeof last.content === "string" ? [{ type: "text", text: last.content }] : last.content.map((b: any) => ({ ...b }));
+  if (content.length) content[content.length - 1] = { ...content[content.length - 1], cache_control: { type: "ephemeral" } };
+  last.content = content;
+  return out;
+}
+
 function anthropicAdapter(inp: AgentInput, system: string): Adapter {
   const model = defaultModel("anthropic", inp.model);
   const msgs: any[] = inp.messages.map((m) => ({ role: m.role, content: m.content }));
@@ -177,7 +189,9 @@ function anthropicAdapter(inp: AgentInput, system: string): Adapter {
         model,
         // Cache the system prompt (base + skills catalog): read back at ~10% cost on every step and turn.
         ...(system ? { system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }] } : {}),
-        messages: msgs,
+        // Also cache the conversation so far: a breakpoint on the last message means each new step only pays
+        // full price for the newest turn; the whole prefix (tools + system + earlier messages) reads back cheap.
+        messages: withMsgCache(msgs),
         temperature: Math.min(Math.max(0, inp.temperature ?? 0.7), 1),
         max_tokens: Math.min(Math.max(1, inp.maxTokens ?? 4096), 16384),
       };

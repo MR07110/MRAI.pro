@@ -25,7 +25,7 @@ function clip(s: string, limit = OUT_LIMIT): string {
   if (s.length <= limit) return s;
   const head = Math.floor(limit * 0.6);
   const tail = limit - head;
-  return `${s.slice(0, head)}\n...[${s.length - limit} belgi qisqartirildi]...\n${s.slice(-tail)}`;
+  return `${s.slice(0, head)}\n...[${s.length - limit} chars truncated]...\n${s.slice(-tail)}`;
 }
 
 function shq(s: string): string {
@@ -105,7 +105,7 @@ export function buildBuiltinTools(env: ToolEnv): ToolDef[] {
           if (last.exit_code !== 0) return fmtExec(last);
           mode = ">>";
         }
-        return { output: `yozildi: ${a.path} (${Buffer.byteLength(String(a.content ?? ""))} bayt)` };
+        return { output: `wrote: ${a.path} (${Buffer.byteLength(String(a.content ?? ""))} bytes)` };
       },
     },
     {
