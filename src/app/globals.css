@@ -159,3 +159,6 @@ textarea:focus-visible { outline: none; }
 .hljs-deletion { color: #ffa198; }
 .hljs-emphasis { font-style: italic; }
 .hljs-strong { font-weight: 600; }
+
+/* Round avatar — overrides the global border-radius:0 reset */
+.avatar-circle { border-radius: 9999px !important; }

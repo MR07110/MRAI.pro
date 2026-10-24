@@ -158,7 +158,7 @@ export default function Sidebar({
 
  <div className="shrink-0 border-t border-white/[0.06] p-2">
  <div className="flex items-center gap-2.5 pl-2 pr-1 h-11 ">
- <div className="w-7 h-7 bg-white/10 text-white flex items-center justify-center text-[12px] font-semibold uppercase shrink-0">
+ <div className="avatar-circle w-7 h-7 bg-white/10 text-white flex items-center justify-center text-[12px] font-semibold uppercase shrink-0 overflow-hidden">
  {displayName.charAt(0)}
  </div>
  <div className="flex-1 min-w-0 leading-tight">
