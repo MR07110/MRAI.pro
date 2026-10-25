@@ -53,3 +53,10 @@ __pycache__/
 
 # skills/ are local: they live in ~/MR/mrai/skills and are not pushed to GitHub
 /skills/
+
+# screen recordings / captures accidentally saved in the repo root
+*.mp4
+*.mkv
+*.mp3
+screen_*.png
+skrinshot_*.png
