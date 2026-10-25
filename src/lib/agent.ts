@@ -126,10 +126,25 @@ function openaiAdapter(inp: AgentInput, system: string): Adapter & { disableTool
       }
       if (!res.ok) {
         const err = await readError(res);
-        const e: any = new Error(`${inp.provider} HTTP ${res.status}: ${err}`);
-        e.status = res.status;
-        e.toolRelated = /tool|function/i.test(err);
-        throw e;
+        // Retry once on 500 for ollama (often temporary model overload)
+        if (res.status === 500 && inp.provider === "ollama") {
+          await sleepAbortable(1500, inp.signal);
+          res = await fetch(endpoint, { method: "POST", headers, body: JSON.stringify(body), signal: inp.signal });
+          if (res.ok) {
+            // continue normally below
+          } else {
+            const err2 = await readError(res);
+            const e: any = new Error(`${inp.provider} HTTP ${res.status}: ${err2}. Model may be overloaded — try a smaller one (gpt-oss:20b, gemma4:31b).`);
+            e.status = res.status;
+            e.toolRelated = /tool|function/i.test(err2);
+            throw e;
+          }
+        } else {
+          const e: any = new Error(`${inp.provider} HTTP ${res.status}: ${err}`);
+          e.status = res.status;
+          e.toolRelated = /tool|function/i.test(err);
+          throw e;
+        }
       }
       const j = await res.json();
       const m = j?.choices?.[0]?.message || {};
