@@ -57,7 +57,7 @@ export default function ModelMenu({ keyItem, onClose, onPick, onOpenSettings }: 
  <div className="fixed inset-0 z-30" onClick={onClose} aria-hidden />
  <div
  ref={panelRef}
- className={`absolute left-0 z-40 w-[min(22rem,calc(100vw-2rem))] border border-white/12 bg-neutral-950 shadow-[0_16px_48px_rgba(0,0,0,0.75)] overflow-hidden ring-1 ring-black/40 ${
+ className={`absolute left-0 z-40 w-[min(22rem,calc(100vw-2rem))] bg-neutral-950 shadow-[0_16px_48px_rgba(0,0,0,0.75)] overflow-hidden ${
  openUp ? "bottom-full mb-2" : "top-full mt-2"
  }`}
  >
