@@ -311,6 +311,18 @@ def _list_category_names():
     return out
 
 
+def _category_stamps():
+    """Cheap change-detector for the UI's live refresh: category -> its folder's mtime (ms). A skill added
+    to or removed from a category changes that folder's mtime, so the browser only re-fetches what changed."""
+    out = {}
+    for name in _list_category_names():
+        try:
+            out[name] = int(os.stat(os.path.join(SKILLS_DIR, name)).st_mtime_ns // 1000000)
+        except Exception:
+            out[name] = 0
+    return out
+
+
 def _list_skills(only_category=None):
     """<SKILLS_DIR>/<category>/<skill>/SKILL.md (old flat <SKILLS_DIR>/<skill>/SKILL.md also works).
     With only_category set, every other category's folder is skipped entirely (its files are never
@@ -737,7 +749,7 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
             # ?category=<name>   -> only that category's skills (fast: skips every other folder)
             # (neither)          -> every skill (kept for callers that genuinely want the full catalog)
             if query.get("categories", [""])[0]:
-                self._json(200, {"categories": _list_category_names(), "root": SKILLS_DIR})
+                self._json(200, {"categories": _list_category_names(), "stamps": _category_stamps(), "root": SKILLS_DIR})
             else:
                 only = query.get("category", [None])[0]
                 self._json(200, {"skills": _list_skills(only_category=only), "root": SKILLS_DIR})

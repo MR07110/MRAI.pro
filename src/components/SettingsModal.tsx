@@ -10,6 +10,7 @@ import SkillsPanel from "./SkillsPanel";
 import MemoryPanel from "./MemoryPanel";
 import { AppSettings, loadSettings, saveSettings, DEFAULT_SETTINGS, SYSTEM_PROMPT_PRESETS } from "@/lib/settings";
 import { Field, Row, SectionHead, Segmented, Switch, ui } from "./ui";
+import { prefetchAllSkills, watchForNewSkills } from "@/lib/skillsCatalog";
 
 export type SettingsTab = "keys" | "connectors" | "tasks" | "usage" | "skills" | "memory" | "general";
 
@@ -42,6 +43,24 @@ export default function SettingsModal({ open, tab, onTabChange, onClose }: Props
     if (open) setAppSettings(loadSettings());
   }, [open]);
 
+  // Warm the skills cache as soon as Settings opens (whatever tab is showing) and keep watching the computer
+  // for new skills while it is open, so Skills is already there when visited and new ones appear by themselves.
+  useEffect(() => {
+    if (!open) return;
+    prefetchAllSkills();
+    return watchForNewSkills();
+  }, [open]);
+
+  // Esc closes Settings too (the click on the dark area outside the window does the same).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
   function updateAppSettings(patch: Partial<AppSettings>) {
     const updated = { ...appSettings, ...patch };
     setAppSettings(updated);
@@ -56,7 +75,7 @@ export default function SettingsModal({ open, tab, onTabChange, onClose }: Props
 
   return (
     <div className="fixed inset-0 z-50 flex items-stretch md:items-center justify-center md:p-6">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm cursor-default" onMouseDown={onClose} />
 
       <div
         className="relative w-full md:max-w-4xl h-full md:h-[min(42rem,88vh)] flex flex-col md:flex-row bg-black text-neutral-100 md:border border-white/20 overflow-hidden fade-up"

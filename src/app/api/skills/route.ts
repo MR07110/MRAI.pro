@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  getCategoryNamesAsync,
+  getCategoryInfoAsync,
   getSkillsAsync,
   getSkillsInCategoryAsync,
   listCategoryNames,
@@ -20,12 +20,13 @@ export async function GET(req: NextRequest) {
   const localReachable = listCategoryNames().length > 0 || listSkills().length > 0;
 
   if (sp.get("categories")) {
-    const categories = await getCategoryNamesAsync();
+    const { names: categories, stamps } = await getCategoryInfoAsync();
     return NextResponse.json({
       ok: true,
       source: localReachable ? "local" : categories.length ? "remote" : "none",
       root: SKILLS_DIR,
       categories,
+      stamps,
     });
   }
 

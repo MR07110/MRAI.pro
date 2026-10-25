@@ -11,6 +11,8 @@ import {
  filterSkills,
  peekCategoryNames,
  peekSkillsInCategory,
+  onSkillsCacheChange,
+  watchForNewSkills,
  type SkillEntry,
 } from "@/lib/skillsCatalog";
 
@@ -69,6 +71,8 @@ export default function Composer({
  const [focused, setFocused] = useState(false);
  const [dismissed, setDismissed] = useState(false); // Esc hides it; any further edit un-hides it
  const [activeIndex, setActiveIndex] = useState(0);
+  const [searchFocused, setSearchFocused] = useState(false); // the menu's own search box has focus
+  const mirrorRef = useRef<HTMLDivElement>(null);
 
  const skillMatch = value.match(SKILL_RE);
  const catMatch = !skillMatch ? value.match(CATEGORY_RE) : null;
@@ -87,7 +91,7 @@ export default function Composer({
  return [];
  }, [phase, categories, categorySkills, loadedCategory, activeCategory, query]);
 
- const menuOpen = focused && !dismissed && phase !== null && (menuItems.length > 0 || categoriesLoading || skillsLoading);
+ const menuOpen = focused && !dismissed && phase !== null && (menuItems.length > 0 || categoriesLoading || skillsLoading || searchFocused);
  const menuHint =
  phase === "skill"
  ? `Skills in ${activeCategory} — ↑↓, Enter/Tab to insert, Esc to dismiss`
@@ -126,7 +130,34 @@ export default function Composer({
  setActiveIndex((i) => Math.min(i, Math.max(0, menuItems.length - 1)));
  }, [menuItems.length]);
 
- function pickRow(row: MenuRow) {
+ // Keep the picker's copy of the catalog in step with the shared cache (prefetch finishing, a new skill
+  // appearing on the computer) and poll for changes only while the menu is actually open.
+  useEffect(() => {
+    return onSkillsCacheChange(() => {
+      const c = peekCategoryNames();
+      if (c) setCategories(c);
+      if (activeCategory) {
+        const list = peekSkillsInCategory(activeCategory);
+        if (list) setCategorySkills(list);
+      }
+    });
+  }, [activeCategory]);
+  useEffect(() => {
+    if (!menuOpen) return;
+    return watchForNewSkills();
+  }, [menuOpen]);
+
+  // The menu's search box edits the same text that follows the "/" in the composer, so both stay in sync.
+  const queryPrefix = phase === "skill" && activeCategory ? `/${activeCategory}/` : "/";
+  function onSearchQuery(q: string) {
+    let clean = q.replace(/\s+/g, "-");
+    clean = phase === "skill" ? clean.replace(/[^\w./-]/g, "") : clean.replace(/[^\w-]/g, "").replace(/^[^A-Za-z0-9]+/, "");
+    setDismissed(false);
+    setActiveIndex(0);
+    onChange(queryPrefix + clean);
+  }
+
+  function pickRow(row: MenuRow) {
  if (phase === "category") {
  onChange(`/${row.key}/`); // drops straight into skill-phase for this category
  setActiveIndex(0);
@@ -141,35 +172,43 @@ export default function Composer({
  }
  }
 
- function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
- if (menuOpen) {
- if (e.key === "Escape") {
- e.preventDefault();
- setDismissed(true); // closes the menu; editing the text again reopens it
- return;
- }
- if (menuItems.length > 0) {
- if (e.key === "ArrowDown") {
- e.preventDefault();
- setActiveIndex((i) => (i + 1) % menuItems.length);
- return;
- }
- if (e.key === "ArrowUp") {
- e.preventDefault();
- setActiveIndex((i) => (i - 1 + menuItems.length) % menuItems.length);
- return;
- }
- if (e.key === "Enter" || e.key === "Tab") {
- e.preventDefault();
- pickRow(menuItems[activeIndex]);
- return;
- }
- }
- }
- onKeyDown(e);
- }
+ // Shared by the textarea and the menu's search box. Returns true when the key was a menu key.
+  function menuKey(e: React.KeyboardEvent<HTMLElement>): boolean {
+    if (!menuOpen) return false;
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setDismissed(true); // closes the menu; editing the text again reopens it
+      textareaRef.current?.focus();
+      return true;
+    }
+    if (menuItems.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setActiveIndex((i) => (i + 1) % menuItems.length);
+        return true;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setActiveIndex((i) => (i - 1 + menuItems.length) % menuItems.length);
+        return true;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        pickRow(menuItems[activeIndex]);
+        return true;
+      }
+    }
+    return false;
+  }
 
- const canAttach = !!onAttach;
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (menuKey(e)) return;
+    onKeyDown(e);
+  }
+
+  // "/category/skill" at the start of the message = a skill command: shown in blue (and never spell-checked)
+  const pathMatch = value.match(/^\/[A-Za-z0-9][\w-]*\/[\w.-]*/);
+  const canAttach = !!onAttach;
  const canSend = value.trim().length > 0 || attachments.length > 0;
 
  const pickFiles = (list: FileList | null) => {
@@ -201,13 +240,25 @@ export default function Composer({
  >
  {menuOpen && (
  <SkillSlashMenu
- items={menuItems}
- activeIndex={activeIndex}
- hint={menuHint}
- loading={categoriesLoading || skillsLoading}
- onHover={setActiveIndex}
- onPick={pickRow}
- />
+            items={menuItems}
+            activeIndex={activeIndex}
+            hint={menuHint}
+            loading={categoriesLoading || skillsLoading}
+            query={query}
+            searchPlaceholder={phase === "skill" ? `Search ${activeCategory}…` : "Search categories…"}
+            onQuery={onSearchQuery}
+            onSearchKeyDown={menuKey}
+            onSearchFocus={() => {
+              setFocused(true);
+              setSearchFocused(true);
+            }}
+            onSearchBlur={(e) => {
+              setSearchFocused(false);
+              if (e.relatedTarget !== textareaRef.current) setFocused(false);
+            }}
+            onHover={setActiveIndex}
+            onPick={pickRow}
+          />
  )}
 
  {attachments.length > 0 && (
@@ -241,28 +292,51 @@ export default function Composer({
  </div>
  )}
 
- <textarea
- ref={textareaRef}
- value={value}
- onChange={(e) => {
- setDismissed(false);
- onChange(e.target.value);
- }}
- onKeyDown={handleKeyDown}
- onFocus={() => setFocused(true)}
- onBlur={() => setFocused(false)}
- onPaste={(e) => {
- if (!canAttach) return;
- const files = Array.from(e.clipboardData.files || []);
- if (files.length) {
- e.preventDefault();
- onAttach?.(files);
- }
- }}
- placeholder={placeholder || "Send a message…"}
- rows={1}
- className={`block w-full resize-none bg-transparent px-5 pt-4 pb-2 ${fontSizeClass} leading-6 text-neutral-100 placeholder:text-neutral-600 max-h-[220px]`}
- />
+ <div className="relative">
+          {pathMatch && (
+            <div
+              ref={mirrorRef}
+              aria-hidden
+              className={`pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-5 pt-4 pb-2 ${fontSizeClass} leading-6 text-neutral-100`}
+            >
+              <span className="text-sky-400">{value.slice(0, pathMatch[0].length)}</span>
+              {value.slice(pathMatch[0].length)}
+              {"\u200b"}
+            </div>
+          )}
+          <textarea
+            ref={textareaRef}
+            value={value}
+            spellCheck={value.startsWith("/") ? false : undefined}
+            onChange={(e) => {
+              setDismissed(false);
+              onChange(e.target.value);
+            }}
+            onKeyDown={handleKeyDown}
+            onFocus={() => setFocused(true)}
+            onBlur={(e) => {
+              // moving focus into the menu's own search box must not close the menu
+              if ((e.relatedTarget as HTMLElement | null)?.dataset?.skillSearch) return;
+              setFocused(false);
+            }}
+            onScroll={(e) => {
+              if (mirrorRef.current) mirrorRef.current.scrollTop = e.currentTarget.scrollTop;
+            }}
+            onPaste={(e) => {
+              if (!canAttach) return;
+              const files = Array.from(e.clipboardData.files || []);
+              if (files.length) {
+                e.preventDefault();
+                onAttach?.(files);
+              }
+            }}
+            placeholder={placeholder || "Send a message…"}
+            rows={1}
+            className={`relative block w-full resize-none bg-transparent px-5 pt-4 pb-2 ${fontSizeClass} leading-6 ${
+              pathMatch ? "text-transparent caret-white" : "text-neutral-100"
+            } placeholder:text-neutral-600 max-h-[220px]`}
+          />
+        </div>
  <div className="flex items-center justify-between gap-3 px-3 pb-3 pt-1">
  <div className="flex items-center gap-1 min-w-0 max-w-[78%]">
  {canAttach && (

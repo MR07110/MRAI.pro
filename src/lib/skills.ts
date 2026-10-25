@@ -128,6 +128,20 @@ export function listCategoryNames(): string[] {
   }
 }
 
+/** Category -> folder mtime (ms). A skill added/removed inside a category bumps that folder's mtime, so the
+ * browser can notice "something changed here" with one tiny request instead of re-reading every skill. */
+export function listCategoryStamps(): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const name of listCategoryNames()) {
+    try {
+      out[name] = Math.floor(fs.statSync(path.join(SKILLS_DIR, name)).mtimeMs);
+    } catch {
+      out[name] = 0;
+    }
+  }
+  return out;
+}
+
 /** Only one category's skills — skips every other folder entirely, so it stays fast regardless of how
  * many thousand skills are installed overall. This is what lets the Skills panel load the list one
  * category at a time instead of fetching everything up front. */
@@ -178,6 +192,21 @@ async function listSkillsInCategoryRemote(category: string): Promise<SkillMeta[]
     skillMd: path.join(String(s.dir || ""), "SKILL.md"),
     category: String(s.category || ""),
   }));
+}
+
+/** Category names + change stamps — local filesystem first, remote fallback. */
+export async function getCategoryInfoAsync(): Promise<{ names: string[]; stamps: Record<string, number> }> {
+  const local = listCategoryNames();
+  if (local.length) return { names: local, stamps: listCategoryStamps() };
+  try {
+    const res = await serverFetch(undefined, "/skills?categories=1", { method: "GET", timeoutMs: 10000 });
+    const names: string[] = Array.isArray(res?.categories) ? res.categories.map(String) : [];
+    const stamps: Record<string, number> = {};
+    if (res?.stamps && typeof res.stamps === "object") for (const k of Object.keys(res.stamps)) stamps[k] = Number(res.stamps[k]) || 0;
+    return { names, stamps };
+  } catch {
+    return { names: [], stamps: {} };
+  }
 }
 
 /** Category names only — local filesystem first, remote fallback. Cheap either way. */
