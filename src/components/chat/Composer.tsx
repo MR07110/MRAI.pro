@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUp, ChevronDown, Key, Loader2, Plus, Square, X } from "lucide-react";
 import { fmtSize, kindOf, type FileRef } from "./fileKind";
+import SkillSlashMenu from "./SkillSlashMenu";
+import { fetchSkillsCatalog, filterSkills, peekSkillsCatalog, type SkillEntry } from "@/lib/skillsCatalog";
+
+// Matches a bare, in-progress slash command: "/" plus a partial name and nothing else yet (no space).
+// The instant a space (or anything else) follows, the menu phase is over — matches the server's own
+// slash-command parsing in agent.ts, so what you pick here is exactly what gets invoked.
+const SLASH_RE = /^\/([A-Za-z0-9][\w./-]*)$/;
 
 export default function Composer({
  value,
@@ -44,11 +51,66 @@ export default function Composer({
  const fileInputRef = useRef<HTMLInputElement>(null);
  const [dragging, setDragging] = useState(false);
 
+ // "/" skill picker: opens above the composer, filters live on every keystroke.
+ const [skills, setSkills] = useState<SkillEntry[]>(() => peekSkillsCatalog() || []);
+ const [focused, setFocused] = useState(false);
+ const [dismissed, setDismissed] = useState(false); // Esc hides it; any further edit un-hides it
+ const [activeIndex, setActiveIndex] = useState(0);
+ const slashMatch = value.match(SLASH_RE);
+ const slashQuery = slashMatch?.[1] ?? null;
+ const menuItems = useMemo(() => (slashQuery === null ? [] : filterSkills(skills, slashQuery)), [skills, slashQuery]);
+ const menuOpen = focused && !dismissed && slashQuery !== null && menuItems.length > 0;
+
  useEffect(() => {
  if (autoFocus && typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches) {
  textareaRef.current?.focus();
  }
  }, [autoFocus, textareaRef]);
+
+ // Load the catalog lazily, the first time "/" is typed — not on every page load.
+ useEffect(() => {
+ if (slashQuery !== null && skills.length === 0) {
+ fetchSkillsCatalog().then(setSkills);
+ }
+ }, [slashQuery, skills.length]);
+
+ // Keep the highlighted row in range as the filtered list changes while typing.
+ useEffect(() => {
+ setActiveIndex((i) => Math.min(i, Math.max(0, menuItems.length - 1)));
+ }, [menuItems.length]);
+
+ function pickSkill(s: SkillEntry) {
+ onChange(`/${s.name} `);
+ setActiveIndex(0);
+ setDismissed(true); // the command is complete; do not immediately reopen on its own text
+ textareaRef.current?.focus();
+ }
+
+ function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+ if (menuOpen) {
+ if (e.key === "ArrowDown") {
+ e.preventDefault();
+ setActiveIndex((i) => (i + 1) % menuItems.length);
+ return;
+ }
+ if (e.key === "ArrowUp") {
+ e.preventDefault();
+ setActiveIndex((i) => (i - 1 + menuItems.length) % menuItems.length);
+ return;
+ }
+ if (e.key === "Enter" || e.key === "Tab") {
+ e.preventDefault();
+ pickSkill(menuItems[activeIndex]);
+ return;
+ }
+ if (e.key === "Escape") {
+ e.preventDefault();
+ setDismissed(true); // closes the menu; editing the text again reopens it
+ return;
+ }
+ }
+ onKeyDown(e);
+ }
 
  const canAttach = !!onAttach;
  const canSend = value.trim().length > 0 || attachments.length > 0;
@@ -60,7 +122,7 @@ export default function Composer({
 
  return (
  <div
- className={`w-full border bg-black transition-colors ${
+ className={`relative w-full border bg-black transition-colors ${
  dragging ? "border-white/60 bg-white/[0.03]" : "border-white/20 focus-within:border-white/40"
  }`}
  onDragOver={(e) => {
@@ -80,6 +142,8 @@ export default function Composer({
  pickFiles(e.dataTransfer.files);
  }}
  >
+ {menuOpen && <SkillSlashMenu items={menuItems} activeIndex={activeIndex} onHover={setActiveIndex} onPick={pickSkill} />}
+
  {attachments.length > 0 && (
  <div className="flex flex-wrap gap-2 px-3 pt-3">
  {attachments.map((f) => (
@@ -114,8 +178,13 @@ export default function Composer({
  <textarea
  ref={textareaRef}
  value={value}
- onChange={(e) => onChange(e.target.value)}
- onKeyDown={onKeyDown}
+ onChange={(e) => {
+ setDismissed(false);
+ onChange(e.target.value);
+ }}
+ onKeyDown={handleKeyDown}
+ onFocus={() => setFocused(true)}
+ onBlur={() => setFocused(false)}
  onPaste={(e) => {
  if (!canAttach) return;
  const files = Array.from(e.clipboardData.files || []);
