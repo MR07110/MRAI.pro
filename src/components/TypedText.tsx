@@ -1,65 +1,53 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
-/** Types `text` out once, terminal style, with a block caret. Layout is reserved up front so nothing jumps. */
-export default function TypedText({ text, startDelay = 300 }: { text: string; startDelay?: number }) {
-  const nRef = useRef(0);
-  const [, force] = useState(0);
-  const [caret, setCaret] = useState(true);
-  const textRef = useRef(text);
-  textRef.current = text;
+/**
+ * Welcome text: all letters are in the DOM from the start (opacity 0),
+ * then each letter fades to opacity 1 one by one — like typing.
+ */
+export default function TypedText({ text, startDelay = 200, letterDelay = 45 }: { text: string; startDelay?: number; letterDelay?: number }) {
+  const [visibleCount, setVisibleCount] = useState(0);
+  const chars = Array.from(text);
 
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
     let alive = true;
-    let hideTimer: ReturnType<typeof setTimeout> | undefined;
-    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    const finish = () => {
-      setCaret(true);
-      hideTimer = setTimeout(() => alive && setCaret(false), 1600);
-    };
-    const step = () => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+    if (reduce) {
+      setVisibleCount(chars.length);
+      return;
+    }
+
+    const step = (i: number) => {
       if (!alive) return;
-      const full = textRef.current.length;
-      if (document.hidden || reduce) {
-        nRef.current = full;
-        force((n) => n + 1);
-        finish();
-        return;
-      }
-      if (nRef.current < full) {
-        nRef.current += 1;
-        force((n) => n + 1);
-        timer = setTimeout(step, 35 + Math.random() * 55);
-      } else {
-        finish();
+      if (i > chars.length) return;
+      setVisibleCount(i);
+      if (i < chars.length) {
+        timer = setTimeout(() => step(i + 1), letterDelay);
       }
     };
-    timer = setTimeout(step, nRef.current === 0 ? startDelay : 0);
-    const onVis = () => {
-      if (!document.hidden) {
-        nRef.current = textRef.current.length;
-        force((n) => n + 1);
-      }
-    };
-    document.addEventListener("visibilitychange", onVis);
+
+    timer = setTimeout(() => step(1), startDelay);
+
     return () => {
       alive = false;
       if (timer) clearTimeout(timer);
-      if (hideTimer) clearTimeout(hideTimer);
-      document.removeEventListener("visibilitychange", onVis);
     };
-  }, [text, startDelay]);
+  }, [text, startDelay, letterDelay, chars.length]);
 
-  const shown = text.slice(0, nRef.current);
   return (
-    <span className="relative inline-block text-left max-w-full">
-      <span className="invisible" aria-hidden>{text}</span>
-      <span className="absolute left-0 top-0 w-full" aria-label={text}>
-        {shown}
-        {caret && <span className="term-caret" aria-hidden />}
-      </span>
+    <span className="inline-block" aria-label={text}>
+      {chars.map((ch, i) => (
+        <span
+          key={i}
+          className="inline-block transition-opacity duration-150"
+          style={{ opacity: i < visibleCount ? 1 : 0 }}
+        >
+          {ch === " " ? "\u00A0" : ch}
+        </span>
+      ))}
     </span>
   );
 }
