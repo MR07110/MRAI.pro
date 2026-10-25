@@ -1,6 +1,7 @@
 // ngrok static domen uchun yagona kirish:
 //   /mcp va /health      -> cmc (7777)
-//   /pyserver/*          -> Python server (8080), "/pyserver" prefiksi olib tashlanadi (Vercel MRAI_SERVER_URL uchun)
+//   /pyserver/*          -> Python server (8080), "/pyserver" prefiksi olib tashlanadi
+//   /shot va /shot/*     -> screenshot-button (8765), "/shot" prefiksi olib tashlanadi
 //   qolgani              -> mrai-web (3000)
 const http = require("http");
 const net = require("net");
@@ -8,6 +9,7 @@ const PORT = +process.env.EDGE_PORT || 7780;
 const CMC = { host: "127.0.0.1", port: 7777 };
 const WEB = { host: "127.0.0.1", port: 3000 };
 const PY = { host: "127.0.0.1", port: 8080 };
+const SHOT = { host: "127.0.0.1", port: 8765 };
 
 function route(url) {
   if (/^\/pyserver(\/|\?|$)/.test(url)) {
@@ -15,14 +17,23 @@ function route(url) {
     if (!p.startsWith("/")) p = "/" + p;
     return { t: PY, path: p };
   }
+  if (/^\/shot(\/|\?|$)/.test(url)) {
+    let p = url.slice("/shot".length);
+    if (!p || p.startsWith("?")) p = "/" + (p || "");
+    else if (!p.startsWith("/")) p = "/" + p;
+    return { t: SHOT, path: p };
+  }
   if (/^\/(mcp|health)(\/|\?|$)/.test(url)) return { t: CMC, path: url };
   return { t: WEB, path: url };
 }
 
 const server = http.createServer((req, res) => {
   const { t, path } = route(req.url);
+  const headers = { ...req.headers, host: `${t.host}:${t.port}` };
+  // ngrok free interstitialni o'tkazib yuborish (brauzer emas, proksi)
+  if (t === SHOT) headers["ngrok-skip-browser-warning"] = "1";
   const up = http.request(
-    { ...t, method: req.method, path, headers: req.headers },
+    { ...t, method: req.method, path, headers },
     (r) => {
       res.writeHead(r.statusCode, r.headers);
       r.pipe(res);
