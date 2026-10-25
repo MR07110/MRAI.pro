@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ArrowDown, Code2, Compass, Loader2, PanelLeft, PenTool, Sparkles, SquarePen } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useFaviconStatus } from "@/hooks/useFaviconStatus";
 import * as serverDb from "@/lib/serverDb";
 import SettingsModal, { SETTINGS_TAB_IDS, type SettingsTab } from "./SettingsModal";
 import ModelMenu from "./ModelMenu";
@@ -34,6 +35,9 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  const [pending, setPending] = useState<FileRef[]>([]);
  const [uploading, setUploading] = useState(false);
  const [isStreaming, setIsStreaming] = useState(false);
+ // Browser-tab favicon: blinks while generating and the tab is in the background, steady green once
+ // ready, and drops back to the plain default the instant the tab regains focus.
+ useFaviconStatus(isStreaming);
  const [sidebarOpen, setSidebarOpen] = useState(true);
  // Settings and its active tab live in the URL (?settings=<tab>), so every tab is directly linkable,
  // opens reliably from a fresh load, and survives a refresh — even while a specific chat is open.
