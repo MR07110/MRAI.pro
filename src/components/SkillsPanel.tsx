@@ -112,7 +112,9 @@ export default function SkillsPanel() {
                   <span className="text-[11px] font-mono text-neutral-500">{list.length}</span>
                 </button>
                 {isOpen && (
-                  <ul className="border-t border-white/15 divide-y divide-white/10">
+                  // A category can hold hundreds of skills (e.g. ai-agents: 245) — keep the expanded list
+                  // inside its own scrollable box, with real height, instead of growing the whole page.
+                  <ul className="border-t border-white/15 divide-y divide-white/10 max-h-80 overflow-y-auto">
                     {list.map((s) => (
                       <li key={cat + "/" + s.name} className="px-3.5 py-3">
                         <span className="text-[13px] font-medium text-neutral-100 font-mono">/{s.name}</span>
