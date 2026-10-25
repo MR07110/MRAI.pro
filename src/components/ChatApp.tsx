@@ -6,6 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { ArrowDown, Code2, Compass, Loader2, PanelLeft, PenTool, Sparkles, SquarePen } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useFaviconStatus } from "@/hooks/useFaviconStatus";
+import { useConfirm } from "./ConfirmProvider";
 import * as serverDb from "@/lib/serverDb";
 import SettingsModal, { SETTINGS_TAB_IDS, type SettingsTab } from "./SettingsModal";
 import ModelMenu from "./ModelMenu";
@@ -24,6 +25,7 @@ import { parseThinkingAndContent } from "./chat/parse";
 export default function ChatApp({ initialChatId = null }: { initialChatId?: string | null }) {
  const pathname = usePathname();
  const searchParams = useSearchParams();
+ const confirm = useConfirm();
  const urlCheckedRef = useRef(false);
  const [notFound, setNotFound] = useState(false);
  const { user, signOut } = useAuth();
@@ -440,7 +442,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
 
  async function deleteChat(id: string, e: React.MouseEvent) {
  e.stopPropagation();
- if (!confirm("Delete this chat?")) return;
+ if (!(await confirm({ title: "Delete this chat?", confirmLabel: "Delete", danger: true }))) return;
  await serverDb.deleteChat(id);
  setChats((prev) => prev.filter((c) => c.id !== id));
  if (currentChatId === id) {

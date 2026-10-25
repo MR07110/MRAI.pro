@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { Row, SectionHead, Switch, ui } from "./ui";
+import { useConfirm } from "./ConfirmProvider";
 
 interface MemoryItem {
   id: string;
@@ -19,6 +20,7 @@ function ago(ts: number): string {
 }
 
 export default function MemoryPanel() {
+  const confirm = useConfirm();
   const [enabled, setEnabled] = useState(true);
   const [items, setItems] = useState<MemoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,7 +135,15 @@ export default function MemoryPanel() {
             {items.length} {items.length === 1 ? "memory" : "memories"}
           </span>
           {items.length > 0 && (
-            <button onClick={() => post({ op: "clear" })} disabled={busy} className="text-[12px] text-neutral-500 hover:text-red-400 transition cursor-pointer">
+            <button
+              onClick={async () => {
+                if (await confirm({ title: "Clear all memories?", message: `This removes all ${items.length} saved facts. This can't be undone.`, confirmLabel: "Clear all", danger: true })) {
+                  post({ op: "clear" });
+                }
+              }}
+              disabled={busy}
+              className="text-[12px] text-neutral-500 hover:text-red-400 transition cursor-pointer"
+            >
               Clear all
             </button>
           )}

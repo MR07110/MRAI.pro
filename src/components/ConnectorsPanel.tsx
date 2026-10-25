@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Plug, Plus, Trash2, Loader2, Check, X, RefreshCw } from "lucide-react";
 import * as serverDb from "@/lib/serverDb";
 import type { Connector } from "@/types";
+import { useConfirm } from "./ConfirmProvider";
 
 type TestState = { loading?: boolean; ok?: boolean; error?: string; tools?: { name: string; description: string }[]; ms?: number };
 
@@ -20,6 +21,7 @@ function Switch({ on, onChange }: { on: boolean; onChange: () => void }) {
 }
 
 export default function ConnectorsPanel() {
+ const confirm = useConfirm();
  const [items, setItems] = useState<Connector[]>([]);
  const [loading, setLoading] = useState(true);
  const [showForm, setShowForm] = useState(false);
@@ -81,7 +83,7 @@ export default function ConnectorsPanel() {
  }
 
  async function remove(c: Connector) {
- if (!confirm(`Remove the connector "${c.name}"?`)) return;
+ if (!(await confirm({ title: `Remove the connector "${c.name}"?`, confirmLabel: "Remove", danger: true }))) return;
  await serverDb.deleteConnector(c.id).catch(() => {});
  load();
  }

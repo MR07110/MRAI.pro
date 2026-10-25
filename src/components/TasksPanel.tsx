@@ -5,12 +5,13 @@ import { Clock, Plus, Trash2, Loader2, Play, ChevronDown, ChevronRight } from "l
 import * as serverDb from "@/lib/serverDb";
 import { loadSettings } from "@/lib/settings";
 import type { ScheduledTask, TaskRun } from "@/types";
+import { useAlert, useConfirm } from "./ConfirmProvider";
 
 const PRESETS = [
- { label: "Har 15 daqiqa", value: "every 15m" },
- { label: "Har soat", value: "every 1h" },
- { label: "Har kuni 09:00", value: "daily 09:00" },
- { label: "Ish kunlari 18:30", value: "weekdays 18:30" },
+ { label: "Every 15 min", value: "every 15m" },
+ { label: "Every hour", value: "every 1h" },
+ { label: "Daily 09:00", value: "daily 09:00" },
+ { label: "Weekdays 18:30", value: "weekdays 18:30" },
 ];
 
 function fmt(ts: number | null | undefined): string {
@@ -31,6 +32,8 @@ function Switch({ on, onChange }: { on: boolean; onChange: () => void }) {
 }
 
 export default function TasksPanel() {
+ const confirm = useConfirm();
+ const alert = useAlert();
  const [tasks, setTasks] = useState<ScheduledTask[]>([]);
  const [loading, setLoading] = useState(true);
  const [showForm, setShowForm] = useState(false);
@@ -73,7 +76,7 @@ export default function TasksPanel() {
 
  async function create() {
  setError("");
- if (!name.trim()) return setError("Nom kiriting");
+ if (!name.trim()) return setError("Enter a name");
  if (!text.trim()) return setError(kind === "ai" ? "Write an instruction (prompt) for the AI" : "Write a bash command");
  setSaving(true);
  try {
@@ -103,7 +106,7 @@ export default function TasksPanel() {
  await serverDb.runTaskNow(t.id);
  setTimeout(load, 800);
  } catch (e: any) {
- alert(e?.message || "Could not run it");
+ await alert({ title: "Could not run it", message: e?.message });
  }
  }
 
@@ -111,13 +114,13 @@ export default function TasksPanel() {
  try {
  await serverDb.toggleTask(t.id, !t.enabled);
  } catch (e: any) {
- alert(e?.message || "Error");
+ await alert({ title: "Error", message: e?.message });
  }
  load();
  }
 
  async function remove(t: ScheduledTask) {
- if (!confirm(`Delete the task "${t.name}"?`)) return;
+ if (!(await confirm({ title: `Delete the task "${t.name}"?`, confirmLabel: "Delete", danger: true }))) return;
  await serverDb.deleteTask(t.id).catch(() => {});
  load();
  }

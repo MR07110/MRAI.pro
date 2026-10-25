@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import ConfirmProvider from "@/components/ConfirmProvider";
 
 const space = Space_Grotesk({
   variable: "--font-space",
@@ -35,7 +36,8 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${space.variable} h-full`}>
       <body className="min-h-full bg-black text-neutral-100 antialiased dark">
-        {children}
+        {/* One confirm dialog for the whole app (replaces window.confirm everywhere): await useConfirm()(...) */}
+        <ConfirmProvider>{children}</ConfirmProvider>
       </body>
     </html>
   );

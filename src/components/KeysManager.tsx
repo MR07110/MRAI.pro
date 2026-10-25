@@ -7,6 +7,7 @@ import type { UserApiKey } from "@/types";
 import KeyEditor from "./KeyEditor";
 import ModelField from "./ModelField";
 import { maskKey, shortProviderName } from "@/lib/modelsCatalog";
+import { useConfirm } from "./ConfirmProvider";
 
 interface Props {
  compact?: boolean;
@@ -22,6 +23,7 @@ function notify() {
 
 // Key list + add/edit. Used both in Settings and in the dialog opened from the chat input.
 export default function KeysManager({ compact = false, onSelected }: Props) {
+ const confirm = useConfirm();
  const [keys, setKeys] = useState<UserApiKey[]>([]);
  const [loading, setLoading] = useState(true);
  const [mode, setMode] = useState<Mode>({ type: "list" });
@@ -53,7 +55,7 @@ export default function KeysManager({ compact = false, onSelected }: Props) {
  }
 
  async function remove(k: UserApiKey) {
- if (!confirm("Delete this key?")) return;
+ if (!(await confirm({ title: "Delete this key?", confirmLabel: "Delete", danger: true }))) return;
  setBusyId(k.id);
  await serverDb.deleteKey(k.id);
  const rest = keys.filter((x) => x.id !== k.id);
