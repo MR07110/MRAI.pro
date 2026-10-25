@@ -11,12 +11,17 @@ import MemoryPanel from "./MemoryPanel";
 import { AppSettings, loadSettings, saveSettings, DEFAULT_SETTINGS, SYSTEM_PROMPT_PRESETS } from "@/lib/settings";
 import { Field, Row, SectionHead, Segmented, Switch, ui } from "./ui";
 
+export type SettingsTab = "keys" | "connectors" | "tasks" | "usage" | "skills" | "memory" | "general";
+
 interface Props {
   open: boolean;
+  /** Controlled from the URL (?settings=<tab>) so each tab is directly linkable and survives a refresh. */
+  tab: SettingsTab;
+  onTabChange: (tab: SettingsTab) => void;
   onClose: () => void;
 }
 
-type SettingsTab = "keys" | "connectors" | "tasks" | "usage" | "skills" | "memory" | "general";
+export const SETTINGS_TAB_IDS: SettingsTab[] = ["keys", "connectors", "tasks", "usage", "skills", "memory", "general"];
 
 const TABS: { id: SettingsTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "keys", label: "API keys", icon: KeyRound },
@@ -28,8 +33,9 @@ const TABS: { id: SettingsTab; label: string; icon: React.ComponentType<{ classN
   { id: "general", label: "General", icon: SlidersHorizontal },
 ];
 
-export default function SettingsModal({ open, onClose }: Props) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>("keys");
+export default function SettingsModal({ open, tab, onTabChange, onClose }: Props) {
+  const activeTab = tab;
+  const setActiveTab = onTabChange;
   const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
 
   useEffect(() => {

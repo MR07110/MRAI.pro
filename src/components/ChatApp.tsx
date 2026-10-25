@@ -2,11 +2,11 @@
 
 import { useEffect, useLayoutEffect, useState, useRef } from "react";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { ArrowDown, Code2, Compass, Loader2, PanelLeft, PenTool, Sparkles, SquarePen } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import * as serverDb from "@/lib/serverDb";
-import SettingsModal from "./SettingsModal";
+import SettingsModal, { SETTINGS_TAB_IDS, type SettingsTab } from "./SettingsModal";
 import ModelMenu from "./ModelMenu";
 import { fetchModelsCached } from "@/lib/modelsCatalog";
 import type { Chat, Message, UserApiKey } from "@/types";
@@ -22,6 +22,7 @@ import { parseThinkingAndContent } from "./chat/parse";
 
 export default function ChatApp({ initialChatId = null }: { initialChatId?: string | null }) {
  const pathname = usePathname();
+ const searchParams = useSearchParams();
  const urlCheckedRef = useRef(false);
  const [notFound, setNotFound] = useState(false);
  const { user, signOut } = useAuth();
@@ -34,7 +35,13 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  const [uploading, setUploading] = useState(false);
  const [isStreaming, setIsStreaming] = useState(false);
  const [sidebarOpen, setSidebarOpen] = useState(true);
- const [settingsOpen, setSettingsOpen] = useState(false);
+ // Settings and its active tab live in the URL (?settings=<tab>), so every tab is directly linkable,
+ // opens reliably from a fresh load, and survives a refresh — even while a specific chat is open.
+ const settingsParam = searchParams.get("settings");
+ const settingsOpen = !!settingsParam;
+ const settingsTab: SettingsTab = (SETTINGS_TAB_IDS as readonly string[]).includes(settingsParam || "")
+ ? (settingsParam as SettingsTab)
+ : "keys";
  const [modelOpen, setModelOpen] = useState(false);
  const [defaultKey, setDefaultKey] = useState<UserApiKey | null>(null);
  const [mobileSidebar, setMobileSidebar] = useState(false);
@@ -254,13 +261,37 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  const stickRef = useRef(true);
  const lastScrollTopRef = useRef(0);
 
- // Each chat has its own URL: /c/<id> (new chat: /)
+ // Each chat has its own URL: /c/<id> (new chat: /). Any existing query string (e.g. ?settings=...) is
+ // kept, so switching chats never silently drops Settings out of the URL.
  function pushUrl(id: string | null, replace = false) {
  if (typeof window === "undefined") return;
- const url = id ? `/c/${id}` : "/";
- if (window.location.pathname === url) return;
+ const path = id ? `/c/${id}` : "/";
+ if (window.location.pathname === path) return;
+ const url = path + window.location.search;
  if (replace) window.history.replaceState(null, "", url);
  else window.history.pushState(null, "", url);
+ }
+
+ // Settings lives at ?settings=<tab> on top of whatever chat URL is current, so it opens reliably from
+ // a direct link/refresh, keeps working while inside a chat, and each tab is independently linkable.
+ function openSettingsTab(tab: SettingsTab = "keys") {
+ if (typeof window === "undefined") return;
+ const url = new URL(window.location.href);
+ url.searchParams.set("settings", tab);
+ window.history.pushState(null, "", url.pathname + "?" + url.searchParams.toString());
+ }
+ function changeSettingsTab(tab: SettingsTab) {
+ if (typeof window === "undefined") return;
+ const url = new URL(window.location.href);
+ url.searchParams.set("settings", tab);
+ window.history.replaceState(null, "", url.pathname + "?" + url.searchParams.toString());
+ }
+ function closeSettings() {
+ if (typeof window === "undefined") return;
+ const url = new URL(window.location.href);
+ url.searchParams.delete("settings");
+ const qs = url.searchParams.toString();
+ window.history.replaceState(null, "", url.pathname + (qs ? "?" + qs : ""));
  }
 
  // Browser back/forward buttons or a direct URL change -- switch the chat too
@@ -445,7 +476,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  let activeKey = defaultKey;
  if (!activeKey) activeKey = await loadDefaultKey();
  if (!activeKey) {
- setSettingsOpen(true);
+ openSettingsTab();
  return;
  }
  if (!activeKey.model) {
@@ -492,7 +523,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  key0 = await loadDefaultKey();
  }
  if (!key0) {
- setSettingsOpen(true);
+ openSettingsTab();
  return;
  }
  if (!key0.model) {
@@ -816,7 +847,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  activeKey = await loadDefaultKey();
  }
  if (!activeKey) {
- setSettingsOpen(true);
+ openSettingsTab();
  return;
  }
  if (!activeKey.model) {
@@ -881,7 +912,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  activeKey = await loadDefaultKey();
  }
  if (!activeKey) {
- setSettingsOpen(true);
+ openSettingsTab();
  return;
  }
  if (!activeKey.model) {
@@ -1028,7 +1059,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  }, [input]);
 
  const openSettings = () => {
- setSettingsOpen(true);
+ openSettingsTab();
  loadDefaultKey();
  };
 
@@ -1080,7 +1111,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  textareaRef={textareaRef}
  fontSizeClass={fontSizeClass}
  modelLabel={modelLabel}
- onModel={() => (defaultKey ? setModelOpen((v) => !v) : setSettingsOpen(true))}
+ onModel={() => (defaultKey ? setModelOpen((v) => !v) : openSettingsTab())}
  modelMenu={
  modelOpen && defaultKey ? (
  <ModelMenu
@@ -1089,7 +1120,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  onPick={pickModel}
  onOpenSettings={() => {
  setModelOpen(false);
- setSettingsOpen(true);
+ openSettingsTab();
  }}
  />
  ) : null
@@ -1274,8 +1305,10 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
 
       <SettingsModal
  open={settingsOpen}
+ tab={settingsTab}
+ onTabChange={changeSettingsTab}
  onClose={() => {
- setSettingsOpen(false);
+ closeSettings();
  loadDefaultKey();
  }}
  />
