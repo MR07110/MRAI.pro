@@ -1,7 +1,7 @@
 // Agent loop: model <-> tools (computer, files, scheduler, MCP connectors).
 import { applyPromptVars } from "@/lib/promptVars";
 import { addMemory, getMemory } from "@/lib/stateStore";
-import { withSkillsCatalog, listSkills } from "@/lib/skills";
+import { withSkillsCatalog, getSkillsAsync } from "@/lib/skills";
 import { buildSkillTools, findSkill, loadSkillText } from "@/lib/skillTools";
 import { McpClient, McpConnector } from "@/lib/mcp";
 import { buildBuiltinTools, makeServerCtx, ToolDef } from "@/lib/agentTools";
@@ -310,10 +310,13 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
   // Memory (Claude-style): when enabled, past facts are injected and a `remember` tool is offered. When off, neither.
   const mem = inp.user ? await getMemory(inp.user).catch(() => null) : null;
   const memoryOn = !!(mem && mem.enabled && inp.user);
+  // The skills catalog: local filesystem when reachable here, otherwise fetched from the owner's real
+  // computer over HTTP — so this also works when the frontend runs elsewhere (e.g. Vercel).
+  const skillsList = await getSkillsAsync();
   try {
     const notes: string[] = [];
     const env = { serverUrl: inp.serverUrl, appUrl: inp.appUrl, keyId: inp.keyId, user: inp.user, signal: inp.signal, allowScheduling: !inp.scheduled };
-    // Coding asboblari computer_exec/read/write/job_* ni to'liq almashtiradi — takroriy asboblar modelni chalg'itadi
+    // Coding tools fully replace computer_exec/read/write/job_* — duplicate tools would confuse the model
     const builtin = buildBuiltinTools(env).filter((t) => !SUPERSEDED_BUILTINS.has(t.name));
     const coding = buildCodingTools(makeServerCtx(env));
     const mcp = inp.connectors?.length ? await loadMcpTools(inp.connectors, clients, notes) : [];
@@ -334,7 +337,7 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
           },
         ]
       : [];
-    for (const t of [...coding, ...buildSkillTools(), ...memoryTools, ...builtin, ...mcp]) {
+    for (const t of [...coding, ...buildSkillTools(skillsList), ...memoryTools, ...builtin, ...mcp]) {
       if (seen.has(t.name)) {
         notes.push(`Duplicate tool name skipped: ${t.name}`);
         continue;
@@ -356,14 +359,14 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
       const items = mem!.items.slice(-60);
       memBlock = items.length ? "\n\nSAVED MEMORY (facts you saved earlier):\n" + items.map((m) => `- ${m.text}`).join("\n") : "";
     }
-    let system = withSkillsCatalog(applyPromptVars(inp.system || "")) + memBlock; // skills: catalog data only (names)
+    let system = withSkillsCatalog(applyPromptVars(inp.system || ""), skillsList) + memBlock; // skills: catalog data only (names)
     // "/skill-name ..." in the last user message loads that skill up-front (like a slash command)
     const lastUser = [...(inp.messages || [])].reverse().find((m) => m.role === "user");
     const slash = lastUser && /^\s*\/([A-Za-z0-9][\w./-]*)\s*([\s\S]*)$/.exec(String(lastUser.content || ""));
-    if (slash && listSkills().length) {
-      const { skill } = findSkill(slash[1]);
+    if (slash && skillsList.length) {
+      const { skill } = findSkill(slash[1], skillsList);
       if (skill) {
-        system += `\n\nThe user invoked the skill "${skill.name}" with a slash command. It is already loaded below: follow it, do not load it again.\n\n` + loadSkillText(skill, slash[2]);
+        system += `\n\nThe user invoked the skill "${skill.name}" with a slash command. It is already loaded below: follow it, do not load it again.\n\n` + (await loadSkillText(skill, slash[2]));
       }
     }
     const adapter = inp.provider === "anthropic" ? anthropicAdapter(inp, system) : openaiAdapter(inp, system);

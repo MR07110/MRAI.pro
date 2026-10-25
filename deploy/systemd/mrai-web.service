@@ -8,7 +8,6 @@ WorkingDirectory=/home/muhamad/Claude/work/MRAI
 EnvironmentFile=-/home/muhamad/Claude/work/MRAI/.env.local
 Environment=NODE_ENV=production
 Environment=MRAI_SERVER_URL=http://127.0.0.1:8080
-Environment=MRAI_STATE_DIR=/home/muhamad/.mrai/state
 ExecStartPre=/bin/bash -c 'for i in $(seq 1 30); do curl -sf -m 1 http://127.0.0.1:8080/health >/dev/null && exit 0; sleep 1; done; echo "python health timeout" >&2; exit 1'
 ExecStart=/usr/bin/node node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3000
 Restart=always

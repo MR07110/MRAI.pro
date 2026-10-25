@@ -1,6 +1,7 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { serverFetch } from "@/lib/serverAuth";
 
 function resolveSkillsDir(): string {
   if (process.env.MRAI_SKILLS_DIR) return process.env.MRAI_SKILLS_DIR;
@@ -111,6 +112,38 @@ export function listSkills(): SkillMeta[] {
   }
 }
 
+let _remoteCache: { at: number; list: SkillMeta[] } | null = null;
+
+/** Same catalog, fetched from the owner's real computer over HTTP (the Python server). */
+async function listSkillsRemote(): Promise<SkillMeta[]> {
+  if (_remoteCache && Date.now() - _remoteCache.at < 15000) return _remoteCache.list;
+  const res = await serverFetch(undefined, "/skills", { method: "GET", timeoutMs: 10000 });
+  const list: SkillMeta[] = (Array.isArray(res?.skills) ? res.skills : []).map((s: any) => ({
+    name: String(s.name || ""),
+    description: String(s.description || ""),
+    dir: String(s.dir || ""),
+    skillMd: path.join(String(s.dir || ""), "SKILL.md"),
+    category: String(s.category || ""),
+  }));
+  _remoteCache = { at: Date.now(), list };
+  return list;
+}
+
+/**
+ * The skills catalog, resolved for wherever this process runs: the local filesystem when the skills
+ * folder is reachable here (the normal self-hosted deployment), otherwise fetched from the owner's real
+ * computer over HTTP — so a frontend hosted elsewhere (e.g. Vercel) still sees the real skills library.
+ */
+export async function getSkillsAsync(): Promise<SkillMeta[]> {
+  const local = listSkills();
+  if (local.length) return local;
+  try {
+    return await listSkillsRemote();
+  } catch {
+    return [];
+  }
+}
+
 /** Where the agent keeps its work and deliverables (the owner's computer: ~/MR/mrai/work). */
 export const WORK_DIR = process.env.MRAI_WORK_DIR || path.join(os.homedir(), "MR", "mrai", "work");
 
@@ -139,8 +172,8 @@ export function buildSkillsPromptSection(skills?: SkillMeta[]): string {
 }
 
 /** Appends the skills section to the end of the system prompt (when there are skills). */
-export function withSkillsCatalog(system: string): string {
-  const section = buildSkillsPromptSection();
+export function withSkillsCatalog(system: string, skills?: SkillMeta[]): string {
+  const section = buildSkillsPromptSection(skills);
   if (!section) return system;
   if (system.includes(SKILLS_MARKER)) return system;
   return system.trimEnd() + "\n\n" + section;

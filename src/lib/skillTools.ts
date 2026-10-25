@@ -3,6 +3,7 @@
 import fs from "fs";
 import path from "path";
 import type { ToolDef } from "@/lib/agentTools";
+import { serverFetch } from "@/lib/serverAuth";
 import { listSkills, SKILLS_DIR, SKILLS_PYTHON, WORK_DIR, type SkillMeta } from "@/lib/skills";
 
 const BODY_LIMIT = 60000;
@@ -50,28 +51,41 @@ function bundledFiles(dir: string): string[] {
   return out;
 }
 
-/** The text handed to the model when a skill is loaded. */
-export function loadSkillText(skill: SkillMeta, args?: string): string {
-  let body = "";
-  try {
-    body = stripFrontmatter(fs.readFileSync(skill.skillMd, "utf8"));
-  } catch (e: any) {
-    return `Could not read ${skill.skillMd}: ${e?.message || e}`;
+/** The text handed to the model when a skill is loaded. Reads the real computer's filesystem directly
+ * when reachable here (normal self-hosted deployment); otherwise fetches it over HTTP from the owner's
+ * real computer (the Python server) — so a frontend hosted elsewhere (e.g. Vercel) can load it too. */
+export async function loadSkillText(skill: SkillMeta, args?: string): Promise<string> {
+  let body: string;
+  let files: string[];
+  if (fs.existsSync(skill.skillMd)) {
+    try {
+      body = stripFrontmatter(fs.readFileSync(skill.skillMd, "utf8"));
+    } catch (e: any) {
+      return `Could not read ${skill.skillMd}: ${e?.message || e}`;
+    }
+    files = bundledFiles(skill.dir);
+  } else {
+    try {
+      const res = await serverFetch(undefined, `/skills/content?dir=${encodeURIComponent(skill.dir)}`, { method: "GET", timeoutMs: 15000 });
+      body = stripFrontmatter(String(res?.skillMd || ""));
+      files = Array.isArray(res?.files) ? res.files.map(String) : [];
+    } catch (e: any) {
+      return `Could not read ${skill.dir}/SKILL.md: ${e?.message || e}`;
+    }
   }
   let note = "";
   if (body.length > BODY_LIMIT) {
     body = body.slice(0, BODY_LIMIT);
     note = `\n\n[Instructions truncated at ${BODY_LIMIT} characters. Read the rest of ${skill.skillMd} with Bash.]`;
   }
-  const files = bundledFiles(skill.dir);
   const parts = [
     `Loaded skill: ${skill.name}${skill.category ? ` (${skill.category})` : ""}`,
-    `Base directory: ${skill.dir}`,
-    `Relative paths below are relative to the base directory. Python with document libraries: ${SKILLS_PYTHON}. Save deliverables under ${WORK_DIR}.`,
+    `Base directory (on the owner's real computer): ${skill.dir}`,
+    `File paths below are relative to that base directory. Python with document libraries: ${SKILLS_PYTHON}. Save deliverables under ${WORK_DIR}.`,
     "",
     body + note,
   ];
-  if (files.length) parts.push("", "Bundled files (read or run them by absolute path when the instructions say so):", ...files.map((f) => `- ${f}`));
+  if (files.length) parts.push("", "Bundled files (read or run them by path, relative to the base directory, when the instructions say so):", ...files.map((f) => `- ${f}`));
   if (args && args.trim()) parts.push("", `ARGUMENTS: ${args.trim()}`);
   return parts.join("\n");
 }
@@ -90,13 +104,13 @@ function score(s: SkillMeta, tokens: string[]): number {
   return n;
 }
 
-export function searchSkills(query: string, limit = 8): SkillMeta[] {
+export function searchSkills(query: string, list: SkillMeta[] = listSkills(), limit = 8): SkillMeta[] {
   const tokens = String(query || "")
     .toLowerCase()
     .split(/[^a-z0-9]+/)
     .filter((t) => t.length > 1);
   if (!tokens.length) return [];
-  return listSkills()
+  return list
     .map((s) => ({ s, n: score(s, tokens) }))
     .filter((x) => x.n > 0)
     .sort((a, b) => b.n - a.n || a.s.name.localeCompare(b.s.name))
@@ -104,8 +118,9 @@ export function searchSkills(query: string, limit = 8): SkillMeta[] {
     .map((x) => x.s);
 }
 
-export function buildSkillTools(): ToolDef[] {
-  if (listSkills().length === 0) return [];
+/** @param list The resolved catalog (local filesystem or fetched from the owner's computer — see getSkillsAsync). */
+export function buildSkillTools(list: SkillMeta[] = listSkills()): ToolDef[] {
+  if (list.length === 0) return [];
   return [
     {
       name: "Skill",
@@ -122,14 +137,14 @@ export function buildSkillTools(): ToolDef[] {
         required: ["skill"],
       },
       run: async (a) => {
-        const { skill, candidates } = findSkill(String(a?.skill || ""));
+        const { skill, candidates } = findSkill(String(a?.skill || ""), list);
         if (!skill) {
           const hint = candidates.length
             ? `Did you mean: ${candidates.map((c) => c.name).join(", ")}?`
             : "Use search_skills to find the right one.";
           return { output: `Unknown skill: ${a?.skill}. ${hint}`, isError: true };
         }
-        return { output: loadSkillText(skill, a?.args) };
+        return { output: await loadSkillText(skill, a?.args) };
       },
     },
     {
@@ -143,7 +158,7 @@ export function buildSkillTools(): ToolDef[] {
         required: ["query"],
       },
       run: async (a) => {
-        const hits = searchSkills(String(a?.query || ""));
+        const hits = searchSkills(String(a?.query || ""), list);
         if (!hits.length) return { output: `No skills match "${a?.query}". Try other keywords.` };
         return {
           output: hits.map((s) => `- ${s.category ? s.category + "/" : ""}${s.name}: ${s.description.replace(/\s+/g, " ").slice(0, 200)}`).join("\n"),

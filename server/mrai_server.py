@@ -36,6 +36,11 @@ WORK_DIR = os.path.abspath(os.environ.get("MRAI_WORK_DIR") or os.path.join(HOME_
 AGENT_HOME = WORK_DIR
 os.makedirs(WORK_DIR, exist_ok=True)
 
+# Skills library: always on the owner's real computer (never in the data dir or the code checkout), so a
+# frontend hosted elsewhere (e.g. Vercel, whose filesystem is read-only and ephemeral) reads it over HTTP
+# via /skills and /skills/content instead of the local filesystem. Override with MRAI_SKILLS_DIR.
+SKILLS_DIR = os.path.abspath(os.environ.get("MRAI_SKILLS_DIR") or os.path.join(HOME_DIR, "MR", "mrai", "skills"))
+
 TOKEN_PATH = os.path.join(DATA_DIR, "token.key")
 AUTH_TOKEN = ""
 if os.path.exists(TOKEN_PATH):
@@ -64,6 +69,18 @@ import time as _t
 ACCESS_KEY_FILE = os.path.join(DATA_DIR, "access.key")
 _ACCESS_FAILS = {}  # ip -> [number of failures, time of first failure]
 USERNAME_RE = _re.compile(r"^[a-z0-9_.-]{3,32}$")
+
+import threading as _threading
+_STATE_LOCK = _threading.Lock()
+_STATE_USER_LOCKS = {}
+
+def _user_lock(user):
+    with _STATE_LOCK:
+        lk = _STATE_USER_LOCKS.get(user)
+        if lk is None:
+            lk = _threading.Lock()
+            _STATE_USER_LOCKS[user] = lk
+        return lk
 
 def req_user(headers):
     """x-mrai-user sent by the Next proxy. If missing (scheduler) -- the owner."""
@@ -210,6 +227,12 @@ def init_db():
         estimated INTEGER DEFAULT 0
     )""")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_usage_user_ts ON usage (user_id, ts)")
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS user_state (
+        user_id TEXT PRIMARY KEY,
+        data TEXT NOT NULL,
+        updated_at REAL NOT NULL
+    )""")
     for tbl in ("chats", "messages", "api_keys"):
         cols = [r[1] for r in cur.execute("PRAGMA table_info(%s)" % tbl).fetchall()]
         if "user_id" not in cols:
@@ -247,6 +270,95 @@ def _resolve_dir(path, base):
         p = os.path.join(base, p)
     p = os.path.normpath(p)
     return p if os.path.isdir(p) else None
+
+
+# ---- Skills (read-only): served over HTTP so a frontend that isn't on this computer (e.g. Vercel) can
+# still see the real skills library, exactly like /file does for any other file on this machine. ----
+def _skill_frontmatter(skill_md_path):
+    try:
+        with open(skill_md_path, "r", encoding="utf-8", errors="replace") as f:
+            raw = f.read(8192)
+    except Exception:
+        return {}
+    m = _re.match(r"^﻿?---\r?\n(.*?)\r?\n---", raw, _re.S)
+    if not m:
+        return {}
+    out, key = {}, None
+    for line in m.group(1).splitlines():
+        kv = _re.match(r"^([A-Za-z0-9_-]+):\s*(.*)$", line)
+        if kv:
+            key = kv.group(1).lower()
+            v = kv.group(2).strip()
+            if len(v) > 1 and v[0] in "\"'" and v[-1] == v[0]:
+                v = v[1:-1]
+            out[key] = v
+        elif key and line.strip():
+            out[key] = (out.get(key, "") + " " + line.strip()).strip()
+    return out
+
+
+def _list_skills():
+    """<SKILLS_DIR>/<category>/<skill>/SKILL.md (old flat <SKILLS_DIR>/<skill>/SKILL.md also works)."""
+    out = []
+    if not os.path.isdir(SKILLS_DIR):
+        return out
+
+    def read_one(d, category, fallback_name):
+        md = os.path.join(d, "SKILL.md")
+        if not os.path.isfile(md):
+            return None
+        fm = _skill_frontmatter(md)
+        name = (fm.get("name") or fallback_name).strip()
+        desc = (fm.get("description") or "").strip() or ("Skill: " + name)
+        return {"name": name, "description": desc, "dir": d, "category": category}
+
+    for e in sorted(os.listdir(SKILLS_DIR)):
+        if e.startswith(".") or e.startswith("_"):
+            continue
+        d = os.path.join(SKILLS_DIR, e)
+        if not os.path.isdir(d):
+            continue
+        flat = read_one(d, "", e)
+        if flat:
+            out.append(flat)
+            continue
+        try:
+            children = sorted(os.listdir(d))
+        except Exception:
+            continue
+        for c in children:
+            if c.startswith(".") or c.startswith("_"):
+                continue
+            cd = os.path.join(d, c)
+            if not os.path.isdir(cd):
+                continue
+            m = read_one(cd, e, c)
+            if m:
+                out.append(m)
+    return out
+
+
+def _skill_bundled_files(skill_dir, limit=60):
+    out = []
+    def walk(d, depth):
+        if len(out) >= limit or depth > 3:
+            return
+        try:
+            entries = sorted(os.listdir(d))
+        except Exception:
+            return
+        for name in entries:
+            if len(out) >= limit:
+                return
+            if name.startswith(".") or name in ("node_modules", "__pycache__"):
+                continue
+            full = os.path.join(d, name)
+            if os.path.isdir(full):
+                walk(full, depth + 1)
+            elif not (depth == 0 and name == "SKILL.md"):
+                out.append(os.path.relpath(full, skill_dir))
+    walk(skill_dir, 0)
+    return out
 
 
 def sanitize_cwd(req_cwd, user=None):
@@ -602,6 +714,33 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
             self.handle_file(query)
             return
 
+        if path == "/skills":
+            self._json(200, {"skills": _list_skills(), "root": SKILLS_DIR})
+            return
+
+        if path == "/skills/content":
+            d = os.path.normpath(query.get("dir", [""])[0])
+            # must resolve inside SKILLS_DIR (no escaping via ../..)
+            if not d or os.path.commonpath([d, SKILLS_DIR]) != SKILLS_DIR:
+                return self._json(400, {"error": "Invalid skill directory"})
+            md = os.path.join(d, "SKILL.md")
+            if not os.path.isfile(md):
+                return self._json(404, {"error": "SKILL.md not found"})
+            try:
+                with open(md, "r", encoding="utf-8", errors="replace") as f:
+                    content = f.read()
+            except Exception as e:
+                return self._json(500, {"error": str(e)})
+            return self._json(200, {"skillMd": content, "files": _skill_bundled_files(d)})
+
+        if path == "/state":
+            conn = get_db()
+            cur = conn.cursor()
+            cur.execute("SELECT data FROM user_state WHERE user_id = ?", (req_user(self.headers),))
+            row = cur.fetchone()
+            conn.close()
+            return self._json(200, {"data": json.loads(row[0]) if row else None})
+
         _h = mrai_tasks.handle("GET", path, query, {}, req_user(self.headers))
         if _h is not None:
             self.send_cors(_h[0])
@@ -759,6 +898,26 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
                 return self._json(200, {"ok": True, "path": fp, "size": st.st_size, "mtime": int(st.st_mtime)})
             except Exception as e:
                 return self._json(500, {"error": str(e)})
+
+        # Per-user app state (message queue, UI state, memory): a full-document replace, same shape as
+        # before when it lived in a local JSON file on the Next server — now durable here instead, so it
+        # also works when the frontend runs somewhere without a writable/persistent filesystem (Vercel).
+        if path == "/state":
+            data = body.get("data")
+            if data is None or not isinstance(data, (dict, list)):
+                return self._json(400, {"error": "Invalid state"})
+            xuser = req_user(self.headers)
+            with _user_lock(xuser):
+                conn = get_db()
+                cur = conn.cursor()
+                cur.execute(
+                    "INSERT INTO user_state (user_id, data, updated_at) VALUES (?, ?, ?) "
+                    "ON CONFLICT(user_id) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at",
+                    (xuser, json.dumps(data), time.time()),
+                )
+                conn.commit()
+                conn.close()
+            return self._json(200, {"ok": True})
 
         # Image upload endpoint (cgi removed)
         if path == "/api/upload":
