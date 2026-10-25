@@ -373,6 +373,7 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
     const maxSteps = Math.min(Math.max(1, inp.maxSteps ?? 100), 1000);
     let final = "";
     let steps = 0;
+    const failCounts = new Map<string, number>(); // same tool+args repeated-failure guard, across this whole run
 
     for (; steps < maxSteps; steps++) {
       if (inp.signal?.aborted) break;
@@ -411,7 +412,13 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
         out(`\n> **Tool:** \`${tool?.label || call.name}\`\n\n`);
         let r: { output: string; isError?: boolean };
         const t0 = Date.now();
-        if (call.argError) r = { output: call.argError, isError: true };
+        // A model sometimes retries the exact same failing call repeatedly instead of giving up. After 2
+        // real attempts, stop calling it again (saves a pointless network round trip) and say so firmly.
+        const sig = call.name + ":" + JSON.stringify(call.args);
+        const priorFails = failCounts.get(sig) || 0;
+        if (priorFails >= 2) {
+          r = { output: `Skipped: this exact call already failed ${priorFails} times in a row. Do not retry it again — continue the reply without it.`, isError: true };
+        } else if (call.argError) r = { output: call.argError, isError: true };
         else if (!tool) r = { output: `Unknown tool: ${call.name}`, isError: true };
         else {
           try {
@@ -420,6 +427,8 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
             r = { output: `Tool error: ${e?.message || e}`, isError: true };
           }
         }
+        if (r.isError) failCounts.set(sig, priorFails + 1);
+        else failCounts.delete(sig);
         const shown = (call.name === "computer_exec" || call.name === "Bash" ? `$ ${brief(call)}\n` : `${brief(call)}\n`) + `→ ${r.isError ? "ERROR" : "ok"} (${((Date.now() - t0) / 1000).toFixed(1)}s)\n${r.output}`;
         out(fence(shown));
         results.push({ call, output: r.output, isError: !!r.isError });
