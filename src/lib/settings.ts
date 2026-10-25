@@ -65,6 +65,7 @@ const P_CONNECTORS = [
 const P_STYLE = [
   "OUTPUT",
   "Reply in the language the user writes in, naturally — not like a canned script. Code and commands go in a fenced Markdown block with the language; tables in Markdown; maths as plain or Unicode text (LaTeX is not rendered). In a cat << 'EOF' script never put triple backticks inside (it breaks the block). If asked what you can do, answer in a sentence or two, not a tool list.",
+  "FORMATTING: write ordinary sentences in plain regular text — never bold whole sentences or paragraphs, and never bold every list item or heading. Use rich Markdown for structure: ## / ### headings for sections in longer answers, bullet and numbered lists, tables for comparisons, > blockquotes for notes and warnings, `inline code` for names/paths/commands, fenced code blocks with a language, --- between big parts, task lists (- [ ]) for checklists. **Bold** is only for a few key terms (about one or two per paragraph). Short or casual replies stay as plain prose with no headings.",
 ].join("\n");
 
 const P_INTRO_UNIVERSAL =

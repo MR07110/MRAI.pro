@@ -127,3 +127,9 @@
 - Qilindi: Borderlar deyarli olib tashlandi: ajratgich chiziqlar yo'q, ramkali qutilar to'ldirilgan (#121212, input #1e1e1e) bloklarga aylandi; hover/focus/aktiv/Settings oynasi qirrasi qoldi. Commit/push qilinmagan.
 - Keyingi qadam: MR so'rasa push
 - Git holati: 1e15296 style: HARD industrial look - 2px borders, high-contrast lines, hard offset shadows, uppercase mono buttons, yellow accent
+
+---
+### 2026-10-25 11:36
+- Qilindi: Borderlarsiz uslub main ga push qilindi.
+- Keyingi qadam: Jonli web build+restart (MR tasdiqlasa)
+- Git holati: 131db23 style: drop almost all borders - dividers hidden, outlined boxes become filled slabs
