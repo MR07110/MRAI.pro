@@ -5,6 +5,7 @@ import { Check, ChevronRight, Copy, Key, Pencil, RotateCcw, ShieldAlert } from "
 import WaitCountdown, { stripWait } from "../WaitCountdown";
 import type { Message } from "@/types";
 import Md from "./Markdown";
+import { useTypewriter } from "@/hooks/useTypewriter";
 import { ToolGroup } from "./ToolStep";
 import { fileLines, parseThinkingAndContent, pullInlineFiles, splitAgent, type Seg, type ToolSeg } from "./parse";
 import FileCard from "./FileCard";
@@ -92,6 +93,24 @@ function PreparingIcon({ className }: { className?: string }) {
  );
 }
 
+
+// Shown once the response text has started arriving: a different animation (rotating dots / streaming pulse).
+function RespondingIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className={className}>
+      <style>{`
+        @keyframes mraiRespondPulse { 0%, 100% { opacity: 0.35; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1); } }
+        .mrai-resp-dot { animation: mraiRespondPulse 1.1s ease-in-out infinite; }
+        .mrai-resp-dot:nth-child(2) { animation-delay: 0.15s; }
+        .mrai-resp-dot:nth-child(3) { animation-delay: 0.3s; }
+      `}</style>
+      <circle className="mrai-resp-dot" cx="6" cy="12" r="2.2" fill="#fff" />
+      <circle className="mrai-resp-dot" cx="12" cy="12" r="2.2" fill="#fff" />
+      <circle className="mrai-resp-dot" cx="18" cy="12" r="2.2" fill="#fff" />
+    </svg>
+  );
+}
+
 const iconBtn =
  "h-7 w-7 inline-flex items-center justify-center text-neutral-500 hover:text-neutral-200 hover:bg-white/[0.07] transition cursor-pointer";
 
@@ -165,7 +184,9 @@ export default function MessageView({
  }
  }
 
- const blocks = useMemo(() => (isAssistant ? toBlocks(splitAgent(body, live)) : []), [isAssistant, body, live]);
+ const typed = useTypewriter(body, live);
+ const parsing = live || typed.typing;
+ const blocks = useMemo(() => (isAssistant ? toBlocks(splitAgent(typed.text, parsing)) : []), [isAssistant, typed.text, parsing]);
 
  if (!isAssistant) {
  const submitEdit = () => {
@@ -290,13 +311,13 @@ export default function MessageView({
  <div className="group min-w-0 fade-up">
  {live && (
    <div className="flex items-center gap-2.5 mb-2 text-[14px]">
-     <PreparingIcon className="w-4 h-4" />
+     {hasBody ? <RespondingIcon className="w-4 h-4" /> : <PreparingIcon className="w-4 h-4" />}
      {!hasBody && !thinking && <span className="shimmer">{thinking === "" ? "Thinking…" : "Preparing response…"}</span>}
    </div>
  )}
  {thinking ? <Thinking text={thinking} live={live && !hasBody} /> : null}
 
- <div className={`${fontSizeClass} text-neutral-200 break-words`}>
+ <div className={`${fontSizeClass} text-neutral-200 break-words ${typed.typing && blocks.length > 0 ? "typing-caret" : ""}`}>
  {blocks.map((b, i) =>
  b.k === "md" ? (
  <Md key={i} text={b.text} />

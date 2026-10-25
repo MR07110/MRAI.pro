@@ -133,3 +133,15 @@
 - Qilindi: Borderlarsiz uslub main ga push qilindi.
 - Keyingi qadam: Jonli web build+restart (MR tasdiqlasa)
 - Git holati: 131db23 style: drop almost all borders - dividers hidden, outlined boxes become filled slabs
+
+---
+### 2026-10-25 11:37
+- Qilindi: Matn oddiy (400) qilindi, markdown boyitildi (Markdown.tsx), system promptga FORMATTING qoidasi qo'shildi. main ga push.
+- Keyingi qadam: Jonli web build+restart (MR tasdiqlasa)
+- Git holati: f174e0c fix: body text back to regular weight; richer Markdown (rule-underlined headings, accent lists/quotes/links, striped tables, task lists); prompt asks for rich Markdown with sparing bold
+
+---
+### 2026-10-25 11:38
+- Qilindi: Sidebar: chat hoverida faqat ⋯ tugmasi, bosilsa Rename/Delete menyusi; API keys: New key tugmasi yuklanishdan oldin ham turadi. Commit/push qilinmagan.
+- Keyingi qadam: MR so'rasa main ga push
+- Git holati: f174e0c fix: body text back to regular weight; richer Markdown (rule-underlined headings, accent lists/quotes/links, striped tables, task lists); prompt asks for rich Markdown with sparing bold
