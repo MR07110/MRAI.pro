@@ -97,3 +97,15 @@
 - Qilindi: Ish paytidagi SVG animatsiya: pastdagi WritingIcon olib tashlandi, thinking dagi PreparingIcon javob TEPASIDA ko'rinadi (live paytida). Hali commit/push qilinmagan.
 - Keyingi qadam: MR so'rasa main ga push; jonli web build+restart
 - Git holati: b678bce fix: favicon has a transparent background (SVG, PNG, ICO and the dynamic status favicon)
+
+---
+### 2026-10-25 11:22
+- Qilindi: Ishlash indikatori tepaga ko'chirildi, main ga push qilindi.
+- Keyingi qadam: Jonli web build+restart
+- Git holati: 61cf4f2 feat: working indicator (chip animation) now sits at the top of the reply, same icon as the thinking state
+
+---
+### 2026-10-25 11:24
+- Qilindi: HARD (qattiq/industrial) uslub qatlami globals.css oxiriga qo'shildi: 2px chegaralar, yuqori kontrast chiziq/kulrang, qattiq soyalar (blur yo'q), uppercase mono tugmalar, sariq accent, tez animatsiya. Faqat override blok -- o'chirsa eski ko'rinish qaytadi (zaxira /tmp/globals.css.bak-hard). Commit/push qilinmagan, build+restart qilinmagan.
+- Keyingi qadam: MR ko'rib tasdiqlasa: commit+push va build+restart
+- Git holati: 61cf4f2 feat: working indicator (chip animation) now sits at the top of the reply, same icon as the thinking state
