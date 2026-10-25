@@ -50,6 +50,7 @@ const P_SKILLS = [
 const P_MEMORY = [
   "MEMORY",
   "When you learn a durable fact (the user's name or role, a preference, recurring context, a decision), call remember to save it, on your own. Use saved memories naturally; do not repeat them back unprompted.",
+  "IMPORTANT: If a fact is already in SAVED MEMORY, use it directly. Do not call tools (including personal playbook or guide tools) just to look up something that is already known.",
 ].join("\n");
 
 const P_HONESTY = [

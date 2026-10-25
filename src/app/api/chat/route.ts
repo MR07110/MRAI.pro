@@ -2,6 +2,7 @@ import { applyPromptVars } from "@/lib/promptVars";
 import { NextRequest, NextResponse } from "next/server";
 import { sessionUserFromRequest } from "@/lib/session";
 import { recordUsage, estTok } from "@/lib/usage";
+import { getMemory } from "@/lib/stateStore";
 
 // providers known to reliably accept stream_options.include_usage (others may error on the unknown field)
 const USAGE_STREAM_PROVIDERS = new Set(["openai", "groq", "openrouter", "deepseek", "xai", "together"]);
@@ -54,7 +55,19 @@ export async function POST(req: NextRequest) {
         estimated,
       });
     const finalMaxTokens = Math.min(Math.max(1, Number(maxTokens) || 4096), 8192);
-    const cleanSystem = applyPromptVars(typeof systemPrompt === "string" ? systemPrompt : ""); // no hidden fallback text
+    let cleanSystem = applyPromptVars(typeof systemPrompt === "string" ? systemPrompt : ""); // no hidden fallback text
+
+    // Inject saved memory for the signed-in user (same as agent), so facts are available even in plain chat.
+    try {
+      const usageUser = (await sessionUserFromRequest(req).catch(() => null)) || "";
+      if (usageUser) {
+        const mem = await getMemory(usageUser).catch(() => null);
+        if (mem && mem.enabled && mem.items?.length) {
+          const items = mem.items.slice(-40);
+          cleanSystem += "\n\nSAVED MEMORY (facts already known about the user — use these directly):\n" + items.map((m) => `- ${m.text}`).join("\n");
+        }
+      }
+    } catch { /* memory is optional */ }
 
     // 1. ANTHROPIC CLAUDE NATIVE API
     if (provider === "anthropic") {

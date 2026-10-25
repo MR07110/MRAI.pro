@@ -1143,6 +1143,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  }
  autoFocus={autoFocus}
  placeholder={empty ? "What shall we do today?" : "Type a message…"}
+ footerNote={modelLabel ? `${modelLabel} can make mistakes. Verify important information.` : undefined}
  attachments={pending}
  onAttach={uploadFiles}
  onRemoveAttachment={(p) => setPending((prev) => prev.filter((f) => f.path !== p))}

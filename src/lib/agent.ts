@@ -363,7 +363,7 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
     let memBlock = "";
     if (memoryOn) {
       const items = mem!.items.slice(-60);
-      memBlock = items.length ? "\n\nSAVED MEMORY (facts you saved earlier):\n" + items.map((m) => `- ${m.text}`).join("\n") : "";
+      memBlock = items.length ? "\n\nSAVED MEMORY (facts already known about the user — use these directly, do not call tools to look them up again):\n" + items.map((m) => `- ${m.text}`).join("\n") : "";
     }
     let system = withSkillsCatalog(applyPromptVars(inp.system || ""), skillsList) + memBlock; // skills: catalog data only (names)
     // "/skill-name ..." in the last user message loads that skill up-front (like a slash command)
