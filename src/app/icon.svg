@@ -1,22 +1,50 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
-  <rect width="24" height="24" fill="#000000"/>
-  <rect x="7" y="1" width="2" height="2" fill="#fff"/>
-  <rect x="10" y="1" width="2" height="2" fill="#fff"/>
-  <rect x="13" y="1" width="2" height="2" fill="#fff"/>
-  <rect x="16" y="1" width="2" height="2" fill="#fff"/>
-  <rect x="8" y="21" width="2" height="2" fill="#fff"/>
-  <rect x="11" y="21" width="2" height="2" fill="#fff"/>
-  <rect x="14" y="21" width="2" height="2" fill="#fff"/>
-  <rect x="1" y="8" width="2" height="2" fill="#fff"/>
-  <rect x="1" y="11" width="2" height="2" fill="#fff"/>
-  <rect x="1" y="14" width="2" height="2" fill="#fff"/>
-  <rect x="21" y="8" width="2" height="2" fill="#fff"/>
-  <rect x="21" y="11" width="2" height="2" fill="#fff"/>
-  <rect x="21" y="14" width="2" height="2" fill="#fff"/>
-  <path d="M5,4 H19 V5 H20 V19 H19 V20 H5 V19 H4 V5 H5 Z" fill="none" stroke="#fff" stroke-width="2"/>
-  <rect x="7" y="8" width="2" height="7" fill="#fff"/>
-  <rect x="11" y="8" width="2" height="7" fill="#fff"/>
-  <rect x="9" y="8" width="2" height="2" fill="#fff"/>
-  <rect x="9" y="11" width="2" height="2" fill="#fff"/>
-  <rect x="15" y="8" width="2" height="7" fill="#fff"/>
+  <style>
+    /* Default (and the fallback for browsers that ignore this): dark colors — a black chip with a
+       white outline/pins, which already reads well on a dark browser/tab theme. */
+    .mrai-icon-bg { fill: #000; }
+    .mrai-icon-fg { fill: #fff; }
+    .mrai-icon-frame { stroke: #fff; }
+    /* Light browser/tab theme: invert so the icon stays legible — a white chip with a black outline/pins. */
+    @media (prefers-color-scheme: light) {
+      .mrai-icon-bg { fill: #fff; }
+      .mrai-icon-fg { fill: #000; }
+      .mrai-icon-frame { stroke: #000; }
+    }
+  </style>
+
+  <rect width="24" height="24" class="mrai-icon-bg"/>
+
+  <!-- top pins (4) -->
+  <rect x="7" y="1" width="2" height="2" class="mrai-icon-fg"/>
+  <rect x="10" y="1" width="2" height="2" class="mrai-icon-fg"/>
+  <rect x="13" y="1" width="2" height="2" class="mrai-icon-fg"/>
+  <rect x="16" y="1" width="2" height="2" class="mrai-icon-fg"/>
+
+  <!-- bottom pins (3) -->
+  <rect x="8" y="21" width="2" height="2" class="mrai-icon-fg"/>
+  <rect x="11" y="21" width="2" height="2" class="mrai-icon-fg"/>
+  <rect x="14" y="21" width="2" height="2" class="mrai-icon-fg"/>
+
+  <!-- left pins (3) -->
+  <rect x="1" y="8" width="2" height="2" class="mrai-icon-fg"/>
+  <rect x="1" y="11" width="2" height="2" class="mrai-icon-fg"/>
+  <rect x="1" y="14" width="2" height="2" class="mrai-icon-fg"/>
+
+  <!-- right pins (3) -->
+  <rect x="21" y="8" width="2" height="2" class="mrai-icon-fg"/>
+  <rect x="21" y="11" width="2" height="2" class="mrai-icon-fg"/>
+  <rect x="21" y="14" width="2" height="2" class="mrai-icon-fg"/>
+
+  <!-- chip body (frame) -->
+  <path d="M5,4 H19 V5 H20 V19 H19 V20 H5 V19 H4 V5 H5 Z" fill="none" stroke-width="2" class="mrai-icon-frame"/>
+
+  <!-- "A" -->
+  <rect x="7" y="8" width="2" height="7" class="mrai-icon-fg"/>
+  <rect x="11" y="8" width="2" height="7" class="mrai-icon-fg"/>
+  <rect x="9" y="8" width="2" height="2" class="mrai-icon-fg"/>
+  <rect x="9" y="11" width="2" height="2" class="mrai-icon-fg"/>
+
+  <!-- "I" -->
+  <rect x="15" y="8" width="2" height="7" class="mrai-icon-fg"/>
 </svg>
