@@ -79,3 +79,21 @@
 - Loader: `src/lib/skills.ts` (kategoriyali + eski yassi tuzilma, 15s kesh). Prompt'da faqat kategoriya -> nomlar, tavsiflar INDEX.md da.
 - Manba: ~/Downloads (skills-harvest, plugins, skills-main) dan sifat/umumiylik filtri bilan saralangan (generator: ~/Claude/work/skill-curate/build.py).
 - Vercel'da skills bo'lmaydi (ataylab) — ro'yxat bo'sh qaytadi.
+
+---
+### 2026-10-25 09:25
+- Qilindi: Skills: / menyuda qidiruv + sariq highlight (menu va Settings), composerda ko'k skill yo'li; API keys paneli Connectors/Tasks uslubiga; Settings tashqariga bosilganda/Esc da yopiladi. main ga push (6282010). Eslatma: .git/objects da 31 ta papka ron egaligida va muhamad ACL siz -- commit pack orqali yozildi.
+- Keyingi qadam: Jonli serverlarni yangilash: build + systemctl --user restart mrai.service va mrai-web.service. .git/objects ACL ni ron tomondan tuzatish (setfacl -R -m u:muhamad:rwx,d:u:muhamad:rwx .git/objects)
+- Git holati: 6282010 feat: skills search in the / menu + Settings (yellow match highlight), blue skill path in composer, skills prefetch/cache; API keys panel restyled like Connectors/Tasks; Settings closes on outside click / Esc
+
+---
+### 2026-10-25 10:33
+- Qilindi: Favicon foni shaffof qilindi (icon.svg/favicon.svg, PNG 16-512, ico, dinamik favicon.ts). main ga push (b678bce).
+- Keyingi qadam: Jonli web ni build+restart qilish, brauzerda favicon keshini tozalab ko'rish
+- Git holati: b678bce fix: favicon has a transparent background (SVG, PNG, ICO and the dynamic status favicon)
+
+---
+### 2026-10-25 10:34
+- Qilindi: Ish paytidagi SVG animatsiya: pastdagi WritingIcon olib tashlandi, thinking dagi PreparingIcon javob TEPASIDA ko'rinadi (live paytida). Hali commit/push qilinmagan.
+- Keyingi qadam: MR so'rasa main ga push; jonli web build+restart
+- Git holati: b678bce fix: favicon has a transparent background (SVG, PNG, ICO and the dynamic status favicon)

@@ -92,44 +92,6 @@ function PreparingIcon({ className }: { className?: string }) {
  );
 }
 
-// Shown while reply text is actively streaming in: the pins flash in sequence, the "AI" core blinks.
-function WritingIcon({ className }: { className?: string }) {
- return (
- <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className={className}>
- <style>{`
- @keyframes mraiWriteA { 0%, 100% { fill: #fff; } 50% { fill: #333; } }
- @keyframes mraiWriteB { 0%, 50% { fill: #333; } 51%, 100% { fill: #fff; } }
- @keyframes mraiWriteCore { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
- .mrai-write-a { animation: mraiWriteA 0.4s steps(1) infinite; }
- .mrai-write-b { animation: mraiWriteB 0.4s steps(1) infinite; }
- .mrai-write-core { animation: mraiWriteCore 0.6s steps(1) infinite; }
- `}</style>
- <rect width="24" height="24" fill="#000" />
- <rect x="7" y="1" width="2" height="2" className="mrai-write-a" />
- <rect x="10" y="1" width="2" height="2" className="mrai-write-b" />
- <rect x="13" y="1" width="2" height="2" className="mrai-write-a" />
- <rect x="16" y="1" width="2" height="2" className="mrai-write-b" />
- <rect x="8" y="21" width="2" height="2" className="mrai-write-b" />
- <rect x="11" y="21" width="2" height="2" className="mrai-write-a" />
- <rect x="14" y="21" width="2" height="2" className="mrai-write-b" />
- <rect x="1" y="8" width="2" height="2" className="mrai-write-a" />
- <rect x="1" y="11" width="2" height="2" className="mrai-write-b" />
- <rect x="1" y="14" width="2" height="2" className="mrai-write-a" />
- <rect x="21" y="8" width="2" height="2" className="mrai-write-b" />
- <rect x="21" y="11" width="2" height="2" className="mrai-write-a" />
- <rect x="21" y="14" width="2" height="2" className="mrai-write-b" />
- <path d="M5,4 H19 V5 H20 V19 H19 V20 H5 V19 H4 V5 H5 Z" fill="none" stroke="#fff" strokeWidth="2" />
- <g className="mrai-write-core">
- <rect x="7" y="8" width="2" height="7" fill="#fff" />
- <rect x="11" y="8" width="2" height="7" fill="#fff" />
- <rect x="9" y="8" width="2" height="2" fill="#fff" />
- <rect x="9" y="11" width="2" height="2" fill="#fff" />
- <rect x="15" y="8" width="2" height="7" fill="#fff" />
- </g>
- </svg>
- );
-}
-
 const iconBtn =
  "h-7 w-7 inline-flex items-center justify-center text-neutral-500 hover:text-neutral-200 hover:bg-white/[0.07] transition cursor-pointer";
 
@@ -322,11 +284,16 @@ export default function MessageView({
  }
 
  const hasBody = blocks.length > 0;
- const lastBlock = blocks[blocks.length - 1];
  const needsKey = errorText ? /api key|api-key|kalit|401|403|unauthor|invalid/i.test(errorText) : false;
 
  return (
  <div className="group min-w-0 fade-up">
+ {live && (
+   <div className="flex items-center gap-2.5 mb-2 text-[14px]">
+     <PreparingIcon className="w-4 h-4" />
+     {!hasBody && !thinking && <span className="shimmer">{thinking === "" ? "Thinking…" : "Preparing response…"}</span>}
+   </div>
+ )}
  {thinking ? <Thinking text={thinking} live={live && !hasBody} /> : null}
 
  <div className={`${fontSizeClass} text-neutral-200 break-words`}>
@@ -346,21 +313,7 @@ export default function MessageView({
  )
  )}
 
- {live && hasBody && lastBlock?.k === "md" && (
- <WritingIcon className="inline-block w-4 h-4 ml-1 align-middle" />
- )}
 
- {live && !hasBody && !thinking && (
- <div className="flex items-center gap-2.5 py-1 text-[14px]">
- <PreparingIcon className="w-4 h-4" />
- <span className="shimmer">Preparing response…</span>
- </div>
- )}
- {live && !hasBody && thinking !== null && thinking === "" && (
- <div className="flex items-center gap-2.5 py-1 text-[14px]">
- <span className="shimmer">Thinking…</span>
- </div>
- )}
  </div>
 
  {errorText && (
