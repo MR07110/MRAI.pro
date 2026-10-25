@@ -6,13 +6,13 @@
 # `mrai stop` is temporary: everything comes back by itself after a reboot.
 set -u
 
-UNITS=(mrai.service mrai-web.service mrai-edge.service)   # order: python server -> web -> edge
+UNITS=(mrai.service mrai-web.service mrai-edge.service mrai-ngrok.service)   # order: python server -> web -> edge -> tunnel
 LOG_DIR="$HOME/.mrai/logs"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=$XDG_RUNTIME_DIR/bus}"
 
 sc() { systemctl --user "$@"; }
-label() { case "$1" in mrai.service) echo "Python server  :8080";; mrai-web.service) echo "Web (Next)     :3000";; mrai-edge.service) echo "Edge proxy     :7780";; *) echo "$1";; esac; }
+label() { case "$1" in mrai.service) echo "Python server  :8080";; mrai-web.service) echo "Web (Next)     :3000";; mrai-edge.service) echo "Edge proxy     :7780";; mrai-ngrok.service) echo "Tunnel (ngrok)";; *) echo "$1";; esac; }
 state() { sc is-active "$1" 2>/dev/null || true; }
 
 show_status() {
@@ -23,7 +23,8 @@ show_status() {
   done
   h8="$(curl -s -m 3 -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/health 2>/dev/null)"
   h3="$(curl -s -m 3 -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/login 2>/dev/null)"
-  printf '  health: python=%s  web=%s\n' "${h8:-down}" "${h3:-down}"
+  h7="$(curl -s -m 3 -o /dev/null -w '%{http_code}' http://127.0.0.1:7780/health 2>/dev/null)"
+  printf '  health: python=%s  web=%s  tunnel=%s\n' "${h8:-down}" "${h3:-down}" "${h7:-down}"
 }
 
 cmd_start() {
@@ -51,6 +52,6 @@ case "${1:-status}" in
   stop)    cmd_stop ;;
   restart) cmd_stop; echo; cmd_start ;;
   status)  show_status ;;
-  logs)    tail -n 40 -f "$LOG_DIR/server.log" "$LOG_DIR/web.log" "$LOG_DIR/edge.log" ;;
+  logs)    tail -n 40 -f "$LOG_DIR/server.log" "$LOG_DIR/web.log" "$LOG_DIR/edge.log" "$LOG_DIR/ngrok.log" ;;
   *)       echo "Usage: mrai start | stop | restart | status | logs"; exit 1 ;;
 esac

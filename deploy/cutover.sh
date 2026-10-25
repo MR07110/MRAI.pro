@@ -4,11 +4,12 @@
 #
 # What it does (safe to re-run):
 #   1. builds the Next app
-#   2. stops the three services (brief downtime)
+#   2. stops the services (brief downtime)
 #   3. snapshots the live DB  MR/mrai/mrai.db -> ~/.mrai/mrai.db  (only if the source is newer; always backed up first)
 #   4. renames the code folder  Claude/work/mrai-next -> Claude/work/MRAI
-#   5. reinstalls the systemd units (python + edge now run from MRAI, data in ~/.mrai, logs in ~/.mrai/logs)
-#   6. starts the services and checks health
+#   5. reinstalls the systemd units (python + edge now run from MRAI, data in ~/.mrai, logs in ~/.mrai/logs;
+#      the tunnel is ngrok only now — any old Cloudflare tunnel unit is disabled and removed)
+#   6. starts the services (including the ngrok tunnel) and checks health
 set -euo pipefail
 
 SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"      # .../deploy
@@ -25,7 +26,8 @@ echo "==> 1/6 Building the Next app"
 ( cd "$CODE" && npm run build )
 
 echo "==> 2/6 Stopping services (brief downtime)"
-sc stop mrai-edge.service mrai-web.service mrai.service 2>/dev/null || true
+sc stop mrai-ngrok.service mrai-edge.service mrai-web.service mrai.service 2>/dev/null || true
+sc stop mrai-tunnel.service 2>/dev/null || true   # old Cloudflare tunnel, no longer used
 # make sure the python port is free
 pkill -f "mrai_server.py" 2>/dev/null || true
 sleep 1
@@ -72,6 +74,7 @@ for i in $(seq 1 30); do curl -sf -m 1 http://127.0.0.1:8080/health >/dev/null 2
 sc start mrai-web.service
 for i in $(seq 1 30); do curl -sf -m 1 -o /dev/null http://127.0.0.1:3000/login 2>/dev/null && break; sleep 1; done
 sc start mrai-edge.service
+sc start mrai-ngrok.service
 sleep 2
 echo
 echo "Done. Status:"

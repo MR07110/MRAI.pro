@@ -1,0 +1,18 @@
+[Unit]
+Description=MR AI tunnel (ngrok static domain -> edge proxy :7780)
+After=network-online.target mrai-edge.service
+Wants=network-online.target mrai-edge.service
+
+[Service]
+Type=simple
+# NGROK_DOMAIN can be overridden in ~/.mrai/ngrok.env (falls back to the domain below if that file
+# is missing or doesn't set it). Uses this account's own ngrok config (~/.config/ngrok/ngrok.yml).
+EnvironmentFile=-/home/muhamad/.mrai/ngrok.env
+ExecStart=/bin/bash -c 'exec /usr/bin/ngrok http --config=/home/muhamad/.config/ngrok/ngrok.yml --domain="${NGROK_DOMAIN:-satisfy-endurance-mooned.ngrok-free.dev}" 7780'
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/muhamad/.mrai/logs/ngrok.log
+StandardError=append:/home/muhamad/.mrai/logs/ngrok.log
+
+[Install]
+WantedBy=default.target

@@ -15,7 +15,11 @@ install -m 755 "$HERE/mrai" "$BIN_DIR/mrai"
 
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 systemctl --user daemon-reload
-systemctl --user enable mrai.service mrai-web.service mrai-edge.service
+systemctl --user enable mrai.service mrai-web.service mrai-edge.service mrai-ngrok.service
+
+# This computer's previous tunnel (Cloudflare) is no longer used — ngrok is the only tunnel now.
+systemctl --user disable --now mrai-tunnel.service 2>/dev/null || true
+rm -f "$UNIT_DIR/mrai-tunnel.service"
 
 # Keep the services running after logout / reboot
 if [ "$(loginctl show-user "$USER" -p Linger --value 2>/dev/null)" != "yes" ]; then
