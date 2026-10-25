@@ -112,6 +112,41 @@ export function listSkills(): SkillMeta[] {
   }
 }
 
+/** Just the top-level category names — cheap, no SKILL.md files opened at all. */
+export function listCategoryNames(): string[] {
+  try {
+    if (!fs.existsSync(SKILLS_DIR)) return [];
+    const out: string[] = [];
+    for (const e of fs.readdirSync(SKILLS_DIR, { withFileTypes: true })) {
+      if (!e.isDirectory() || hidden(e.name)) continue;
+      // a folder that itself has a SKILL.md is a flat (uncategorised) skill, not a category
+      if (!fs.existsSync(path.join(SKILLS_DIR, e.name, "SKILL.md"))) out.push(e.name);
+    }
+    return out.sort((a, b) => a.localeCompare(b));
+  } catch {
+    return [];
+  }
+}
+
+/** Only one category's skills — skips every other folder entirely, so it stays fast regardless of how
+ * many thousand skills are installed overall. This is what lets the Skills panel load the list one
+ * category at a time instead of fetching everything up front. */
+export function listSkillsInCategory(category: string): SkillMeta[] {
+  try {
+    const dir = path.join(SKILLS_DIR, category);
+    if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return [];
+    const out: SkillMeta[] = [];
+    for (const c of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (!c.isDirectory() || hidden(c.name)) continue;
+      const m = readSkill(path.join(dir, c.name), category, c.name);
+      if (m) out.push(m);
+    }
+    return out.sort((a, b) => a.name.localeCompare(b.name));
+  } catch {
+    return [];
+  }
+}
+
 let _remoteCache: { at: number; list: SkillMeta[] } | null = null;
 
 /** Same catalog, fetched from the owner's real computer over HTTP (the Python server). */
@@ -127,6 +162,44 @@ async function listSkillsRemote(): Promise<SkillMeta[]> {
   }));
   _remoteCache = { at: Date.now(), list };
   return list;
+}
+
+async function listCategoryNamesRemote(): Promise<string[]> {
+  const res = await serverFetch(undefined, "/skills?categories=1", { method: "GET", timeoutMs: 10000 });
+  return Array.isArray(res?.categories) ? res.categories.map(String) : [];
+}
+
+async function listSkillsInCategoryRemote(category: string): Promise<SkillMeta[]> {
+  const res = await serverFetch(undefined, `/skills?category=${encodeURIComponent(category)}`, { method: "GET", timeoutMs: 10000 });
+  return (Array.isArray(res?.skills) ? res.skills : []).map((s: any) => ({
+    name: String(s.name || ""),
+    description: String(s.description || ""),
+    dir: String(s.dir || ""),
+    skillMd: path.join(String(s.dir || ""), "SKILL.md"),
+    category: String(s.category || ""),
+  }));
+}
+
+/** Category names only — local filesystem first, remote fallback. Cheap either way. */
+export async function getCategoryNamesAsync(): Promise<string[]> {
+  const local = listCategoryNames();
+  if (local.length) return local;
+  try {
+    return await listCategoryNamesRemote();
+  } catch {
+    return [];
+  }
+}
+
+/** One category's skills — local filesystem first, remote fallback. This is the piece that lets the
+ * Skills panel load one category at a time instead of fetching the whole (3000+) catalog up front. */
+export async function getSkillsInCategoryAsync(category: string): Promise<SkillMeta[]> {
+  if (listCategoryNames().length) return listSkillsInCategory(category); // local fs is reachable here
+  try {
+    return await listSkillsInCategoryRemote(category);
+  } catch {
+    return [];
+  }
 }
 
 /**

@@ -297,8 +297,24 @@ def _skill_frontmatter(skill_md_path):
     return out
 
 
-def _list_skills():
-    """<SKILLS_DIR>/<category>/<skill>/SKILL.md (old flat <SKILLS_DIR>/<skill>/SKILL.md also works)."""
+def _list_category_names():
+    """Cheap: just the top-level category folder names (no SKILL.md files opened at all)."""
+    out = []
+    if not os.path.isdir(SKILLS_DIR):
+        return out
+    for e in sorted(os.listdir(SKILLS_DIR)):
+        if e.startswith(".") or e.startswith("_"):
+            continue
+        d = os.path.join(SKILLS_DIR, e)
+        if os.path.isdir(d) and not os.path.isfile(os.path.join(d, "SKILL.md")):
+            out.append(e)
+    return out
+
+
+def _list_skills(only_category=None):
+    """<SKILLS_DIR>/<category>/<skill>/SKILL.md (old flat <SKILLS_DIR>/<skill>/SKILL.md also works).
+    With only_category set, every other category's folder is skipped entirely (its files are never
+    opened) — this is what lets the UI load one category's skills at a time instead of all 3000+ at once."""
     out = []
     if not os.path.isdir(SKILLS_DIR):
         return out
@@ -314,6 +330,8 @@ def _list_skills():
 
     for e in sorted(os.listdir(SKILLS_DIR)):
         if e.startswith(".") or e.startswith("_"):
+            continue
+        if only_category is not None and e != only_category:
             continue
         d = os.path.join(SKILLS_DIR, e)
         if not os.path.isdir(d):
@@ -715,7 +733,14 @@ class ServerHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if path == "/skills":
-            self._json(200, {"skills": _list_skills(), "root": SKILLS_DIR})
+            # ?categories=1      -> just the category names (near-instant: no SKILL.md files opened)
+            # ?category=<name>   -> only that category's skills (fast: skips every other folder)
+            # (neither)          -> every skill (kept for callers that genuinely want the full catalog)
+            if query.get("categories", [""])[0]:
+                self._json(200, {"categories": _list_category_names(), "root": SKILLS_DIR})
+            else:
+                only = query.get("category", [None])[0]
+                self._json(200, {"skills": _list_skills(only_category=only), "root": SKILLS_DIR})
             return
 
         if path == "/skills/content":
