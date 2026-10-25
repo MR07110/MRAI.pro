@@ -54,3 +54,75 @@ export function filterSkills(list: SkillEntry[], query: string, limit = 8): Skil
     .slice(0, limit)
     .map((x) => x.s);
 }
+
+// ---- Two-level "/category/skill" picker: category names first (cheap), then one category's skills,
+// fetched lazily and cached per category — the same progressive-loading endpoints the Skills settings
+// panel uses, so typing "/" never pulls the whole 3000+ catalog just to show the top-level menu. ----
+
+let catCache: string[] | null = null;
+let catInflight: Promise<string[]> | null = null;
+
+export async function fetchCategoryNames(): Promise<string[]> {
+  if (catCache) return catCache;
+  if (catInflight) return catInflight;
+  const p: Promise<string[]> = fetch("/api/skills?categories=1", { cache: "force-cache" })
+    .then((r) => r.json())
+    .then((j) => {
+      const list: string[] = Array.isArray(j?.categories) ? j.categories.map(String) : [];
+      catCache = list;
+      return list;
+    })
+    .catch(() => [])
+    .finally(() => {
+      catInflight = null;
+    });
+  catInflight = p;
+  return p;
+}
+
+export function peekCategoryNames(): string[] | null {
+  return catCache;
+}
+
+const categoryCache = new Map<string, SkillEntry[]>();
+const categoryInflight = new Map<string, Promise<SkillEntry[]>>();
+
+export async function fetchSkillsInCategory(category: string): Promise<SkillEntry[]> {
+  const hit = categoryCache.get(category);
+  if (hit) return hit;
+  const pending = categoryInflight.get(category);
+  if (pending) return pending;
+  const p = fetch(`/api/skills?category=${encodeURIComponent(category)}`, { cache: "force-cache" })
+    .then((r) => r.json())
+    .then((j) => {
+      const list: SkillEntry[] = Array.isArray(j?.skills)
+        ? j.skills.map((s: any) => ({ name: String(s.name || ""), category: String(s.category || category), description: String(s.description || "") }))
+        : [];
+      categoryCache.set(category, list);
+      return list;
+    })
+    .catch(() => [] as SkillEntry[])
+    .finally(() => {
+      categoryInflight.delete(category);
+    });
+  categoryInflight.set(category, p);
+  return p;
+}
+
+export function peekSkillsInCategory(category: string): SkillEntry[] | null {
+  return categoryCache.get(category) || null;
+}
+
+/** Top matching category names, best first. Empty query -> all, alphabetical. */
+export function filterCategoryNames(names: string[], query: string, limit = 12): string[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [...names].sort((a, b) => a.localeCompare(b)).slice(0, limit);
+  return names
+    .filter((n) => n.toLowerCase().includes(q))
+    .sort((a, b) => {
+      const aw = a.toLowerCase().startsWith(q) ? 0 : 1;
+      const bw = b.toLowerCase().startsWith(q) ? 0 : 1;
+      return aw - bw || a.localeCompare(b);
+    })
+    .slice(0, limit);
+}

@@ -3,13 +3,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUp, ChevronDown, Key, Loader2, Plus, Square, X } from "lucide-react";
 import { fmtSize, kindOf, type FileRef } from "./fileKind";
-import SkillSlashMenu from "./SkillSlashMenu";
-import { fetchSkillsCatalog, filterSkills, peekSkillsCatalog, type SkillEntry } from "@/lib/skillsCatalog";
+import SkillSlashMenu, { type MenuRow } from "./SkillSlashMenu";
+import {
+ fetchCategoryNames,
+ fetchSkillsInCategory,
+ filterCategoryNames,
+ filterSkills,
+ peekCategoryNames,
+ peekSkillsInCategory,
+ type SkillEntry,
+} from "@/lib/skillsCatalog";
 
-// Matches a bare, in-progress slash command: "/" plus a partial name and nothing else yet (no space).
-// The instant a space (or anything else) follows, the menu phase is over — matches the server's own
-// slash-command parsing in agent.ts, so what you pick here is exactly what gets invoked.
-const SLASH_RE = /^\/([A-Za-z0-9][\w./-]*)$/;
+// Two levels, each bare and in-progress (no space yet — the instant one follows, the menu phase is
+// over, matching the server's own slash-command parsing in agent.ts):
+//   "/"              or "/partial-cat"            -> category phase
+//   "/category/"     or "/category/partial-skill" -> skill phase, inside that one category
+const CATEGORY_RE = /^\/([A-Za-z0-9][\w-]*)?$/;
+const SKILL_RE = /^\/([A-Za-z0-9][\w-]*)\/([\w./-]*)$/;
 
 export default function Composer({
  value,
@@ -51,15 +61,37 @@ export default function Composer({
  const fileInputRef = useRef<HTMLInputElement>(null);
  const [dragging, setDragging] = useState(false);
 
- // "/" skill picker: opens above the composer, filters live on every keystroke.
- const [skills, setSkills] = useState<SkillEntry[]>(() => peekSkillsCatalog() || []);
+ // "/" skill picker: opens above the composer, filters live on every keystroke. Two levels:
+ // "/" -> all categories; "/category/" -> that category's skills.
+ const [categories, setCategories] = useState<string[]>(() => peekCategoryNames() || []);
+ const [categorySkills, setCategorySkills] = useState<SkillEntry[]>([]);
+ const [loadedCategory, setLoadedCategory] = useState<string | null>(null);
  const [focused, setFocused] = useState(false);
  const [dismissed, setDismissed] = useState(false); // Esc hides it; any further edit un-hides it
  const [activeIndex, setActiveIndex] = useState(0);
- const slashMatch = value.match(SLASH_RE);
- const slashQuery = slashMatch?.[1] ?? null;
- const menuItems = useMemo(() => (slashQuery === null ? [] : filterSkills(skills, slashQuery)), [skills, slashQuery]);
- const menuOpen = focused && !dismissed && slashQuery !== null && menuItems.length > 0;
+
+ const skillMatch = value.match(SKILL_RE);
+ const catMatch = !skillMatch ? value.match(CATEGORY_RE) : null;
+ const phase: "category" | "skill" | null = skillMatch ? "skill" : catMatch ? "category" : null;
+ const activeCategory = skillMatch?.[1] ?? null;
+ const query = phase === "skill" ? skillMatch![2] ?? "" : phase === "category" ? catMatch?.[1] ?? "" : "";
+
+ const categoriesLoading = phase === "category" && categories.length === 0;
+ const skillsLoading = phase === "skill" && loadedCategory !== activeCategory;
+
+ const menuItems: MenuRow[] = useMemo(() => {
+ if (phase === "category") return filterCategoryNames(categories, query).map((name) => ({ key: name, title: `${name}/` }));
+ if (phase === "skill" && loadedCategory === activeCategory) {
+ return filterSkills(categorySkills, query, 8).map((s) => ({ key: s.name, title: s.name, description: s.description }));
+ }
+ return [];
+ }, [phase, categories, categorySkills, loadedCategory, activeCategory, query]);
+
+ const menuOpen = focused && !dismissed && phase !== null && (menuItems.length > 0 || categoriesLoading || skillsLoading);
+ const menuHint =
+ phase === "skill"
+ ? `Skills in ${activeCategory} — ↑↓, Enter/Tab to insert, Esc to dismiss`
+ : "Skill categories — ↑↓, Enter/Tab to open, Esc to dismiss";
 
  useEffect(() => {
  if (autoFocus && typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches) {
@@ -67,27 +99,56 @@ export default function Composer({
  }
  }, [autoFocus, textareaRef]);
 
- // Load the catalog lazily, the first time "/" is typed — not on every page load.
+ // Load category names lazily, the first time "/" is typed — not on every page load.
  useEffect(() => {
- if (slashQuery !== null && skills.length === 0) {
- fetchSkillsCatalog().then(setSkills);
+ if (phase === "category" && categories.length === 0) {
+ fetchCategoryNames().then(setCategories);
  }
- }, [slashQuery, skills.length]);
+ }, [phase, categories.length]);
+
+ // Load one category's skills lazily, the moment that category is entered (typed or picked).
+ useEffect(() => {
+ if (phase !== "skill" || !activeCategory || loadedCategory === activeCategory) return;
+ const cached = peekSkillsInCategory(activeCategory);
+ if (cached) {
+ setCategorySkills(cached);
+ setLoadedCategory(activeCategory);
+ return;
+ }
+ fetchSkillsInCategory(activeCategory).then((list) => {
+ setCategorySkills(list);
+ setLoadedCategory(activeCategory);
+ });
+ }, [phase, activeCategory, loadedCategory]);
 
  // Keep the highlighted row in range as the filtered list changes while typing.
  useEffect(() => {
  setActiveIndex((i) => Math.min(i, Math.max(0, menuItems.length - 1)));
  }, [menuItems.length]);
 
- function pickSkill(s: SkillEntry) {
- onChange(`/${s.name} `);
+ function pickRow(row: MenuRow) {
+ if (phase === "category") {
+ onChange(`/${row.key}/`); // drops straight into skill-phase for this category
+ setActiveIndex(0);
+ textareaRef.current?.focus();
+ return;
+ }
+ if (phase === "skill" && activeCategory) {
+ onChange(`/${activeCategory}/${row.key} `);
  setActiveIndex(0);
  setDismissed(true); // the command is complete; do not immediately reopen on its own text
  textareaRef.current?.focus();
  }
+ }
 
  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
  if (menuOpen) {
+ if (e.key === "Escape") {
+ e.preventDefault();
+ setDismissed(true); // closes the menu; editing the text again reopens it
+ return;
+ }
+ if (menuItems.length > 0) {
  if (e.key === "ArrowDown") {
  e.preventDefault();
  setActiveIndex((i) => (i + 1) % menuItems.length);
@@ -100,13 +161,9 @@ export default function Composer({
  }
  if (e.key === "Enter" || e.key === "Tab") {
  e.preventDefault();
- pickSkill(menuItems[activeIndex]);
+ pickRow(menuItems[activeIndex]);
  return;
  }
- if (e.key === "Escape") {
- e.preventDefault();
- setDismissed(true); // closes the menu; editing the text again reopens it
- return;
  }
  }
  onKeyDown(e);
@@ -142,7 +199,16 @@ export default function Composer({
  pickFiles(e.dataTransfer.files);
  }}
  >
- {menuOpen && <SkillSlashMenu items={menuItems} activeIndex={activeIndex} onHover={setActiveIndex} onPick={pickSkill} />}
+ {menuOpen && (
+ <SkillSlashMenu
+ items={menuItems}
+ activeIndex={activeIndex}
+ hint={menuHint}
+ loading={categoriesLoading || skillsLoading}
+ onHover={setActiveIndex}
+ onPick={pickRow}
+ />
+ )}
 
  {attachments.length > 0 && (
  <div className="flex flex-wrap gap-2 px-3 pt-3">
