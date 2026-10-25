@@ -37,6 +37,8 @@ interface StepResult { text: string; calls: Call[]; usage?: { input: number; out
 interface Adapter {
   step(tools: ToolDef[]): Promise<StepResult>;
   addResults(results: Array<{ call: Call; output: string; isError: boolean }>): void;
+  /** remove the last (empty) assistant turn so the step can be retried */
+  dropEmpty?(): void;
 }
 
 const MAX_TOOLS = 120;
@@ -146,6 +148,10 @@ function openaiAdapter(inp: AgentInput, system: string): Adapter & { disableTool
     },
     addResults(results) {
       for (const r of results) msgs.push({ role: "tool", tool_call_id: r.call.id, content: r.output });
+    },
+    dropEmpty() {
+      const last = msgs[msgs.length - 1];
+      if (last && last.role === "assistant" && !last.tool_calls) msgs.pop();
     },
   };
 }
@@ -373,6 +379,7 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
     const maxSteps = Math.min(Math.max(1, inp.maxSteps ?? 100), 1000);
     let final = "";
     let steps = 0;
+    let emptyRetries = 0; // consecutive empty model replies (no text, no tool call)
     const failCounts = new Map<string, number>(); // same tool+args repeated-failure guard, across this whole run
 
     for (; steps < maxSteps; steps++) {
@@ -400,11 +407,24 @@ export async function runAgent(inp: AgentInput): Promise<{ final: string; transc
           ...res.usage,
         });
       }
+      const emptyReply = !res.text.trim() && !res.calls.length;
+      if (emptyReply && emptyRetries < 2 && adapter.dropEmpty) {
+        // Some models (e.g. gpt-oss on Groq) occasionally return nothing after a tool result. Retry the step
+        // instead of silently stopping the whole run.
+        emptyRetries++;
+        adapter.dropEmpty();
+        steps--;
+        continue;
+      }
+      emptyRetries = 0;
       if (res.text.trim()) {
         out(res.text.replace(/\s+$/, "") + "\n\n");
         final = res.text;
       }
-      if (!res.calls.length) break;
+      if (!res.calls.length) {
+        if (emptyReply) out('> The model sent an empty reply. Type "continue" to go on.\n\n');
+        break;
+      }
 
       const results: Array<{ call: Call; output: string; isError: boolean }> = [];
       for (const call of res.calls) {
