@@ -69,8 +69,10 @@ const ToolRow = memo(function ToolRow({ t }: { t: ToolSeg }) {
  a.t.name === b.t.name && a.t.status === b.t.status && a.t.secs === b.t.secs && a.t.head === b.t.head && a.t.output === b.t.output
 );
 
-export function ToolGroup({ items }: { items: ToolSeg[] }) {
- const { text, live } = groupLabel(items);
+export function ToolGroup({ items, streaming = false }: { items: ToolSeg[]; streaming?: boolean }) {
+ const { text, live: running } = groupLabel(items);
+ // `streaming` = last block of a reply still being written: stay open between tools (no collapse/reopen flicker)
+ const live = running || streaming;
  // Collapsed by default (so after a refresh, and once a run finishes, every scope is closed — Claude-style).
  // While streaming (live) it auto-opens; if the user closes it then, that choice is kept until the next live run.
  const [open, setOpen] = useState(false);

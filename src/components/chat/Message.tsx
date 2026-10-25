@@ -334,7 +334,7 @@ export default function MessageView({
  b.k === "md" ? (
  <Md key={i} text={b.text} />
  ) : b.k === "tools" ? (
- <ToolGroup key={`tools-${i}-${b.items[0]?.name ?? "t"}`} items={b.items} />
+ <ToolGroup key={`tools-${i}-${b.items[0]?.name ?? "t"}`} items={b.items} streaming={live && i === blocks.length - 1} />
  ) : b.k === "files" ? (
  <div key={i} className="w-full">
  {b.items.map((f) => (

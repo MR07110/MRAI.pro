@@ -33,7 +33,20 @@ export type Seg = MdSeg | ToolSeg | WaitSeg | FileSeg;
 
 // agent.ts quyidagi formatni chiqaradi:
 //   > **Tool:** `Nom`\n\n   +   ````text\n<buyruq>\n→ ok (1.2s)\n<natija>\n````\n\n
-const TOOL_RE = /(?:^|\n)> \*\*(?:Tool|Asbob):\*\* `([^`\n]*)`\n+(?:````text\n([\s\S]*?)\n````)?/g;
+// The fence may still be streaming (no closing ```` yet): then group 3 is undefined and the step is still running.
+const TOOL_RE = /(?:^|\n)> \*\*(?:Tool|Asbob):\*\* `([^`\n]*)`\n+(?:````text\n([\s\S]*?)(?:(\n````)|$))?/g;
+
+// While streaming, the last line may be a half-arrived tool header or fence opener. Hide it so it never
+// flashes as plain text / a code box before the tool row takes it over.
+function trimPartialTail(text: string): string {
+  const i = text.lastIndexOf("\n");
+  const tail = text.slice(i + 1);
+  if (!tail) return text;
+  const heads = ["> **Tool:** `", "> **Asbob:** `"];
+  const partialHead = heads.some((h) => h.startsWith(tail) || tail.startsWith(h));
+  const partialFence = tail.startsWith("`") && "````text".startsWith(tail);
+  return partialHead || partialFence ? text.slice(0, i + 1) : text;
+}
 
 function parseFence(body: string) {
   const lines = body.split("\n");
@@ -144,7 +157,7 @@ export function splitAgent(content: string, live: boolean): Seg[] {
         if (clean.trim()) out.push({ type: "md", text: clean });
         out.push(...files);
       }
-      if (m[2] === undefined) {
+      if (m[2] === undefined || m[3] === undefined) {
         out.push({ type: "tool", name: m[1], head: "", status: live ? "running" : "stopped", output: "" });
       } else {
         const f = parseFence(m[2]);
@@ -156,7 +169,8 @@ export function splitAgent(content: string, live: boolean): Seg[] {
       last = i + m[0].length;
     }
     if (last < text.length) {
-      const { clean, files } = extractInlineFiles(text.slice(last));
+      const rest = live ? trimPartialTail(text.slice(last)) : text.slice(last);
+      const { clean, files } = extractInlineFiles(rest);
       if (clean.trim()) out.push({ type: "md", text: clean });
       out.push(...files);
     }
