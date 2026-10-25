@@ -164,7 +164,7 @@ textarea:focus-visible { outline: none; }
 .avatar-circle { border-radius: 9999px !important; }
 
 /* ================= HARD style (tough, industrial) =================
-   Heavy 2px borders, high-contrast lines and greys, hard offset shadows instead of blur, bold type,
+   Almost no borders (filled slabs), high-contrast lines and greys, hard offset shadows instead of blur, bold type,
    uppercase mono on primary actions, safety-yellow accent, snappy motion.
    Pure override layer: delete this whole block to get the soft look back. */
 :root {
@@ -177,21 +177,21 @@ html,
 body { font-weight: 600; }
 h1, h2, h3, h4 { font-weight: 700; letter-spacing: -0.01em; }
 
-/* 2px borders everywhere (only tokens that are exactly the border utility, not hover:/md: variants) */
-[class~="border"] { border-width: 2px; }
-[class~="border-b"] { border-bottom-width: 2px; }
-[class~="border-t"] { border-top-width: 2px; }
-[class~="border-r"] { border-right-width: 2px; }
-[class~="border-l"] { border-left-width: 2px; }
-
-/* Lines: no more faint 10-20% greys. Hover/focus states keep their own colours. */
+/* Borders are gone: dividers disappear, outlined boxes become filled slabs instead.
+   Kept on purpose: hover/focus states (accent), the active/selected 35-40% outlines, the Settings window edge. */
 [class~="border-white/10"]:not(:hover):not(:focus),
 [class~="border-white/12"]:not(:hover):not(:focus),
 [class~="border-white/15"]:not(:hover):not(:focus),
 [class~="border-white/20"]:not(:hover):not(:focus),
-[class~="border-white/25"]:not(:hover):not(:focus) { border-color: var(--line); }
+[class~="border-white/25"]:not(:hover):not(:focus) { border-color: transparent; }
 [class~="border-white/35"]:not(:hover):not(:focus),
-[class~="border-white/40"]:not(:hover):not(:focus) { border-color: var(--line-strong); }
+[class~="border-white/40"]:not(:hover):not(:focus),
+[class~="md:border"] { border-color: var(--line-strong); }
+
+[class~="border"][class*="border-white/"]:not([class~="bg-white"]):not(:hover):not(:focus):not(:focus-within) { background-color: #121212; }
+input[class~="border"][class*="border-white/"]:not([class~="bg-white"]):not(:hover):not(:focus):not(:focus-within),
+select[class~="border"][class*="border-white/"]:not([class~="bg-white"]):not(:hover):not(:focus):not(:focus-within),
+textarea[class~="border"][class*="border-white/"]:not([class~="bg-white"]):not(:hover):not(:focus):not(:focus-within) { background-color: #1e1e1e; }
 
 /* Greys that were too dim read harder */
 [class~="text-neutral-600"]:not(:hover) { color: #7c7c7c; }
@@ -202,7 +202,7 @@ h1, h2, h3, h4 { font-weight: 700; letter-spacing: -0.01em; }
 /* Primary (white) buttons: slab with uppercase mono label, flips to the yellow accent on hover */
 button[class~="bg-white"],
 a[class~="bg-white"] {
-  border: 2px solid #fff;
+  border: 1px solid #fff;
   text-transform: uppercase;
   letter-spacing: 0.07em;
   font-weight: 800;

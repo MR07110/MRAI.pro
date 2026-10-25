@@ -109,3 +109,21 @@
 - Qilindi: HARD (qattiq/industrial) uslub qatlami globals.css oxiriga qo'shildi: 2px chegaralar, yuqori kontrast chiziq/kulrang, qattiq soyalar (blur yo'q), uppercase mono tugmalar, sariq accent, tez animatsiya. Faqat override blok -- o'chirsa eski ko'rinish qaytadi (zaxira /tmp/globals.css.bak-hard). Commit/push qilinmagan, build+restart qilinmagan.
 - Keyingi qadam: MR ko'rib tasdiqlasa: commit+push va build+restart
 - Git holati: 61cf4f2 feat: working indicator (chip animation) now sits at the top of the reply, same icon as the thinking state
+
+---
+### 2026-10-25 11:26
+- Qilindi: HARD uslub main ga push qilindi.
+- Keyingi qadam: Jonli web build+restart (MR tasdiqlasa)
+- Git holati: 1e15296 style: HARD industrial look - 2px borders, high-contrast lines, hard offset shadows, uppercase mono buttons, yellow accent
+
+---
+### 2026-10-25 11:35
+- Qilindi: Borderlar ingichka (1px) qilindi; qolgan HARD uslub saqlandi. Commit/push qilinmagan.
+- Keyingi qadam: MR so'rasa push
+- Git holati: 1e15296 style: HARD industrial look - 2px borders, high-contrast lines, hard offset shadows, uppercase mono buttons, yellow accent
+
+---
+### 2026-10-25 11:36
+- Qilindi: Borderlar deyarli olib tashlandi: ajratgich chiziqlar yo'q, ramkali qutilar to'ldirilgan (#121212, input #1e1e1e) bloklarga aylandi; hover/focus/aktiv/Settings oynasi qirrasi qoldi. Commit/push qilinmagan.
+- Keyingi qadam: MR so'rasa push
+- Git holati: 1e15296 style: HARD industrial look - 2px borders, high-contrast lines, hard offset shadows, uppercase mono buttons, yellow accent
