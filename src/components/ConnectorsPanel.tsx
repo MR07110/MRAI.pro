@@ -13,7 +13,7 @@ function Switch({ on, onChange }: { on: boolean; onChange: () => void }) {
  <button
  type="button"
  onClick={onChange}
- className={`w-9 h-5 transition cursor-pointer p-0.5 shrink-0 ${on ? "bg-white" : "bg-white/[0.08]"}`}
+ className={`w-9 h-5 transition cursor-pointer p-0.5 shrink-0 ${on ? "bg-[#4cb4f7]" : "bg-white/[0.08]"}`}
  >
  <div className={`w-4 h-4 bg-black transition transform ${on ? "translate-x-4" : "translate-x-0"}`} />
  </button>

@@ -1,4 +1,4 @@
-// Dynamic browser-tab favicon: the chip icon steady by default, blinking amber while the AI is
+// Dynamic browser-tab favicon: the chip icon steady by default, blinking sky-blue while the AI is
 // generating a reply and the tab is in the background, and a steady green dot once that reply is
 // ready — only while the tab is still in the background. The moment the tab regains focus, the
 // favicon drops back to the plain default immediately, whatever state the reply is in.
@@ -6,8 +6,8 @@
 type Palette = { bg: string; fg: string; amberOn: string; amberOff: string; green: string };
 
 const PALETTES: Record<"dark" | "light", Palette> = {
-  dark: { bg: "none", fg: "#ffffff", amberOn: "#E3B341", amberOff: "#333333", green: "#3FB950" },
-  light: { bg: "none", fg: "#000000", amberOn: "#DBAB0A", amberOff: "#E0E0E0", green: "#1A7F37" },
+  dark: { bg: "none", fg: "#ffffff", amberOn: "#4CB4F7", amberOff: "#1F3B4F", green: "#3FB950" },
+  light: { bg: "none", fg: "#000000", amberOn: "#1A8FE0", amberOff: "#CFE6F7", green: "#1A7F37" },
 };
 
 export function prefersDark(): boolean {
@@ -16,10 +16,16 @@ export function prefersDark(): boolean {
 
 // The chip shape (pins, frame, "AI" letters) in one color, plus an optional status dot in the corner.
 function chipSvg(fg: string, bg: string, dot?: string): string {
-  const dotRect = dot ? `<rect x="18" y="18" width="5" height="5" fill="${dot}"/>` : "";
+  // Round status dot in the bottom-right corner; the chip is cut away in a ring around it so it never blends in.
+  const dotRect = dot ? `<circle cx="18" cy="18" r="5.5" fill="${dot}"/>` : "";
+  const mask = dot
+    ? `<defs><mask id="m"><rect width="24" height="24" fill="#fff"/><circle cx="18" cy="18" r="7.5" fill="#000"/></mask></defs><g mask="url(#m)">`
+    : "";
+  const maskEnd = dot ? "</g>" : "";
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">` +
     (bg === "none" ? "" : `<rect width="24" height="24" fill="${bg}"/>`) +
+    mask +
     `<rect x="7" y="1" width="2" height="2" fill="${fg}"/>` +
     `<rect x="10" y="1" width="2" height="2" fill="${fg}"/>` +
     `<rect x="13" y="1" width="2" height="2" fill="${fg}"/>` +
@@ -39,6 +45,7 @@ function chipSvg(fg: string, bg: string, dot?: string): string {
     `<rect x="9" y="8" width="2" height="2" fill="${fg}"/>` +
     `<rect x="9" y="11" width="2" height="2" fill="${fg}"/>` +
     `<rect x="15" y="8" width="2" height="7" fill="${fg}"/>` +
+    maskEnd +
     dotRect +
     `</svg>`
   );

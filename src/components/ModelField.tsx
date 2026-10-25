@@ -92,7 +92,7 @@ export default function ModelField({ keyItem, alwaysOpen = false, onChanged, hei
             open ? "border-white/35" : "border-white/15 hover:border-white/30"
           }`}
         >
-          <span className={`truncate ${current ? "text-neutral-100" : "text-amber-300"}`}>
+          <span className={`truncate ${current ? "text-neutral-100" : "text-neutral-300"}`}>
             {current || "Select a model"}
           </span>
           {saving ? (
@@ -105,7 +105,7 @@ export default function ModelField({ keyItem, alwaysOpen = false, onChanged, hei
 
       {alwaysOpen && (
         <p className="text-xs text-neutral-400 mb-1.5">
-          Model: <span className={current ? "text-neutral-100" : "text-amber-300"}>{current || "not selected"}</span>
+          Model: <span className={current ? "text-neutral-100" : "text-neutral-300"}>{current || "not selected"}</span>
         </p>
       )}
 

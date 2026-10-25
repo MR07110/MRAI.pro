@@ -43,7 +43,7 @@ export default function WaitCountdown({ end }: { end: number }) {
  if (left <= 0) return null;
 
  return (
- <div className="my-2 inline-flex items-center gap-2 px-3 py-1.5 border border-amber-900/50 bg-amber-950/30 text-amber-300 text-xs">
+ <div className="my-2 inline-flex items-center gap-2 px-3 py-1.5 border border-white/20 bg-white/[0.05] text-neutral-300 text-xs">
  <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
  <span>
  Provider limit: <span className="tabular-nums font-semibold">{left}</span> seconds remaining…

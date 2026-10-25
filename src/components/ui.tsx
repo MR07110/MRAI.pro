@@ -72,9 +72,9 @@ export function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boo
       aria-checked={on}
       aria-label={label}
       onClick={() => onChange(!on)}
-      className={`relative h-6 w-11 border transition cursor-pointer ${on ? "border-white bg-white" : "border-white/25 bg-black"}`}
+      className={`relative h-6 w-11 border transition cursor-pointer ${on ? "border-[#4cb4f7] bg-[#4cb4f7]" : "border-white/25 bg-black"}`}
     >
-      <span className={`absolute top-0.5 h-4 w-4 transition-all ${on ? "left-[22px] bg-black" : "left-0.5 bg-neutral-500"}`} />
+      <span className={`absolute top-0.5 h-4 w-4 transition-all ${on ? "left-[22px] bg-[#04121c]" : "left-0.5 bg-neutral-500"}`} />
     </button>
   );
 }
@@ -95,7 +95,7 @@ export function Segmented<T extends string>({
           key={o.id}
           type="button"
           onClick={() => onChange(o.id)}
-          className={`h-8 px-3 cursor-pointer transition ${value === o.id ? "bg-white text-black" : "text-neutral-400 hover:text-white"}`}
+          className={`h-8 px-3 cursor-pointer transition ${value === o.id ? "bg-[#4cb4f7] text-[#04121c]" : "text-neutral-400 hover:text-white"}`}
         >
           {o.label}
         </button>

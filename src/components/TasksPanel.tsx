@@ -24,7 +24,7 @@ function Switch({ on, onChange }: { on: boolean; onChange: () => void }) {
  <button
  type="button"
  onClick={onChange}
- className={`w-9 h-5 transition cursor-pointer p-0.5 shrink-0 ${on ? "bg-white" : "bg-white/[0.08]"}`}
+ className={`w-9 h-5 transition cursor-pointer p-0.5 shrink-0 ${on ? "bg-[#4cb4f7]" : "bg-white/[0.08]"}`}
  >
  <div className={`w-4 h-4 bg-black transition transform ${on ? "translate-x-4" : "translate-x-0"}`} />
  </button>
@@ -154,7 +154,7 @@ export default function TasksPanel() {
  key={k}
  onClick={() => setKind(k)}
  className={`py-2 border text-xs font-medium cursor-pointer transition ${
- kind === k ? "bg-white text-black border-white" : "border-white/15 text-neutral-300 hover:bg-white/[0.07]"
+ kind === k ? "bg-[#4cb4f7] text-[#04121c] border-[#4cb4f7]" : "border-white/15 text-neutral-300 hover:bg-white/[0.07]"
  }`}
  >
  {k === "ai" ? "AI agent (prompt)" : "Shell command"}
@@ -251,7 +251,7 @@ export default function TasksPanel() {
  <div key={r.id} className=" bg-[#0a0a0a] p-2.5">
  <p className="text-[10px] text-neutral-500 mb-1">
  {fmt(r.started_at)} · {r.trigger} ·{" "}
- <span className={r.status === "ok" ? "text-emerald-400" : r.status === "error" ? "text-red-400" : "text-amber-400"}>{r.status}</span>
+ <span className={r.status === "ok" ? "text-emerald-400" : r.status === "error" ? "text-red-400" : "text-neutral-300"}>{r.status}</span>
  </p>
  <pre className="text-[11px] text-neutral-300 whitespace-pre-wrap break-words max-h-40 overflow-y-auto">{r.output || "…"}</pre>
  </div>

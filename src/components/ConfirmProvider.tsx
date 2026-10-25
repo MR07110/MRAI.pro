@@ -86,7 +86,7 @@ export default function ConfirmProvider({ children }: { children: React.ReactNod
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => close(false)} />
             <div role="alertdialog" aria-modal="true" aria-label={state.opts.title} className="relative w-full max-w-sm border border-white/20 bg-black text-neutral-100 shadow-2xl fade-up">
               <div className="p-5 flex items-start gap-3">
-                {danger && <TriangleAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />}
+                {danger && <TriangleAlert className="w-5 h-5 text-neutral-300 shrink-0 mt-0.5" />}
                 <div className="min-w-0">
                   <h3 className="text-[14.5px] font-medium text-white">{state.opts.title}</h3>
                   {state.opts.message && <p className="mt-1.5 text-[13px] leading-relaxed text-neutral-400">{state.opts.message}</p>}

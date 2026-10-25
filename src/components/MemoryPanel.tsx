@@ -106,18 +106,19 @@ export default function MemoryPanel() {
       </div>
 
       <div className={`mt-5 transition-opacity ${enabled ? "" : "opacity-40 pointer-events-none"}`}>
-        <div className="flex items-center gap-2 mb-3">
-          <input
+        <div className="flex items-start gap-2 mb-3">
+          <textarea
             value={draft}
+            rows={3}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") {
+              if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 add();
               }
             }}
-            placeholder="Add a memory manually…"
-            className={`${ui.input} flex-1`}
+            placeholder="Add a memory manually… (Shift+Enter for a new line)"
+            className={`${ui.textarea} flex-1 resize-y min-h-[76px] max-h-60`}
           />
           <button
             onClick={add}
@@ -128,7 +129,7 @@ export default function MemoryPanel() {
           </button>
         </div>
 
-        {note && <p className="mb-3 text-[12px] text-amber-400">{note}</p>}
+        {note && <p className="mb-3 text-[12px] text-neutral-300">{note}</p>}
 
         <div className="flex items-center justify-between mb-2">
           <span className="text-[11px] font-mono uppercase tracking-wide text-neutral-500">

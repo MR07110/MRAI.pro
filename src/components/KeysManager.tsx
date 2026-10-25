@@ -76,7 +76,7 @@ export default function KeysManager({ compact = false, onSelected }: Props) {
           Paste a key and the provider is detected automatically. The active key is used for chat and the agent.
         </p>
       </div>
-      {!editing && !loading && (
+      {!editing && (
         <button
           type="button"
           onClick={() => setMode({ type: "edit", key: null })}
@@ -88,15 +88,6 @@ export default function KeysManager({ compact = false, onSelected }: Props) {
       )}
     </div>
   );
-
-  if (loading) {
-    return (
-      <div>
-        {!compact && header}
-        <div className="text-center py-10 text-neutral-500 text-sm">Loading…</div>
-      </div>
-    );
-  }
 
   if (mode.type === "edit") {
     return (
@@ -118,6 +109,15 @@ export default function KeysManager({ compact = false, onSelected }: Props) {
             }}
           />
         </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div>
+        {!compact && header}
+        <div className="text-center py-10 text-neutral-500 text-sm">Loading…</div>
       </div>
     );
   }

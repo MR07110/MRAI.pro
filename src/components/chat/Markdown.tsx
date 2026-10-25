@@ -31,22 +31,22 @@ const components: any = {
   ul({ children, className }: any) {
     const task = typeof className === "string" && className.includes("contains-task-list");
     return (
-      <ul className={`my-3 space-y-1.5 ${task ? "list-none pl-1" : "pl-6 list-disc marker:text-[#f5c518]"}`}>{children}</ul>
+      <ul className={`my-3 space-y-1.5 ${task ? "list-none pl-1" : "pl-6 list-disc marker:text-[#4cb4f7]"}`}>{children}</ul>
     );
   },
   ol({ children }: any) {
-    return <ol className="my-3 pl-6 list-decimal marker:text-[#f5c518] marker:font-mono space-y-1.5">{children}</ol>;
+    return <ol className="my-3 pl-6 list-decimal marker:text-[#4cb4f7] marker:font-mono space-y-1.5">{children}</ol>;
   },
   li({ children }: any) {
     return <li className="pl-1 leading-[1.75] [&>ul]:my-1.5 [&>ol]:my-1.5">{children}</li>;
   },
   input({ type, checked }: any) {
     if (type !== "checkbox") return null;
-    return <input type="checkbox" checked={!!checked} readOnly className="mr-2 align-middle accent-[#f5c518]" />;
+    return <input type="checkbox" checked={!!checked} readOnly className="mr-2 align-middle accent-[#4cb4f7]" />;
   },
   blockquote({ children }: any) {
     return (
-      <blockquote className="my-4 pl-4 pr-3 py-1.5 border-l-4 border-[#f5c518] bg-white/[0.04] text-neutral-300 [&>p]:my-1.5">
+      <blockquote className="my-4 pl-4 pr-3 py-1.5 border-l-4 border-[#4cb4f7] bg-[#4cb4f7]/[0.06] text-neutral-300 [&>p]:my-1.5">
         {children}
       </blockquote>
     );
@@ -63,7 +63,7 @@ const components: any = {
   },
   h3({ children }: any) {
     return (
-      <h3 className="text-[16.5px] font-bold text-white mt-6 mb-2 pl-3 border-l-4 border-[#f5c518]">{children}</h3>
+      <h3 className="text-[16.5px] font-bold text-white mt-6 mb-2 pl-3 border-l-4 border-[#4cb4f7]">{children}</h3>
     );
   },
   h4({ children }: any) {
@@ -93,7 +93,7 @@ const components: any = {
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-[#f5c518] underline decoration-[#f5c518]/40 underline-offset-[3px] hover:decoration-[#f5c518] transition"
+        className="text-[#8fd0fb] underline decoration-[#8fd0fb]/40 underline-offset-[3px] hover:decoration-[#8fd0fb] transition"
       >
         {children}
       </a>
@@ -116,7 +116,7 @@ const components: any = {
       return <CodeBlock language={match ? match[1] : undefined} value={value} />;
     }
     return (
-      <code className="bg-white/[0.1] text-[#ffd866] px-1.5 py-[2px] text-[13px] font-mono font-normal" {...props}>
+      <code className="bg-white/[0.1] text-[#9bd4fb] px-1.5 py-[2px] text-[13px] font-mono font-normal" {...props}>
         {children}
       </code>
     );

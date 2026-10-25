@@ -19,6 +19,7 @@ import type { FileRef } from "./chat/fileKind";
 import { fileLines } from "./chat/parse";
 import MessageView from "./chat/Message";
 import Composer from "./chat/Composer";
+import TypedText from "./TypedText";
 import QueuedMessages, { type QueuedItem } from "./chat/QueuedMessages";
 import { parseThinkingAndContent } from "./chat/parse";
 
@@ -579,6 +580,9 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  if (!isStreamingActiveRef.current || streamSeqRef.current !== mySeq) return;
 
  if (time - lastTickTime >= FRAME_MS) {
+ // A long gap between frames means the tab was in the background (rAF is paused there): show everything
+ // that arrived meanwhile at once instead of typing it out again.
+ const wasAway = lastTickTime > 0 && time - lastTickTime > 400;
  lastTickTime = time;
 
  const target = targetTextRef.current;
@@ -588,7 +592,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  const diff = target.length - current.length;
  // Smooth ease-out: reveal a fraction of the remaining backlog each frame, capped so it never dumps
  // a big chunk and never crawls. This gives the calm, even flow of Claude.ai rather than steppy bursts.
- const step = Math.max(2, Math.min(Math.ceil(diff * 0.14), 28));
+ const step = wasAway ? diff : Math.max(2, Math.min(Math.ceil(diff * 0.14), 28));
 
  const nextLen = Math.min(target.length, current.length + step);
  const nextText = target.slice(0, nextLen);
@@ -716,7 +720,13 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  networkDone = true;
 
  // Smoothly wait until displayed text finishes typing out all remaining characters
+ // (requestAnimationFrame does not run in a background tab, so there the text is shown at once —
+ // otherwise the reply would never "finish" and the tab favicon would never turn green.)
  while (isStreamingActiveRef.current && displayedTextRef.current.length < targetTextRef.current.length) {
+ if (document.hidden) {
+ displayedTextRef.current = targetTextRef.current;
+ break;
+ }
  await new Promise((resolve) => setTimeout(resolve, 20));
  }
 
@@ -1226,8 +1236,7 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  <div className="flex items-center justify-center gap-3.5 mb-8">
  <Image src="/logo-white.svg" alt="MR AI" width={34} height={34} className="shrink-0" />
  <h1 className="brand-font text-[22px] sm:text-[26px] leading-tight text-neutral-100">
- {greeting}
- {firstName ? `, ${firstName}` : ""}
+ <TypedText text={`${greeting}${firstName ? `, ${firstName}` : ""}`} />
  </h1>
  </div>
  {composer(true)}
@@ -1297,9 +1306,6 @@ export default function ChatApp({ initialChatId = null }: { initialChatId?: stri
  <div className="shrink-0 px-4 pb-3 pt-1 bg-gradient-to-t from-black via-black to-transparent">
  <div className={`${chatMax} mx-auto`}>
  {composer(false)}
- <p className="text-center text-[11.5px] text-neutral-600 mt-2">
- MR AI can make mistakes. Verify important information.
- </p>
  </div>
  </div>
  </>

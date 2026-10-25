@@ -319,7 +319,7 @@ export default function FilePanel({
   if (missing) {
     body = placeholder(
       <>
-        <TriangleAlert className="w-5 h-5 text-amber-400" />
+        <TriangleAlert className="w-5 h-5 text-neutral-300" />
         <span className="max-w-xs break-words">{missing}</span>
         <span className="text-[11px] text-neutral-600 break-all max-w-xs">{file.path}</span>
         <span className="text-[11px] text-neutral-600">Checking again automatically…</span>

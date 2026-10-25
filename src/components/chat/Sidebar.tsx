@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
-import { LogOut, PanelLeftClose, Pencil, Settings, SquarePen, Trash2, X } from "lucide-react";
+import { LogOut, MoreHorizontal, PanelLeftClose, Pencil, Settings, SquarePen, Trash2, X } from "lucide-react";
 import type { Chat } from "@/types";
 
 function groupChats(chats: Chat[]) {
@@ -57,6 +58,22 @@ export default function Sidebar({
  mobile?: boolean;
 }) {
  const groups = groupChats(chats);
+ // Row menu (⋯): position:fixed so the scrolling list never clips it.
+ const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+ useEffect(() => {
+   if (!menu) return;
+   const close = () => setMenu(null);
+   const onKey = (e: KeyboardEvent) => {
+     if (e.key === "Escape") close();
+   };
+   window.addEventListener("keydown", onKey);
+   window.addEventListener("resize", close);
+   return () => {
+     window.removeEventListener("keydown", onKey);
+     window.removeEventListener("resize", close);
+   };
+ }, [menu]);
+ const menuChat = menu ? chats.find((c) => c.id === menu.id) || null : null;
 
  return (
  <div className="flex flex-col h-full w-full bg-[#0a0a0a] border-r border-white/15">
@@ -123,32 +140,30 @@ export default function Sidebar({
  <span className="truncate flex-1">{chat.title}</span>
  )}
  {editingChatId !== chat.id && (
- <div
- className={`flex items-center shrink-0 transition-opacity ${
- mobile ? "opacity-100" : "opacity-0 group-hover:opacity-100"
- }`}
- >
- <button
- type="button"
- title="Rename"
- onClick={(e) => {
- e.stopPropagation();
- setEditingChatId(chat.id);
- setEditingTitle(chat.title);
- }}
- className="h-7 w-7 inline-flex items-center justify-center text-neutral-500 hover:text-white hover:bg-white/10 transition cursor-pointer"
- >
- <Pencil className="w-3.5 h-3.5" />
- </button>
- <button
- type="button"
- title="Delete"
- onClick={(e) => onDelete(chat.id, e)}
- className="h-7 w-7 inline-flex items-center justify-center text-neutral-500 hover:text-red-400 hover:bg-white/10 transition cursor-pointer"
- >
- <Trash2 className="w-3.5 h-3.5" />
- </button>
- </div>
+   <button
+     type="button"
+     title="More"
+     aria-label="Chat options"
+     aria-haspopup="menu"
+     onClick={(e) => {
+       e.stopPropagation();
+       if (menu?.id === chat.id) {
+         setMenu(null);
+         return;
+       }
+       const r = e.currentTarget.getBoundingClientRect();
+       const W = 144;
+       const H = 84;
+       const x = Math.max(8, Math.min(r.right - W, window.innerWidth - W - 8));
+       const y = r.bottom + 4 + H > window.innerHeight ? Math.max(8, r.top - 4 - H) : r.bottom + 4;
+       setMenu({ id: chat.id, x, y });
+     }}
+     className={`h-7 w-7 shrink-0 inline-flex items-center justify-center text-neutral-400 hover:text-white hover:bg-white/10 transition cursor-pointer ${
+       mobile || menu?.id === chat.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+     }`}
+   >
+     <MoreHorizontal className="w-4 h-4" />
+   </button>
  )}
  </div>
  ))}
@@ -181,6 +196,44 @@ export default function Sidebar({
  </button>
  </div>
  </div>
+      {menu && menuChat && (
+        <>
+          <div className="fixed inset-0 z-[60]" onMouseDown={() => setMenu(null)} onWheel={() => setMenu(null)} />
+          <div
+            role="menu"
+            style={{ left: menu.x, top: menu.y }}
+            className="fixed z-[61] w-36 bg-neutral-950 py-1 shadow-[0_16px_48px_rgba(0,0,0,0.75)]"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setEditingChatId(menuChat.id);
+                setEditingTitle(menuChat.title);
+                setMenu(null);
+              }}
+              className="w-full flex items-center gap-2.5 h-9 px-3 text-[13px] text-neutral-200 hover:bg-white/[0.09] transition cursor-pointer"
+            >
+              <Pencil className="w-3.5 h-3.5 text-neutral-400" />
+              Rename
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={(e) => {
+                const id = menuChat.id;
+                setMenu(null);
+                onDelete(id, e);
+              }}
+              className="w-full flex items-center gap-2.5 h-9 px-3 text-[13px] text-red-400 hover:bg-white/[0.09] transition cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete
+            </button>
+          </div>
+        </>
+      )}
+
  </div>
  );
 }

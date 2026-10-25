@@ -164,7 +164,7 @@ export default function LoginPage() {
                     type="button"
                     onClick={() => switchMode(m)}
                     className={`h-9 rounded-lg text-[13.5px] font-medium transition cursor-pointer ${
-                      mode === m ? "bg-white text-black" : "text-neutral-400 hover:text-white"
+                      mode === m ? "bg-[#4cb4f7] text-[#04121c]" : "text-neutral-400 hover:text-white"
                     }`}
                   >
                     {m === "signin" ? "Sign in" : "Sign up"}

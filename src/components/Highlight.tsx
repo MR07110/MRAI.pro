@@ -18,7 +18,7 @@ export default function Highlight({ text, query, className }: { text: string; qu
     <span className={className}>
       {parts.map((p, i) =>
         i % 2 === 1 ? (
-          <mark key={i} className="bg-yellow-300 text-black">
+          <mark key={i} className="bg-[#4cb4f7] text-[#04121c]">
             {p}
           </mark>
         ) : (

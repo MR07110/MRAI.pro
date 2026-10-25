@@ -12,9 +12,9 @@ const RANGES = [
 ];
 
 const SOURCE_META: Record<string, { label: string; bar: string }> = {
- chat: { label: "Chat", bar: "bg-neutral-300" },
+ chat: { label: "Chat", bar: "bg-[#4cb4f7]" },
  agent: { label: "Agent", bar: "bg-neutral-500" },
- task: { label: "Tasks", bar: "bg-amber-400" },
+ task: { label: "Tasks", bar: "bg-neutral-300" },
 };
 
 const nf = new Intl.NumberFormat("en-US");
@@ -54,8 +54,8 @@ function SplitBar({ input, output, scale = 100, h = "h-2" }: { input: number; ou
  return (
  <div className={`${h} w-full bg-white/[0.08] overflow-hidden`}>
  <div className="h-full flex transition-all duration-500" style={{ width: `${width}%` }}>
- <div className="h-full bg-white" style={{ width: `${pct(input, t)}%` }} />
- <div className="h-full bg-emerald-400" style={{ width: `${pct(output, t)}%` }} />
+ <div className="h-full bg-[#4cb4f7]" style={{ width: `${pct(input, t)}%` }} />
+ <div className="h-full bg-neutral-400" style={{ width: `${pct(output, t)}%` }} />
  </div>
  </div>
  );
@@ -122,7 +122,7 @@ export default function UsagePanel() {
  key={r.days}
  onClick={() => setDays(r.days)}
  className={`px-3 py-1.5 text-[11px] font-medium transition cursor-pointer ${
- days === r.days ? "bg-white text-black" : "text-neutral-400 hover:text-white"
+ days === r.days ? "bg-[#4cb4f7] text-[#04121c]" : "text-neutral-400 hover:text-white"
  }`}
  >
  {r.label}
@@ -208,11 +208,11 @@ export default function UsagePanel() {
  <SplitBar input={range.input} output={range.output} h="h-3" />
  <div className="flex items-center justify-between mt-2 text-[11px]">
  <span className="flex items-center gap-1.5 text-neutral-300">
- <Dot className="bg-white" /> Input <b className="tabular-nums">{compact(range.input)}</b>
+ <Dot className="bg-[#4cb4f7]" /> Input <b className="tabular-nums">{compact(range.input)}</b>
  <span className="text-neutral-500 tabular-nums">{pct(range.input, total).toFixed(0)}%</span>
  </span>
  <span className="flex items-center gap-1.5 text-neutral-300">
- <Dot className="bg-emerald-400" /> Output <b className="tabular-nums">{compact(range.output)}</b>
+ <Dot className="bg-neutral-400" /> Output <b className="tabular-nums">{compact(range.output)}</b>
  <span className="text-neutral-500 tabular-nums">{pct(range.output, total).toFixed(0)}%</span>
  </span>
  </div>
@@ -228,7 +228,7 @@ export default function UsagePanel() {
  <p className="text-[11px] text-neutral-500">{t.label}</p>
  <p className="text-lg font-semibold text-neutral-100 mt-0.5 tabular-nums">{compact(v)}</p>
  <div className="h-1 bg-white/[0.08] overflow-hidden mt-2">
- <div className="h-full bg-white/80 transition-all duration-500" style={{ width: `${v > 0 ? Math.max(3, pct(v, allTotal)) : 0}%` }} />
+ <div className="h-full bg-[#4cb4f7] transition-all duration-500" style={{ width: `${v > 0 ? Math.max(3, pct(v, allTotal)) : 0}%` }} />
  </div>
  <p className="text-[10px] text-neutral-600 mt-1.5 tabular-nums">{nf.format(t.b.calls)} requests</p>
  </div>
@@ -253,8 +253,8 @@ export default function UsagePanel() {
  >
  {t > 0 ? (
  <div className="flex flex-col justify-end rounded-t-sm overflow-hidden transition-all duration-500" style={{ height: `${Math.max(3, h)}%` }}>
- <div className="bg-emerald-400" style={{ height: `${pct(d.output, t)}%` }} />
- <div className="bg-white" style={{ height: `${pct(d.input, t)}%` }} />
+ <div className="bg-neutral-400" style={{ height: `${pct(d.output, t)}%` }} />
+ <div className="bg-[#4cb4f7]" style={{ height: `${pct(d.input, t)}%` }} />
  </div>
  ) : (
  <div className="h-[2px] bg-white/[0.08]" />

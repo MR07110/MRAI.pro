@@ -174,7 +174,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  </span>
  )}
  {status === "offline" && (
- <span className="inline-flex items-start gap-1.5 text-amber-400">
+ <span className="inline-flex items-start gap-1.5 text-neutral-300">
  <TriangleAlert className="w-3.5 h-3.5 mt-0.5 shrink-0" />
  <span>
  Could not verify key{error ? ` (${error})` : ""}.{" "}
@@ -183,7 +183,7 @@ export default function KeyEditor({ existing = null, compact = false, onDone, on
  </span>
  )}
  {paidOnly && provider && (
- <span className="inline-flex items-start gap-1.5 text-amber-400">
+ <span className="inline-flex items-start gap-1.5 text-neutral-300">
  <TriangleAlert className="w-3.5 h-3.5 mt-0.5 shrink-0" />
  <span>
  {shortProviderName(provider)} has no free models. Only free models work in this app: enter a Groq, Gemini, OpenRouter or Ollama key.

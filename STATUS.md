@@ -145,3 +145,9 @@
 - Qilindi: Sidebar: chat hoverida faqat ⋯ tugmasi, bosilsa Rename/Delete menyusi; API keys: New key tugmasi yuklanishdan oldin ham turadi. Commit/push qilinmagan.
 - Keyingi qadam: MR so'rasa main ga push
 - Git holati: f174e0c fix: body text back to regular weight; richer Markdown (rule-underlined headings, accent lists/quotes/links, striped tables, task lists); prompt asks for rich Markdown with sparing bold
+
+---
+### 2026-10-25 12:50
+- Qilindi: Slash skills mid-sentence ochiladi ( / dan oldin bo'shliq yoki boshida bo'lsa, masalan "salom /" yoki "text /cat"). Thinking SVG: javob kelishni boshlaganda PreparingIcon dan RespondingIcon (pulsing dots) ga o'tadi. tsc xatosiz.
+- Keyingi qadam: Git objects ruxsat muammosi tufayli push qilinmadi (ba'zi .git/objects/xx ron egaligida). ACL tuzatilgach main ga push qilish kerak.
+- Git holati: lokal commit yaratildi (bcdc0c5), lekin objectlar to'liq ko'chirilmadi, push muvaffaqiyatsiz.
