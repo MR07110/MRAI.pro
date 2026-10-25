@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { Row, SectionHead, Switch, ui } from "./ui";
 
@@ -24,6 +24,17 @@ export default function MemoryPanel() {
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState(""); // brief inline feedback: a failure, or "already saved"
+  const noteTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!note) return;
+    if (noteTimerRef.current) window.clearTimeout(noteTimerRef.current);
+    noteTimerRef.current = window.setTimeout(() => setNote(""), 4000);
+    return () => {
+      if (noteTimerRef.current) window.clearTimeout(noteTimerRef.current);
+    };
+  }, [note]);
 
   const apply = (m: { enabled?: boolean; items?: MemoryItem[] }) => {
     if (typeof m.enabled === "boolean") setEnabled(m.enabled);
@@ -34,32 +45,49 @@ export default function MemoryPanel() {
     (async () => {
       try {
         const r = await fetch("/api/memory", { cache: "no-store" });
-        apply(await r.json());
-      } catch {}
+        const j = await r.json();
+        if (r.ok) apply(j);
+        else setNote(j?.error || "Could not load memory.");
+      } catch {
+        setNote("Could not reach the server.");
+      }
       setLoading(false);
     })();
   }, []);
 
-  async function post(body: Record<string, unknown>) {
+  async function post(body: Record<string, unknown>): Promise<{ ok: boolean; added?: boolean }> {
     setBusy(true);
+    setNote("");
     try {
       const r = await fetch("/api/memory", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      apply(await r.json());
+      const j = await r.json();
+      if (!r.ok) {
+        setNote(j?.error || "Something went wrong.");
+        return { ok: false };
+      }
+      apply(j);
+      return { ok: true, added: j?.added };
     } catch {
+      setNote("Could not reach the server.");
+      return { ok: false };
     } finally {
       setBusy(false);
     }
   }
 
-  const toggle = (v: boolean) => {
+  const toggle = async (v: boolean) => {
     setEnabled(v); // optimistic
-    void post({ op: "toggle", enabled: v });
+    const r = await post({ op: "toggle", enabled: v });
+    if (!r.ok) setEnabled(!v); // revert on failure
   };
-  const add = () => {
+  const add = async () => {
     const t = draft.trim();
     if (!t) return;
-    setDraft("");
-    void post({ op: "add", text: t });
+    const r = await post({ op: "add", text: t });
+    // Only clear the input once it's actually confirmed saved — a failure or a duplicate leaves your
+    // text in place, with a reason shown, instead of it just silently vanishing.
+    if (r.ok && r.added) setDraft("");
+    else if (r.ok && !r.added) setNote("Already saved — that fact is already in memory.");
   };
 
   return (
@@ -97,6 +125,8 @@ export default function MemoryPanel() {
             <Plus className="w-3.5 h-3.5" /> Add
           </button>
         </div>
+
+        {note && <p className="mb-3 text-[12px] text-amber-400">{note}</p>}
 
         <div className="flex items-center justify-between mb-2">
           <span className="text-[11px] font-mono uppercase tracking-wide text-neutral-500">

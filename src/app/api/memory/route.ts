@@ -24,9 +24,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
   const op = String(body?.op || "");
+  // "add" can legitimately add nothing (empty text, or an exact duplicate already saved) — the client
+  // needs to tell that apart from a real failure, instead of it just silently looking like a no-op.
+  let added: boolean | undefined;
   switch (op) {
     case "add":
-      await addMemory(user, String(body?.text || ""));
+      added = !!(await addMemory(user, String(body?.text || "")));
       break;
     case "delete":
       await deleteMemory(user, String(body?.id || ""));
@@ -40,5 +43,6 @@ export async function POST(req: NextRequest) {
     default:
       return NextResponse.json({ error: "Unknown op" }, { status: 400 });
   }
-  return NextResponse.json(await getMemory(user), { headers: { "Cache-Control": "no-store" } });
+  const state = await getMemory(user);
+  return NextResponse.json(op === "add" ? { ...state, added } : state, { headers: { "Cache-Control": "no-store" } });
 }
