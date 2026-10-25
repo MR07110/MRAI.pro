@@ -6,8 +6,8 @@
 type Palette = { bg: string; fg: string; amberOn: string; amberOff: string; green: string };
 
 const PALETTES: Record<"dark" | "light", Palette> = {
-  dark: { bg: "#000000", fg: "#ffffff", amberOn: "#E3B341", amberOff: "#333333", green: "#3FB950" },
-  light: { bg: "#ffffff", fg: "#000000", amberOn: "#DBAB0A", amberOff: "#E0E0E0", green: "#1A7F37" },
+  dark: { bg: "none", fg: "#ffffff", amberOn: "#E3B341", amberOff: "#333333", green: "#3FB950" },
+  light: { bg: "none", fg: "#000000", amberOn: "#DBAB0A", amberOff: "#E0E0E0", green: "#1A7F37" },
 };
 
 export function prefersDark(): boolean {
@@ -19,7 +19,7 @@ function chipSvg(fg: string, bg: string, dot?: string): string {
   const dotRect = dot ? `<rect x="18" y="18" width="5" height="5" fill="${dot}"/>` : "";
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">` +
-    `<rect width="24" height="24" fill="${bg}"/>` +
+    (bg === "none" ? "" : `<rect width="24" height="24" fill="${bg}"/>`) +
     `<rect x="7" y="1" width="2" height="2" fill="${fg}"/>` +
     `<rect x="10" y="1" width="2" height="2" fill="${fg}"/>` +
     `<rect x="13" y="1" width="2" height="2" fill="${fg}"/>` +

@@ -1,19 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
   <style>
-    /* Default (and the fallback for browsers that ignore this): dark colors — a black chip with a
-       white outline/pins, which already reads well on a dark browser/tab theme. */
-    .mrai-icon-bg { fill: #000; }
+    /* Default (and the fallback for browsers that ignore this): dark colors — white outline/pins on a transparent
+       background, which reads well on a dark browser/tab theme. */
     .mrai-icon-fg { fill: #fff; }
     .mrai-icon-frame { stroke: #fff; }
-    /* Light browser/tab theme: invert so the icon stays legible — a white chip with a black outline/pins. */
+    /* Light browser/tab theme: invert so the icon stays legible — black outline/pins on a transparent background. */
     @media (prefers-color-scheme: light) {
-      .mrai-icon-bg { fill: #fff; }
       .mrai-icon-fg { fill: #000; }
       .mrai-icon-frame { stroke: #000; }
     }
   </style>
 
-  <rect width="24" height="24" class="mrai-icon-bg"/>
 
   <!-- top pins (4) -->
   <rect x="7" y="1" width="2" height="2" class="mrai-icon-fg"/>
